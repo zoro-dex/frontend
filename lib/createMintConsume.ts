@@ -1,13 +1,10 @@
+import { AccountStorageMode, WebClient } from "@demox-labs/miden-sdk";
+
 export async function createMintConsume(): Promise<void> {
   if (typeof window === "undefined") {
     console.warn("webClient() can only run in the browser");
     return;
   }
-
-  // dynamic import → only in the browser, so WASM is loaded client‑side
-  const { WebClient, AccountStorageMode } = await import(
-    "@demox-labs/miden-sdk"
-  );
 
   const nodeEndpoint = "https://rpc.testnet.miden.io:443";
   const client = await WebClient.createClient(nodeEndpoint);
