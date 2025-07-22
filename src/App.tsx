@@ -11,27 +11,27 @@ function App() {
     setIsCreatingNotes(false);
   };
 
-  return (
-    <>
-      <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-black text-slate-800 dark:text-slate-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-semibold mb-4">Miden Web App</h1>
-        <p className="mb-6">Open your browser console to see WebClient logs.</p>
+return (
+  <>
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-black text-slate-100 px-4 py-8">
+      <div className="text-center w-full max-w-xs sm:max-w-sm md:max-w-md">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold mb-6 sm:mb-8">
+          Zoro
+        </h1>
 
-        <div className="max-w-sm w-full bg-gray-800/20 border border-gray-600 rounded-2xl p-6 mx-auto flex flex-col gap-4">
+        <div className="w-full bg-gray-800/20 border border-gray-600 rounded-2xl p-4 sm:p-6 flex flex-col gap-4">
           <button
             onClick={handleCreateMintConsume}
-            className="w-full px-6 py-3 text-lg cursor-pointer bg-transparent border-2 border-orange-600 text-white rounded-lg transition-all hover:bg-orange-600 hover:text-white"
+            className="w-full px-4 py-3 sm:px-6 sm:py-3 text-base sm:text-lg cursor-pointer bg-transparent border-2 border-orange-600 text-white rounded-lg transition-all duration-200 hover:bg-orange-600 hover:text-white active:scale-95 focus:outline-none focus:ring-2 focus:ring-orange-600 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isCreatingNotes}
           >
-            {isCreatingNotes
-              ? "Working..."
-              : "Tutorial #1: Create, Mint, Consume Notes"}
+            {isCreatingNotes ? "Working..." : "Create 1st pool"}
           </button>
         </div>
       </div>
     </main>
-    </>
-  )
+  </>
+)
 }
 
 export default App

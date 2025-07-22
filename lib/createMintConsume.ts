@@ -14,9 +14,21 @@ export async function createMintConsume(): Promise<void> {
   console.log("Latest block number:", state.blockNum());
 
   // 2. Create Alice’s account
-  console.log("Creating account for Alice…");
-  const alice = await client.newWallet(AccountStorageMode.public(), true);
-  console.log("Alice ID:", alice.id().toString());
+  console.log("Creating account for first pool…");
+  const firstPool = await client.newWallet(AccountStorageMode.public(), true);
+  console.log("First pool ID:", firstPool.id().toString());
+
+ // 3. Deploy faucet
+  console.log("Creating faucet…");
+  const faucet = await client.newFaucet(
+    AccountStorageMode.public(),
+    false,
+    "MID",
+    8,
+    BigInt(1_000_000),
+  );
+  console.log("Faucet ID:", faucet.id().toString());
 
   await client.syncState();
+  console.log("Setup complete.");
 }
