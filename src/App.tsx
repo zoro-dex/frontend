@@ -1,36 +1,129 @@
 import { useState } from "react";
-import { createMintConsume } from "../lib/createMintConsume";
+import { ArrowUpDown, Settings, ChevronDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { ModeToggle } from "@/components/mode-toggle";
+
+type TabType = "Market" | "Limit";
 
 function App() {
-  const [isCreatingNotes, setIsCreatingNotes] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>("Market");
+  const [sellAmount, setSellAmount] = useState<string>("");
+  const [buyAmount, setBuyAmount] = useState<string>("");
 
-  const handleCreateMintConsume = async () => {
-    setIsCreatingNotes(true);
-    await createMintConsume();
-    setIsCreatingNotes(false);
+  const tabs: TabType[] = ["Market", "Limit"];
+
+  const handleTabChange = (tab: TabType): void => {
+    setActiveTab(tab);
   };
 
-return (
-  <>
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-black text-slate-100 px-4 py-8">
-      <div className="text-center w-full max-w-xs sm:max-w-sm md:max-w-md">
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold mb-6 sm:mb-8">
-          Zoro
-        </h1>
+  const handleSellAmountChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+    setSellAmount(e.target.value);
+  };
 
-        <div className="w-full bg-gray-800/20 border border-gray-600 rounded-2xl p-4 sm:p-6 flex flex-col gap-4">
-          <button
-            onClick={handleCreateMintConsume}
-            className="w-full px-4 py-3 sm:px-6 sm:py-3 text-base sm:text-lg cursor-pointer bg-transparent border-2 border-orange-600 text-white rounded-lg transition-all duration-200 hover:bg-orange-600 hover:text-white active:scale-95 focus:outline-none focus:ring-2 focus:ring-orange-600 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isCreatingNotes}
-          >
-            {isCreatingNotes ? "Working..." : "Add Liquidity"}
-          </button>
+  const handleBuyAmountChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+    setBuyAmount(e.target.value);
+  };
+
+  return (
+    <main className="min-h-screen bg-background text-foreground flex items-center justify-center p-3 sm:p-4">
+      <div className="w-full max-w-sm sm:max-w-md">
+        {/* Header Tabs */}
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <div className="flex bg-muted rounded-full p-0.5 sm:p-1">
+            {tabs.map((tab) => (
+              <Button
+                key={tab}
+                variant={activeTab === tab ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => handleTabChange(tab)}
+                className={`rounded-full text-xs sm:text-sm font-medium px-3 sm:px-4 py-1.5 sm:py-2 ${
+                  activeTab === tab
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {tab}
+              </Button>
+            ))}
+          </div>
+          <ModeToggle />
         </div>
+
+        {/* Swap Interface */}
+        <Card className="border rounded-xl sm:rounded-2xl">
+          <CardContent className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+            {/* Sell Section */}
+            <div className="space-y-2">
+              <div className="text-xs sm:text-sm text-muted-foreground">Sell</div>
+              <Card className="bg-muted border-none">
+                <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <Input
+                      type="text"
+                      value={sellAmount}
+                      onChange={handleSellAmountChange}
+                      placeholder="0"
+                      className="bg-transparent border-none text-2xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0"
+                    />
+                    <Button 
+                      variant="default"
+                      className="flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm"
+                    >
+                      <div className="w-4 h-4 sm:w-6 sm:h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">Ξ</span>
+                      </div>
+                      <span className="font-medium">ETH</span>
+                      <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4" />
+                    </Button>
+                  </div>
+                  <div className="text-xs sm:text-sm text-muted-foreground">$0</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Swap Arrow */}
+            <div className="flex justify-center -my-1">
+              <Button variant="outline" size="icon" className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-muted border">
+                <ArrowUpDown className="w-3 h-3 sm:w-4 sm:h-4" />
+              </Button>
+            </div>
+
+            {/* Buy Section */}
+            <div className="space-y-2">
+              <div className="text-xs sm:text-sm text-muted-foreground">Buy</div>
+              <Card className="bg-muted border-none">
+                <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <Input
+                      type="text"
+                      value={buyAmount}
+                      onChange={handleBuyAmountChange}
+                      placeholder="0"
+                      className="bg-transparent border-none text-2xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0"
+                    />
+                    <Button 
+                      variant="default"
+                      className="px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm"
+                    >
+                      Select token
+                      <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:ml-2" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Connect Wallet Button */}
+            <Button className="w-full py-3 sm:py-4 rounded-xl font-medium text-sm sm:text-lg mt-4 sm:mt-6">
+              Connect wallet
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </main>
-  </>
-)
+  );
 }
 
-export default App
+export default App;
