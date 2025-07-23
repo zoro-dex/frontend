@@ -25,7 +25,7 @@ return (
             className="w-full px-4 py-3 sm:px-6 sm:py-3 text-base sm:text-lg cursor-pointer bg-transparent border-2 border-orange-600 text-white rounded-lg transition-all duration-200 hover:bg-orange-600 hover:text-white active:scale-95 focus:outline-none focus:ring-2 focus:ring-orange-600 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isCreatingNotes}
           >
-            {isCreatingNotes ? "Working..." : "Create 1st pool"}
+            {isCreatingNotes ? "Working..." : "Add Liquidity"}
           </button>
         </div>
       </div>
