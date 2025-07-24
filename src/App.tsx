@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { ArrowUpDown, Settings, ChevronDown } from "lucide-react";
+import { ArrowUpDown, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ModeToggle } from "@/components/mode-toggle";
+import { useWallet } from '@demox-labs/miden-wallet-adapter-react';
+import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter-reactui';
 
 type TabType = "Market" | "Limit";
 
@@ -11,6 +13,8 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabType>("Market");
   const [sellAmount, setSellAmount] = useState<string>("");
   const [buyAmount, setBuyAmount] = useState<string>("");
+  
+  const { connected, connecting, publicKey } = useWallet();
 
   const tabs: TabType[] = ["Market", "Limit"];
 
@@ -24,6 +28,16 @@ function App() {
 
   const handleBuyAmountChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     setBuyAmount(e.target.value);
+  };
+
+  const handleSwap = async () => {
+    if (!connected) {
+      console.log("Wallet not connected");
+      return;
+    }
+    
+    // Add your swap logic here using the Miden SDK
+    console.log("Executing swap:", { sellAmount, buyAmount });
   };
 
   return (
@@ -51,6 +65,16 @@ function App() {
           <ModeToggle />
         </div>
 
+        {/* Wallet Status */}
+        {connected && publicKey && (
+          <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+            <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-300">
+              <Wallet className="w-4 h-4" />
+              <span>Connected: {publicKey.toString().slice(0, 8)}...{publicKey.toString().slice(-8)}</span>
+            </div>
+          </div>
+        )}
+
         {/* Swap Interface */}
         <Card className="border rounded-xl sm:rounded-2xl">
           <CardContent className="p-3 sm:p-4 space-y-3 sm:space-y-4">
@@ -65,7 +89,7 @@ function App() {
                       value={sellAmount}
                       onChange={handleSellAmountChange}
                       placeholder="0"
-                      className="!bg-transparent border-none text-2xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner"
+                      className="border-none text-2xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner"
                     />
                     <Button 
                       variant="outline"
@@ -88,7 +112,7 @@ function App() {
             {/* Buy Section */}
             <div className="space-y-2">
               <div className="text-xs sm:text-sm text-muted-foreground">Buy</div>
-              <Card className="bg-muted bg-gradient-to-b from-muted/10 from-10% to-muted/30 to-50% border-none">
+              <Card className="bg-gradient-to-b from-muted/10 from-10% to-muted/30 to-50% border-none">
                 <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <Input
@@ -96,22 +120,34 @@ function App() {
                       value={buyAmount}
                       onChange={handleBuyAmountChange}
                       placeholder="0"
-                      className="!bg-transparent border-none text-2xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner"
+                      className="border-none text-2xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner"
                     />
                     <Button 
                       variant="outline"
                       className="rounded-full px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm"
                     >
-                      MID
+                      MIDEN
                     </Button>
                   </div>
                 </CardContent>
               </Card>
             </div>
+
             {/* Connect Wallet Button */}
-            <Button variant="ghost" className="w-full py-3 sm:py-4 rounded-xl font-medium text-sm sm:text-lg mt-4 sm:mt-6">
-              Connect wallet
-            </Button>
+            {!connected ? (
+              <WalletMultiButton className="!w-full !py-3 sm:!py-4 !rounded-xl !font-medium !text-sm sm:!text-lg !mt-4 sm:!mt-6 !bg-transparent !border-none !text-muted-foreground hover:!text-foreground">
+                Connect wallet
+              </WalletMultiButton>
+            ) : (
+              <Button 
+                onClick={handleSwap}
+                disabled={!sellAmount || !buyAmount || connecting}
+                variant="ghost"
+                className="w-full py-3 sm:py-4 rounded-xl font-medium text-sm sm:text-lg mt-4 sm:mt-6"
+              >
+                {connecting ? "Connecting..." : "Swap"}
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
