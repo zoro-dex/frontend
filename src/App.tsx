@@ -57,28 +57,23 @@ function App() {
             {/* Sell Section */}
             <div className="space-y-2">
               <div className="text-xs sm:text-sm text-muted-foreground">Sell</div>
-              <Card className="bg-muted border-none">
+              <Card className="bg-gradient-to-b from-muted/10 from-10% to-muted/30 to-50% border-none">
                 <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <Input
-                      type="text"
+                      type="number"
                       value={sellAmount}
                       onChange={handleSellAmountChange}
                       placeholder="0"
-                      className="bg-transparent border-none text-2xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0"
+                      className="!bg-transparent border-none text-2xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner"
                     />
                     <Button 
-                      variant="default"
-                      className="flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm"
+                      variant="outline"
+                      className="rounded-full flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm"
                     >
-                      <div className="w-4 h-4 sm:w-6 sm:h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                        <span className="text-white text-xs font-bold">Ξ</span>
-                      </div>
                       <span className="font-medium">ETH</span>
-                      <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4" />
                     </Button>
                   </div>
-                  <div className="text-xs sm:text-sm text-muted-foreground">$0</div>
                 </CardContent>
               </Card>
             </div>
@@ -93,30 +88,28 @@ function App() {
             {/* Buy Section */}
             <div className="space-y-2">
               <div className="text-xs sm:text-sm text-muted-foreground">Buy</div>
-              <Card className="bg-muted border-none">
+              <Card className="bg-muted bg-gradient-to-b from-muted/10 from-10% to-muted/30 to-50% border-none">
                 <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <Input
-                      type="text"
+                      type="number"
                       value={buyAmount}
                       onChange={handleBuyAmountChange}
                       placeholder="0"
-                      className="bg-transparent border-none text-2xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0"
+                      className="!bg-transparent border-none text-2xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner"
                     />
                     <Button 
-                      variant="default"
-                      className="px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm"
+                      variant="outline"
+                      className="rounded-full px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm"
                     >
-                      Select token
-                      <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:ml-2" />
+                      USDC
                     </Button>
                   </div>
                 </CardContent>
               </Card>
             </div>
-
             {/* Connect Wallet Button */}
-            <Button className="w-full py-3 sm:py-4 rounded-xl font-medium text-sm sm:text-lg mt-4 sm:mt-6">
+            <Button variant="ghost" className="w-full py-3 sm:py-4 rounded-xl font-medium text-sm sm:text-lg mt-4 sm:mt-6">
               Connect wallet
             </Button>
           </CardContent>
