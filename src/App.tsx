@@ -71,7 +71,7 @@ function App() {
                       variant="outline"
                       className="rounded-full flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm"
                     >
-                      <span className="font-medium">ETH</span>
+                      <span className="font-medium">USDC</span>
                     </Button>
                   </div>
                 </CardContent>
@@ -102,7 +102,7 @@ function App() {
                       variant="outline"
                       className="rounded-full px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm"
                     >
-                      USDC
+                      MID
                     </Button>
                   </div>
                 </CardContent>
