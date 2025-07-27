@@ -5,7 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Header } from "@/components/Header";
 import { ModeToggle } from "@/components/mode-toggle";
-import { useWallet } from '@demox-labs/miden-wallet-adapter-react';
+import { useWallet } from "@demox-labs/miden-wallet-adapter-react";
+import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter-reactui';
 
 type TabType = "Market" | "Limit";
 
@@ -13,8 +14,22 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabType>("Market");
   const [sellAmount, setSellAmount] = useState<string>("");
   const [buyAmount, setBuyAmount] = useState<string>("");
+  const [sellToken, setSellToken] = useState<string>("USDC");
+  const [buyToken, setBuyToken] = useState<string>("MIDEN");
   
   const { connected, connecting } = useWallet();
+
+  const handleSwapTokens = () => {
+    // Swap the tokens
+    const tempToken = sellToken;
+    setSellToken(buyToken);
+    setBuyToken(tempToken);
+    
+    // Optionally, also swap the amounts
+    const tempAmount = sellAmount;
+    setSellAmount(buyAmount);
+    setBuyAmount(tempAmount);
+  };
 
   const handleSwap = async () => {
     if (!connected) {
@@ -23,7 +38,12 @@ function App() {
     }
     
     // Add swap logic here using the Miden SDK
-    console.log("Executing swap:", { sellAmount, buyAmount });
+    console.log("Executing swap:", { 
+      sellToken, 
+      sellAmount, 
+      buyToken, 
+      buyAmount 
+    });
   };
 
   return (
@@ -74,7 +94,7 @@ function App() {
                       variant="outline"
                       className="rounded-full flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm"
                     >
-                      <span className="font-medium">USDC</span>
+                      <span className="font-medium">{sellToken}</span>
                     </Button>
                   </div>
                 </CardContent>
@@ -83,7 +103,12 @@ function App() {
 
             {/* Swap Arrow */}
             <div className="flex justify-center -my-1">
-              <Button variant="outline" size="icon" className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-muted border">
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-muted border"
+                onClick={handleSwapTokens}
+              >
                 <ArrowUpDown className="w-3 h-3 sm:w-4 sm:h-4" />
               </Button>
             </div>
@@ -105,7 +130,7 @@ function App() {
                       variant="outline"
                       className="rounded-full px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm"
                     >
-                      MIDEN
+                      {buyToken}
                     </Button>
                   </div>
                 </CardContent>
@@ -113,7 +138,7 @@ function App() {
             </div>
 
             {/* Swap Button - only show if connected */}
-            {connected && (
+            {connected ? (
               <Button 
                 onClick={handleSwap}
                 disabled={!sellAmount || !buyAmount || connecting}
@@ -122,6 +147,13 @@ function App() {
               >
                 {connecting ? "Connecting..." : "Swap"}
               </Button>
+            ) : (
+              <WalletMultiButton 
+                disabled={connecting}
+                className="!w-full !py-3 sm:!py-4 !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-muted-foreground hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center !mt-4 sm:!mt-6"
+              >
+                {connecting ? "Connecting..." : "Connect Wallet"}
+              </WalletMultiButton>
             )}
           </CardContent>
         </Card>
