@@ -138,23 +138,26 @@ function App() {
             </div>
 
             {/* Swap Button - only show if connected */}
-            {connected ? (
-              <Button 
-                onClick={handleSwap}
-                disabled={!sellAmount || !buyAmount || connecting}
-                variant="ghost"
-                className="w-full py-3 sm:py-4 rounded-xl font-medium text-sm sm:text-lg mt-4 sm:mt-6"
-              >
-                {connecting ? "Connecting..." : "Swap"}
-              </Button>
-            ) : (
-              <WalletMultiButton 
-                disabled={connecting}
-                className="!w-full !py-3 sm:!py-4 !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-muted-foreground hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center !mt-4 sm:!mt-6"
-              >
-                {connecting ? "Connecting..." : "Connect Wallet"}
-              </WalletMultiButton>
-            )}
+            <div className="w-full h-12 sm:h-16 mt-4 sm:mt-6">
+              {connected ? (
+                <button 
+                  onClick={handleSwap}
+                  disabled={!sellAmount || !buyAmount || connecting}
+                  className="w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+                >
+                  {connecting ? "Connecting..." : "Swap"}
+                </button>
+              ) : (
+                <div className="w-full h-full">
+                  <WalletMultiButton 
+                    disabled={connecting}
+                    className="!w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-muted-foreground hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center !border-none !p-0"
+                  >
+                    {connecting ? "Connecting..." : "Connect Wallet"}
+                  </WalletMultiButton>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
