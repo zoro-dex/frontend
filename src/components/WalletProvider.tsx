@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { WalletProvider } from '@demox-labs/miden-wallet-adapter-react';
-import { MidenWalletAdapter } from '@demox-labs/miden-wallet-adapter-miden';
 import { WalletModalProvider } from '@demox-labs/miden-wallet-adapter-reactui';
 import { WalletError } from '@demox-labs/miden-wallet-adapter-base';
 import '@demox-labs/miden-wallet-adapter-reactui/styles.css';
