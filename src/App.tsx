@@ -14,8 +14,8 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabType>("Market");
   const [sellAmount, setSellAmount] = useState<string>("");
   const [buyAmount, setBuyAmount] = useState<string>("");
-  const [sellToken, setSellToken] = useState<string>("USDC");
-  const [buyToken, setBuyToken] = useState<string>("MIDEN");
+  const [sellToken, setSellToken] = useState<string>("BTC");
+  const [buyToken, setBuyToken] = useState<string>("ETH");
   
   const { connected, connecting } = useWallet();
 

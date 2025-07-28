@@ -5,11 +5,16 @@ export function Header() {
   return (
     <div className="flex items-center justify-between p-3 sm:p-4">
       {/* Left */}
-      <div className="flex items-center">
+      <div className="flex items-center gap-1">
         <img 
-          src="/whitehatmini.png" 
-          alt="Zoro Logo" 
-          className="h-8 w-auto"
+          src="/blackhatmini.png" 
+          alt="Zoro Hat" 
+          className="h-12 w-auto mirror-x"
+        />
+        <img 
+          src="/logotype.png" 
+          alt="Zoro Logotype" 
+          className="h-4 w-auto"
         />
       </div>
 
