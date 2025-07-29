@@ -37,13 +37,6 @@ const PriceFetcher: React.FC<PriceFetcherProps> = ({ shouldFetch, assetIds }) =>
     
     refreshPrices(assetIds);
     
-    const interval = setInterval(() => {
-      refreshPrices(assetIds, true); // Force refresh every time
-    }, 10000);
-    
-    return () => {
-      clearInterval(interval);
-    };
   }, [shouldFetch, refreshPrices, assetIds]);
   
   return null;
@@ -113,8 +106,8 @@ function AppContent() {
       return;
     }
     
-    // Fetch latest prices instantly before executing swap
-    await refreshPrices(assetIds, true); // Force refresh with latest prices
+    // Fetch latest prices before executing swap
+    await refreshPrices(assetIds, true);
     
     // Add swap logic here
     console.log("Executing swap:", { 
