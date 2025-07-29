@@ -140,13 +140,14 @@ function App() {
             {/* Swap Button - only show if connected */}
             <div className="w-full h-12 sm:h-16 mt-4 sm:mt-6">
               {connected ? (
-                <button 
+                <Button 
                   onClick={handleSwap}
                   disabled={!sellAmount || !buyAmount || connecting}
+                  variant="outline"
                   className="w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
                 >
                   {connecting ? "Connecting..." : "Swap"}
-                </button>
+                </Button>
               ) : (
                 <div className="w-full h-full">
                   <WalletMultiButton 

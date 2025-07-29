@@ -16,7 +16,7 @@ export function Header() {
         <img 
           src="/logotype.png" 
           alt="Zoro Logotype" 
-          className={`h-4 w-auto ${theme === 'light' ? 'invert' : ''}`}
+          className={`h-4 w-auto hidden lg:block ${theme === 'light' ? 'invert' : ''}`}
         />
       </div>
 
