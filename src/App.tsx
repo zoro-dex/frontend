@@ -24,12 +24,17 @@ const TOKENS = {
   }
 };
 
-const PriceFetcher = () => {
+interface PriceFetcherProps {
+  shouldFetch: boolean;
+  assetIds: string[];
+}
+
+const PriceFetcher: React.FC<PriceFetcherProps> = ({ shouldFetch, assetIds }) => {
   const { refreshPrices } = useContext(NablaAntennaContext);
-  const assetIds = Object.values(TOKENS).map(token => token.priceId);
   
   useEffect(() => {
-    console.log('🔄 Starting price fetcher...');
+    if (!shouldFetch) return;
+    
     refreshPrices(assetIds);
     
     const interval = setInterval(() => {
@@ -37,10 +42,9 @@ const PriceFetcher = () => {
     }, 10000);
     
     return () => {
-      console.log('🛑 Price fetcher stopped');
       clearInterval(interval);
     };
-  }, [refreshPrices]);
+  }, [shouldFetch, refreshPrices, assetIds]);
   
   return null;
 };
@@ -52,9 +56,12 @@ function AppContent() {
   const [sellToken, setSellToken] = useState<string>("BTC");
   const [buyToken, setBuyToken] = useState<string>("ETH");
   const [isCalculating, setIsCalculating] = useState(false);
+  const [shouldFetchPrices, setShouldFetchPrices] = useState(false);
   
   const { connected, connecting } = useWallet();
+  const { refreshPrices } = useContext(NablaAntennaContext);
   
+  const assetIds = Object.values(TOKENS).map(token => token.priceId);
   const priceIds = [TOKENS[sellToken as keyof typeof TOKENS]?.priceId, TOKENS[buyToken as keyof typeof TOKENS]?.priceId].filter(Boolean);
   const prices = useNablaAntennaPrices(priceIds);
   
@@ -85,6 +92,12 @@ function AppContent() {
     }
   };
 
+  const handleSellInputClick = () => {
+    if (!shouldFetchPrices) {
+      setShouldFetchPrices(true);
+    }
+  };
+
   const handleSwapTokens = () => {
     setIsCalculating(true);
     
@@ -99,6 +112,9 @@ function AppContent() {
     if (!connected) {
       return;
     }
+    
+    // Fetch latest prices instantly before executing swap
+    await refreshPrices(assetIds, true); // Force refresh with latest prices
     
     // Add swap logic here
     console.log("Executing swap:", { 
@@ -116,7 +132,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <PriceFetcher />
+      <PriceFetcher shouldFetch={shouldFetchPrices} assetIds={assetIds} />
       <Header />
       
       <main className="flex-1 flex items-center justify-center p-3 sm:p-4 -mt-20">
@@ -153,6 +169,7 @@ function AppContent() {
                         type="number"
                         value={sellAmount}
                         onChange={(e) => handleSellAmountChange(e.target.value)}
+                        onClick={handleSellInputClick}
                         placeholder="0"
                         className="border-none text-2xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner"
                       />
@@ -160,7 +177,7 @@ function AppContent() {
                         variant="outline"
                         size="sm"
                         disabled
-                        className="rounded-full px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-background cursor-default"
+                        className="rounded-full px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-background cursor-default hover:bg-background"
                       >
                         {sellToken}
                       </Button>
@@ -213,8 +230,7 @@ function AppContent() {
                     variant="outline"
                     className="w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
                   >
-                    {connecting ? "Connecting..." : 
-                     !sellPrice || !buyPrice ? "Loading prices..." : 
+                    {connecting ? "Connecting..." :
                      "Swap"}
                   </Button>
                 ) : (
