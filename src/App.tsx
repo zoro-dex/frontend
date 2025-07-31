@@ -9,7 +9,7 @@ import { useWallet } from "@demox-labs/miden-wallet-adapter-react";
 import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter-reactui';
 import { NablaAntennaProvider, useNablaAntennaPrices, NablaAntennaContext } from './components/PriceFetcher';
 
-type TabType = "Market" | "Limit";
+type TabType = "Swap" | "Limit";
 
 const TOKENS = {
   BTC: {
@@ -43,7 +43,7 @@ const PriceFetcher: React.FC<PriceFetcherProps> = ({ shouldFetch, assetIds }) =>
 };
 
 function AppContent() {
-  const [activeTab, setActiveTab] = useState<TabType>("Market");
+  const [activeTab, setActiveTab] = useState<TabType>("Swap");
   const [sellAmount, setSellAmount] = useState<string>("");
   const [buyAmount, setBuyAmount] = useState<string>("");
   const [sellToken, setSellToken] = useState<string>("BTC");
@@ -138,7 +138,7 @@ function AppContent() {
         <div className="w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex bg-muted rounded-full p-0.5 sm:p-1">
-              {["Market", "Limit"].map((tab) => (
+              {["Swap", "Limit"].map((tab) => (
                 <Button
                   key={tab}
                   variant={activeTab === tab ? "secondary" : "ghost"}
@@ -203,7 +203,7 @@ function AppContent() {
               </div>
 
               <div className="space-y-2">
-                <div className="text-xs sm:text-sm text-muted-foreground">Buy</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Get</div>
                 <Card className="bg-gradient-to-b from-muted/10 from-10% to-muted/30 to-50% border-none">
                   <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
                     <div className="flex items-center justify-between gap-2">
