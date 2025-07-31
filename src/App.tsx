@@ -85,7 +85,14 @@ function AppContent() {
     }
   };
 
-  const handleSellInputClick = () => {
+  const handleBuyAmountChange = (value: string) => {
+    setBuyAmount(value);
+    if (!value) {
+      setBuyAmount("");
+    }
+  };
+
+  const fetchPrices = () => {
     if (!shouldFetchPrices) {
       setShouldFetchPrices(true);
     }
@@ -94,9 +101,8 @@ function AppContent() {
   const handleSwapTokens = () => {
     setIsCalculating(true);
     
-    const tempToken = sellToken;
     setSellToken(buyToken);
-    setBuyToken(tempToken);
+    setBuyToken(sellToken);
     
     setTimeout(() => setIsCalculating(false), 100);
   };
@@ -154,7 +160,7 @@ function AppContent() {
           <Card className="border rounded-xl sm:rounded-2xl">
             <CardContent className="p-3 sm:p-4 space-y-3 sm:space-y-4">
               <div className="space-y-2">
-                <div className="text-xs sm:text-sm text-muted-foreground">Sell</div>
+                <div className="text-xs sm:text-sm">Sell</div>
                 <Card className="bg-gradient-to-b from-muted/10 from-10% to-muted/30 to-50% border-none">
                   <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
                     <div className="flex items-center justify-between gap-2">
@@ -162,16 +168,22 @@ function AppContent() {
                         type="number"
                         value={sellAmount}
                         onChange={(e) => handleSellAmountChange(e.target.value)}
-                        onClick={handleSellInputClick}
+                        onClick={fetchPrices}
                         placeholder="0"
                         className="border-none text-2xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner"
                       />
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled
-                        className="rounded-full px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-background cursor-default hover:bg-background"
+                        className="border-b-0 border-l-0 rounded-full  pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background"
                       >
+                        <img 
+                          src={sellToken + ".svg"} 
+                          alt="sell token logo" 
+                          className={`w-8 h-8 -ml-2 ${
+                            sellToken === 'ETH' ? 'dark:invert' : ''
+                          }`} 
+                        />
                         {sellToken}
                       </Button>
                     </div>
@@ -183,7 +195,7 @@ function AppContent() {
                 <Button 
                   variant="outline" 
                   size="icon" 
-                  className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-muted border"
+                  className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border dark:bg-black bg-white dark:text-white text-black hover:text-black dark:hover:bg-gray-500/10 hover:bg-gray-500/10 dark:hover:text-white"
                   onClick={handleSwapTokens}
                 >
                   <ArrowUpDown className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -198,7 +210,8 @@ function AppContent() {
                       <Input
                         type="number"
                         value={buyAmount}
-                        readOnly
+                        onChange={(e) => handleBuyAmountChange(e.target.value)}
+                        onClick={fetchPrices}
                         placeholder="0"
                         className="border-none text-2xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner bg-transparent"
                       />
@@ -206,8 +219,16 @@ function AppContent() {
                         variant="outline"
                         size="sm"
                         disabled
-                        className="rounded-full px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm bg-background cursor-default"
-                      >
+                        className="border-b-0 border-l-0 rounded-full  pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background"
+                      > 
+                        <img 
+                          src={buyToken + ".svg"} 
+                          alt="buy token logo" 
+                          className={`w-8 h-8 -ml-2 ${
+                            buyToken === 'ETH' ? 'dark:invert' : ''
+                          }`} 
+                        />
+
                         {buyToken}
                       </Button>
                     </div>
