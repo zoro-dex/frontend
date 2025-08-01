@@ -25,13 +25,13 @@ interface NablaAntennaResponse {
 }
 
 interface NablaAntennaContextProps {
-  refreshPrices: (ids: string[], force?: boolean) => void;
+  refreshPrices: (ids: string[], force?: boolean) => Promise<void>;
   prices: Record<string, { age: number; priceFeed: PriceData } | undefined>;
   getBinary: () => Promise<string[]>;
 }
 
 const NablaAntennaContext = createContext<NablaAntennaContextProps>({
-  refreshPrices: () => {},
+  refreshPrices: () => Promise.resolve(),
   prices: {},
   getBinary: () => Promise.resolve([]),
 });
@@ -126,7 +126,7 @@ export const NablaAntennaProvider = ({ children }: { children: React.ReactNode }
   }, [prices]);
 
   const refreshPrices = useCallback(
-    async (ids: string[], force?: boolean) => {
+    async (ids: string[], force?: boolean): Promise<void> => {
       if (isFetching.current) return;
       isFetching.current = true;
       
@@ -145,23 +145,25 @@ export const NablaAntennaProvider = ({ children }: { children: React.ReactNode }
         return;
       }
       
-      const resp = await fetchNablaAntennaPrices(want);
-      
-      if (resp) {
-        setBinary(resp.binary);
-        setPrices(prev => {
-          const updates: typeof prev = {};
-          for (const feed of Object.keys(resp.priceFeeds)) {
-            updates[feed] = {
-              age: now,
-              priceFeed: resp.priceFeeds[feed],
-            };
-          }
-          return { ...prev, ...updates };
-        });
+      try {
+        const resp = await fetchNablaAntennaPrices(want);
+        
+        if (resp) {
+          setBinary(resp.binary);
+          setPrices(prev => {
+            const updates: typeof prev = {};
+            for (const feed of Object.keys(resp.priceFeeds)) {
+              updates[feed] = {
+                age: now,
+                priceFeed: resp.priceFeeds[feed],
+              };
+            }
+            return { ...prev, ...updates };
+          });
+        }
+      } finally {
+        isFetching.current = false;
       }
-      
-      isFetching.current = false;
     },
     [],
   );
