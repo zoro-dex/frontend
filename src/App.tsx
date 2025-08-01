@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from "react";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { useWallet } from "@demox-labs/miden-wallet-adapter-react";
 import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter-reactui';
 import { NablaAntennaProvider, useNablaAntennaPrices, NablaAntennaContext } from './components/PriceFetcher';
+import { createMintConsume } from "../lib/createMintConsume";
 
 type TabType = "Swap" | "Limit";
 
@@ -50,6 +51,7 @@ function AppContent() {
   const [buyToken, setBuyToken] = useState<string>("ETH");
   const [isCalculating, setIsCalculating] = useState(false);
   const [shouldFetchPrices, setShouldFetchPrices] = useState(false);
+  const [isCreatingNotes, setIsCreatingNotes] = useState(false);
   
   const { connected, connecting } = useWallet();
   const { refreshPrices } = useContext(NablaAntennaContext);
@@ -98,7 +100,7 @@ function AppContent() {
     }
   };
 
-  const handleSwapTokens = () => {
+  const handleReplaceTokens = () => {
     setIsCalculating(true);
     
     setSellToken(buyToken);
@@ -114,14 +116,20 @@ function AppContent() {
     
     // Fetch latest prices before executing swap
     await refreshPrices(assetIds, true);
+
+    // Create notes
+    setIsCreatingNotes(true);
+    await createMintConsume();
     
-    // Add swap logic here
+    // Example swap logic here
     console.log("Executing swap:", { 
       sellToken, 
       sellAmount, 
       buyToken, 
       buyAmount 
     });
+
+    setIsCreatingNotes(false);
   };
 
   const sellTokenData = TOKENS[sellToken as keyof typeof TOKENS];
@@ -196,7 +204,7 @@ function AppContent() {
                   variant="outline" 
                   size="icon" 
                   className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border dark:bg-black bg-white dark:text-white text-black hover:text-black dark:hover:bg-gray-500/10 hover:bg-gray-500/10 dark:hover:text-white"
-                  onClick={handleSwapTokens}
+                  onClick={handleReplaceTokens}
                 >
                   <ArrowUpDown className="w-3 h-3 sm:w-4 sm:h-4" />
                 </Button>
@@ -240,12 +248,23 @@ function AppContent() {
                 {connected ? (
                   <Button 
                     onClick={handleSwap}
-                    disabled={!sellAmount || !buyAmount || connecting || !sellPrice || !buyPrice}
+                    disabled={!sellAmount || !buyAmount || connecting || !sellPrice || !buyPrice || isCreatingNotes}
                     variant="outline"
                     className="w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
                   >
-                    {connecting ? "Connecting..." :
-                     "Swap"}
+                    {connecting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Connecting...
+                      </>
+                    ) : isCreatingNotes ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Creating Notes...
+                      </>
+                    ) : (
+                      "Swap"
+                    )}
                   </Button>
                 ) : (
                   <div className="w-full h-full">
