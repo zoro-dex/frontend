@@ -8,7 +8,7 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { useWallet } from "@demox-labs/miden-wallet-adapter-react";
 import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter-reactui';
 import { NablaAntennaProvider, useNablaAntennaPrices, NablaAntennaContext } from './components/PriceFetcher';
-import { createMintConsume } from "../lib/createMintConsume";
+import { createAmmSwap } from "../lib/createMintConsume";
 
 type TabType = "Swap" | "Limit";
 
@@ -127,16 +127,14 @@ const handleSwap = async () => {
     console.log("Connected wallet:", wallet);
     console.log("Using account ID:", accountId);
 
-    // Call createMintConsume with optional account ID
-    await createMintConsume(accountId);
+    await createAmmSwap(
+      accountId, 
+      sellAmount,
+      buyAmount,
+      sellToken,
+      buyToken
+    );
     
-    // Example swap logic here
-    console.log("Executing swap:", { 
-      sellToken, 
-      sellAmount, 
-      buyToken, 
-      buyAmount 
-    });
   } catch (error) {
     console.error("Swap failed:", error);
   } finally {
