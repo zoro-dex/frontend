@@ -53,7 +53,7 @@ function AppContent() {
   const [shouldFetchPrices, setShouldFetchPrices] = useState(false);
   const [isCreatingNotes, setIsCreatingNotes] = useState(false);
   
-  const { connected, connecting } = useWallet();
+  const { connected, connecting, wallet } = useWallet();
   const { refreshPrices } = useContext(NablaAntennaContext);
   
   const assetIds = Object.values(TOKENS).map(token => token.priceId);
@@ -109,17 +109,26 @@ function AppContent() {
     setTimeout(() => setIsCalculating(false), 100);
   };
 
-  const handleSwap = async () => {
-    if (!connected) {
-      return;
-    }
-    
-    // Fetch latest prices before executing swap
-    await refreshPrices(assetIds, true);
+const handleSwap = async () => {
+  if (!connected) {
+    return;
+  }
+  
+  // Fetch latest prices before executing swap
+  await refreshPrices(assetIds, true);
 
-    // Create notes
-    setIsCreatingNotes(true);
-    await createMintConsume();
+  // Create notes using connected wallet
+  setIsCreatingNotes(true);
+  
+  try {
+    // Get the connected account ID from the wallet context
+    const accountId = wallet?.adapter.publicKey?.toString();
+    
+    console.log("Connected wallet:", wallet);
+    console.log("Using account ID:", accountId);
+
+    // Call createMintConsume with optional account ID
+    await createMintConsume(accountId);
     
     // Example swap logic here
     console.log("Executing swap:", { 
@@ -128,9 +137,12 @@ function AppContent() {
       buyToken, 
       buyAmount 
     });
-
+  } catch (error) {
+    console.error("Swap failed:", error);
+  } finally {
     setIsCreatingNotes(false);
-  };
+  }
+};
 
   const sellTokenData = TOKENS[sellToken as keyof typeof TOKENS];
   const buyTokenData = TOKENS[buyToken as keyof typeof TOKENS];
