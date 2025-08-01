@@ -7,8 +7,8 @@ export async function createAmmSwap(
   sellToken?: string, // Token being sold 
   buyToken?: string // Token being bought
 ): Promise<void> {
-    console.log("🚀 Starting AMM Swap with parameters:");
-    console.log("📊 Raw arguments received:", arguments);
+    console.log("Starting AMM Swap with parameters:");
+    console.log("Raw arguments received:", arguments);
     if (typeof window === "undefined") {
         console.warn("webClient() can only run in the browser");
         return;
@@ -25,7 +25,7 @@ export async function createAmmSwap(
     let targetAccountId: AccountId;
     
     if (connectedAccountId) {
-        console.log("👛 Using connected wallet account:", connectedAccountId);
+        console.log("Using connected wallet account:", connectedAccountId);
         try {
             targetAccountId = AccountId.fromBech32(connectedAccountId);
             // Create a separate transaction wallet because:
@@ -49,7 +49,7 @@ export async function createAmmSwap(
     // Parse frontend amounts - use actual values, no fallbacks
     if (!sellAmount || !buyAmount) {
         console.error("❌ Missing sellAmount or buyAmount - cannot proceed");
-        console.log("📊 Received values:", { sellAmount, buyAmount, sellToken, buyToken });
+        console.log("Received values:", { sellAmount, buyAmount, sellToken, buyToken });
         return;
     }
     
@@ -58,19 +58,19 @@ export async function createAmmSwap(
     
     if (isNaN(sellAmountNum) || isNaN(buyAmountNum) || sellAmountNum <= 0 || buyAmountNum <= 0) {
         console.error("❌ Invalid amounts - cannot proceed");
-        console.log("📊 Parsed values:", { sellAmountNum, buyAmountNum });
+        console.log("Parsed values:", { sellAmountNum, buyAmountNum });
         return;
     }
     
-    const sellAmountBaseUnits: number = Math.floor(sellAmountNum * 100_000_000); // Convert to base units (8 decimals)
-    const buyAmountBaseUnits: number = Math.floor(buyAmountNum * 100_000_000); // Convert to base units (8 decimals)
+    const sellAmountBaseUnits: number = Math.floor(sellAmountNum * 1000_000); // Convert to base units (6 decimals)
+    const buyAmountBaseUnits: number = Math.floor(buyAmountNum * 1000_000); // Convert to base units (6 decimals)
     
     console.log(`💱 Swap Details: ${sellAmountNum} ${sellToken} → ${buyAmountNum} ${buyToken}`);
     console.log(`🔢 Sell amount in base units: ${sellAmountBaseUnits} (${sellAmountNum} * 100,000,000)`);
     console.log(`🔢 Buy amount in base units: ${buyAmountBaseUnits} (${buyAmountNum} * 100,000,000)`);
 
     // 2. Create AMM Pools (BTC and ETH faucets)
-    // FOR SOME REASON POST-SWAP THE DECIMALS ARE OFF BY 2
+    // NEED TO REVISIT DECIMAL LOGIC
     console.log("\n🏊 Creating AMM Pools…");
     
     const btcPool = await client.newFaucet(
