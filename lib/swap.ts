@@ -19,7 +19,7 @@ export async function createAmmSwap(
 
     // 1. Sync and log block
     const state = await client.syncState();
-    console.log("🔗 Latest block number:", state.blockNum());    
+    console.log("🔗 Latest block number:", state.blockNum());
 
     let zoro: Account;
     let targetAccountId: AccountId;
@@ -67,8 +67,8 @@ export async function createAmmSwap(
     
     console.log(`💱 Swap Details: ${sellAmountNum} ${sellToken} → ${buyAmountNum} ${buyToken}`);
 
-    // 2. Create AMM Pools (BTC and ETH faucets)
-    console.log("\n🏊 Creating AMM Pools…");
+    // 2. Create AMM Pool (faucet)
+    console.log("\n🏊 Creating Pool…");
     
     const btcPool = await client.newFaucet(
         AccountStorageMode.public(),
@@ -89,17 +89,37 @@ export async function createAmmSwap(
     console.log("Ξ ETH Pool ID:", ethPool.id().toBech32());
 
     await client.syncState();
+
+    // 3. Step 1: Create P2ID Note to Pool 1
+    console.log(`\n💰 Step 1: Sending ${sellAmountNum} ${sellToken} to pool 1 for swap...`);
     
-    // 3. Step 1: Mint tokens to Zoro (simulate having tokens to swap)
-    console.log(`\n💰 Step 1: Minting ${sellAmountNum} ${sellToken} to transaction wallet for swap...`);
-    
-    const sellPoolId = sellToken === "BTC" ? btcPool.id() : ethPool.id();
-    const mintRequest = client.newMintTransactionRequest(
-        zoro.id(), // Mint to transaction wallet first
-        sellPoolId,
-        NoteType.Public,
-        BigInt(sellAmountBaseUnits),
-    );
+    async function createP2IDNote(
+        sender: AccountId,
+        receiver: AccountId,
+        faucet: AccountId,
+        amount: number,
+        noteType: NoteType
+        ) {
+        const { FungibleAsset, OutputNote, Note, NoteAssets, Word, Felt } =
+            await import("@demox-labs/miden-sdk");
+
+        return OutputNote.full(
+            Note.createP2IDNote(
+            sender,
+            receiver,
+            new NoteAssets([new FungibleAsset(faucet, BigInt(amount))]),
+            noteType,
+            // @todo: replace hardcoded values with values from UI
+            Word.newFromFelts([
+                new Felt(BigInt(1)),
+                new Felt(BigInt(2)),
+                new Felt(BigInt(3)),
+                new Felt(BigInt(4)),
+            ]),
+            new Felt(BigInt(0))
+            )
+        );
+        }
 
     const mintTx = await client.newTransaction(sellPoolId, mintRequest);
     console.log(`📤 ${buyToken} mint transaction created, submitting...`);
