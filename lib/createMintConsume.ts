@@ -1,14 +1,15 @@
 import { AccountStorageMode, WebClient, NoteType, AccountId, Account } from "@demox-labs/miden-sdk";
 
 export async function createAmmSwap(
-  connectedAccountId?: string, // wallet's account ID in Bech32 format
-  sellAmount?: string, // Amount to sell from frontend
-  buyAmount?: string, // Amount to receive (calculated from price feed)  
-  sellToken?: string, // Token being sold 
-  buyToken?: string // Token being bought
+  connectedAccountId?: string,
+  sellAmount?: string,
+  buyAmount?: string,
+  sellToken?: string,
+  buyToken?: string
 ): Promise<void> {
-    console.log("Starting AMM Swap with parameters:");
+    console.log("Starting AMM Swap with Alice wallet:");
     console.log("Raw arguments received:", arguments);
+    
     if (typeof window === "undefined") {
         console.warn("webClient() can only run in the browser");
         return;
@@ -21,30 +22,14 @@ export async function createAmmSwap(
     const state = await client.syncState();
     console.log("🔗 Latest block number:", state.blockNum());    
 
-    let zoro: Account;
-    let targetAccountId: AccountId;
-    
-    if (connectedAccountId) {
-        console.log("Using connected wallet account:", connectedAccountId);
-        try {
-            targetAccountId = AccountId.fromBech32(connectedAccountId);
-            // Create a separate transaction wallet because:
-            // 1. Connected wallets don't have access to faucet private keys
-            // 2. WebClient needs full key control to authorize minting operations
-            zoro = await client.newWallet(AccountStorageMode.public(), true);
-        } catch (error) {
-            console.warn("⚠️  Could not parse connected account, creating new one:", error);
-            zoro = await client.newWallet(AccountStorageMode.public(), true);
-            targetAccountId = zoro.id();
-        }
-    } else {
-        console.log("🆕 Creating new account…");
-        zoro = await client.newWallet(AccountStorageMode.public(), true);
-        targetAccountId = zoro.id();
-    }
-    
-    console.log("⚔️  Zoro (AMM Protocol Wallet):", zoro.id().toBech32());
-    console.log("🎯 Target recipient (Connected Wallet):", targetAccountId.toBech32());
+    // Create Alice and Zoro wallets
+    console.log("👩 Creating Alice wallet...");
+    const alice: Account = await client.newWallet(AccountStorageMode.public(), true);
+    console.log("👩 Alice wallet:", alice.id().toBech32());
+
+    console.log("⚔️  Creating Zoro AMM wallet...");
+    const zoro: Account = await client.newWallet(AccountStorageMode.public(), true);
+    console.log("⚔️  Zoro AMM wallet:", zoro.id().toBech32());
 
     // Parse frontend amounts
     if (!sellAmount || !buyAmount) {
@@ -53,8 +38,8 @@ export async function createAmmSwap(
         return;
     }
     
-    const sellAmountNum = parseFloat(sellAmount);
-    const buyAmountNum = parseFloat(buyAmount);
+    const sellAmountNum: number = parseFloat(sellAmount);
+    const buyAmountNum: number = parseFloat(buyAmount);
     
     if (isNaN(sellAmountNum) || isNaN(buyAmountNum) || sellAmountNum <= 0 || buyAmountNum <= 0) {
         console.error("❌ Invalid amounts - cannot proceed");
@@ -62,15 +47,15 @@ export async function createAmmSwap(
         return;
     }
     
-    const sellAmountBaseUnits: number = Math.floor(sellAmountNum * 1000_000); // Convert to base units (6 decimals)
+    const sellAmountBaseUnits: number = Math.floor(sellAmountNum * 1000_000);
     const buyAmountBaseUnits: number = Math.floor(buyAmountNum * 1000_000);
     
     console.log(`💱 Swap Details: ${sellAmountNum} ${sellToken} → ${buyAmountNum} ${buyToken}`);
 
-    // 2. Create AMM Pools (BTC and ETH faucets)
+    // 2. Create AMM Pools
     console.log("\n🏊 Creating AMM Pools…");
     
-    const btcPool = await client.newFaucet(
+    const btcPool: Account = await client.newFaucet(
         AccountStorageMode.public(),
         false,
         "BTC",
@@ -79,7 +64,7 @@ export async function createAmmSwap(
     );
     console.log("₿ BTC Pool ID:", btcPool.id().toBech32());
 
-    const ethPool = await client.newFaucet(
+    const ethPool: Account = await client.newFaucet(
         AccountStorageMode.public(),
         false,
         "ETH",
@@ -90,85 +75,91 @@ export async function createAmmSwap(
 
     await client.syncState();
     
-    // 3. Step 1: Mint tokens to Zoro (simulate having tokens to swap)
-    console.log(`\n💰 Step 1: Minting ${sellAmountNum} ${sellToken} to transaction wallet for swap...`);
+    // 3. Step 1: Mint sellToken to Alice
+    console.log(`\n💰 Step 1: Minting ${sellAmountNum} ${sellToken} to Alice...`);
     
-    const sellPoolId = sellToken === "BTC" ? btcPool.id() : ethPool.id();
-    const mintRequest = client.newMintTransactionRequest(
-        zoro.id(), // Mint to transaction wallet first
+    const sellPoolId: AccountId = sellToken === "BTC" ? btcPool.id() : ethPool.id();
+    const mintToAliceRequest = client.newMintTransactionRequest(
+        alice.id(),
         sellPoolId,
         NoteType.Public,
         BigInt(sellAmountBaseUnits),
     );
 
-    const mintTx = await client.newTransaction(sellPoolId, mintRequest);
-    console.log(`📤 ${buyToken} mint transaction created, submitting...`);
-    await client.submitTransaction(mintTx);
-    console.log(`✅ ${buyToken} mint transaction submitted successfully`);
+    const mintToAliceTx = await client.newTransaction(sellPoolId, mintToAliceRequest);
+    console.log(`📤 Minting ${sellToken} to Alice, submitting transaction...`);
+    await client.submitTransaction(mintToAliceTx);
+    console.log(`✅ ${sellToken} mint to Alice submitted successfully`);
+
+    console.log(`⏳ Waiting 10 seconds for ${sellToken} mint confirmation...`);
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+    await client.syncState();
+
+    // 4. Step 2: Alice transfers sellToken to Zoro
+    console.log(`\n🔄 Step 2: Alice transferring ${sellAmountNum} ${sellToken} to Zoro...`);
+    
+    const aliceNotes = await client.getConsumableNotes(alice.id());
+    const aliceNoteIds: string[] = aliceNotes.map((n) => n.inputNoteRecord().id().toString());
+    console.log(`📝 Alice's ${sellToken} note IDs:`, aliceNoteIds);
+
+    if (aliceNoteIds.length === 0) {
+        console.log(`❌ No ${sellToken} notes found in Alice's wallet, cannot proceed`);
+        return;
+    }
+
+    // Alice sends tokens to Zoro
+    const transferToZoroRequest = client.newConsumeTransactionRequest(aliceNoteIds);
+    const transferToZoroTx = await client.newTransaction(alice.id(), transferToZoroRequest);
+    console.log(`📤 Alice transferring ${sellToken} to Zoro...`);
+    await client.submitTransaction(transferToZoroTx);
+    console.log(`✅ Transfer from Alice to Zoro submitted successfully`);
+
+    console.log(`⏳ Waiting 10 seconds for transfer confirmation...`);
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+    await client.syncState();
+
+    // 5. Step 3: Mint buyToken from pool to Alice (AMM swap result)
+    console.log(`\n🎯 Step 3: AMM minting ${buyAmountNum} ${buyToken} to Alice as swap result...`);
+    
+    const buyPoolId: AccountId = buyToken === "BTC" ? btcPool.id() : ethPool.id();
+    const mintBuyTokenRequest = client.newMintTransactionRequest(
+        alice.id(),
+        buyPoolId,
+        NoteType.Public,
+        BigInt(buyAmountBaseUnits),
+    );
+
+    const mintBuyTokenTx = await client.newTransaction(buyPoolId, mintBuyTokenRequest);
+    console.log(`📤 Minting ${buyToken} to Alice as swap result...`);
+    await client.submitTransaction(mintBuyTokenTx);
+    console.log(`✅ ${buyToken} mint to Alice submitted successfully`);
 
     console.log(`⏳ Waiting 10 seconds for ${buyToken} mint confirmation...`);
     await new Promise((resolve) => setTimeout(resolve, 10000));
     await client.syncState();
 
-    // 4. Check Zoro's notes
-    const sellNotes = await client.getConsumableNotes(zoro.id());
-    const sellNoteIds = sellNotes.map((n) => n.inputNoteRecord().id().toString());
-    console.log(`📝 Transaction wallet's ${sellToken} note IDs:`, sellNoteIds);
-
-    if (sellNoteIds.length === 0) {
-        console.log(`❌ No ${sellToken} notes found, cannot proceed with swap`);
-        return;
-    }
-
-    // 5. Step 2: Zoro swaps tokens (simplified AMM logic)
-    console.log(`\n🔄 Step 2: Simulating AMM Swap - Trading ${sellAmountNum} ${sellToken} for ${buyToken}...`);
-    
-    // First consume Zoro's sell token notes
-    console.log(`🔥 Consuming transaction wallet's ${sellToken} notes...`);
-    const consumeRequest = client.newConsumeTransactionRequest(sellNoteIds);
-    const consumeTx = await client.newTransaction(zoro.id(), consumeRequest);
-    await client.submitTransaction(consumeTx);
-    
-    console.log(`⏳ Waiting for ${sellToken} consume confirmation...`);
-    await new Promise((resolve) => setTimeout(resolve, 10000));
-    await client.syncState();
-
-    // Then mint buy tokens to the CONNECTED WALLET
-    const buyPoolId = buyToken === "BTC" ? btcPool.id() : ethPool.id();
-    console.log(`🎯 Minting ${buyAmountNum} ${buyToken} to CONNECTED WALLET from ${buyToken} pool...`);
-    const buyMintRequest = client.newMintTransactionRequest(
-        targetAccountId, // Mint to connected wallet
-        buyPoolId,
-        NoteType.Public,
-        BigInt(buyAmountBaseUnits), // Use calculated buy amount
-    );
-
-    const buyMintTx = await client.newTransaction(buyPoolId, buyMintRequest);
-    await client.submitTransaction(buyMintTx);
-    console.log(`✅ ${buyToken} mint to connected wallet submitted successfully`);
-
-    console.log(`⏳ Waiting 15 seconds for ${buyToken} mint confirmation...`);
-    await new Promise((resolve) => setTimeout(resolve, 15000));
-    await client.syncState();
-
+    // 6. Verify swap results
     console.log(`\n🔍 Checking swap results...`);
     try {
-        // The mint transaction to connected wallet was successful if we got here
-        console.log(`✅ SUCCESS: ${buyAmountNum} ${buyToken} tokens minted to connected wallet!`);
-        console.log(`💰 Check your wallet for ${buyAmountNum} ${buyToken} tokens`);
-        console.log(`📋 Your connected wallet address: ${targetAccountId.toBech32()}`);
+        const finalAliceNotes = await client.getConsumableNotes(alice.id());
+        const finalNoteIds: string[] = finalAliceNotes.map((n) => n.inputNoteRecord().id().toString());
+        console.log(`📝 Alice's final note IDs:`, finalNoteIds);
+        
+        if (finalNoteIds.length > 0) {
+            console.log(`✅ SUCCESS: Alice received ${buyAmountNum} ${buyToken} tokens!`);
+        } else {
+            console.log("⚠️  No notes found in Alice's wallet after swap");
+        }
     } catch (error) {
-        console.log("⚠️  Could not verify connected wallet notes:", error);
-        console.log("🔗 Check your connected wallet or use a Miden testnet explorer to verify the transaction");
+        console.log("⚠️  Could not verify Alice's final notes:", error);
     }
 
     console.log("\n📊 AMM Swap Summary:");
-    console.log("⚔️  Zoro AMM Protocol Wallet:", zoro.id().toBech32());
-    console.log("👛 Connected Wallet (Recipient):", targetAccountId.toBech32());
+    console.log("👩 Alice Wallet:", alice.id().toBech32());
+    console.log("⚔️  Zoro AMM Wallet:", zoro.id().toBech32());
     console.log("₿ BTC Pool:", btcPool.id().toBech32());
     console.log("Ξ ETH Pool:", ethPool.id().toBech32());
-    console.log(`💱 Swap: ${sellAmountNum} ${sellToken} → ${buyAmountNum} ${buyToken}`);
-    console.log("🎯 Tokens minted to your connected wallet!");
-    console.log("⚔️  Zoro's AMM swap completed successfully!");
-    console.log("\n💡 Check your wallet - you should see claimable tokens");
+    console.log(`💱 Swap Completed: ${sellAmountNum} ${sellToken} → ${buyAmountNum} ${buyToken}`);
+    console.log("🎯 Alice received the swapped tokens!");
+    console.log("⚔️  AMM swap flow completed successfully!");
 }

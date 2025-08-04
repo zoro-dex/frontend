@@ -23,7 +23,7 @@ const TOKENS = {
     name: 'Ethereum',
     priceId: 'ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
   }
-};
+} as const;
 
 interface PriceFetcherProps {
   shouldFetch: boolean;
@@ -35,9 +35,7 @@ const PriceFetcher: React.FC<PriceFetcherProps> = ({ shouldFetch, assetIds }) =>
   
   useEffect(() => {
     if (!shouldFetch) return;
-    
     refreshPrices(assetIds);
-    
   }, [shouldFetch, refreshPrices, assetIds]);
   
   return null;
@@ -47,105 +45,151 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState<TabType>("Swap");
   const [sellAmount, setSellAmount] = useState<string>("");
   const [buyAmount, setBuyAmount] = useState<string>("");
-  const [sellToken, setSellToken] = useState<string>("BTC");
-  const [buyToken, setBuyToken] = useState<string>("ETH");
+  const [sellToken, setSellToken] = useState<keyof typeof TOKENS>("BTC");
+  const [buyToken, setBuyToken] = useState<keyof typeof TOKENS>("ETH");
   const [isCalculating, setIsCalculating] = useState(false);
+  const [pricesFetched, setPricesFetched] = useState(false);
   const [shouldFetchPrices, setShouldFetchPrices] = useState(false);
   const [isCreatingNotes, setIsCreatingNotes] = useState(false);
   
   const { connected, connecting, wallet } = useWallet();
   const { refreshPrices } = useContext(NablaAntennaContext);
   
-  const assetIds = Object.values(TOKENS).map(token => token.priceId);
-  const priceIds = [TOKENS[sellToken as keyof typeof TOKENS]?.priceId, TOKENS[buyToken as keyof typeof TOKENS]?.priceId].filter(Boolean);
+  const assetIds: string[] = Object.values(TOKENS).map(token => token.priceId);
+  const priceIds: string[] = [TOKENS[sellToken]?.priceId, TOKENS[buyToken]?.priceId].filter(Boolean);
   const prices = useNablaAntennaPrices(priceIds);
-  
+
+  // Calculate buy amount when sell amount or tokens change
   useEffect(() => {
-    if (!sellAmount || !prices || isCalculating) return;
+    if (!sellAmount || !prices || isCalculating || !pricesFetched) {
+      setBuyAmount("");
+      return;
+    }
     
-    const sellTokenData = TOKENS[sellToken as keyof typeof TOKENS];
-    const buyTokenData = TOKENS[buyToken as keyof typeof TOKENS];
+    const sellTokenData = TOKENS[sellToken];
+    const buyTokenData = TOKENS[buyToken];
     
-    if (!sellTokenData || !buyTokenData) return;
+    if (!sellTokenData || !buyTokenData) {
+      setBuyAmount("");
+      return;
+    }
     
     const sellPrice = prices[sellTokenData.priceId];
     const buyPrice = prices[buyTokenData.priceId];
     
-    if (sellPrice && buyPrice) {
-      const sellAmountNum = parseFloat(sellAmount);
+    console.log("Price calculation:", {
+      sellToken,
+      buyToken,
+      sellPrice: sellPrice?.value,
+      buyPrice: buyPrice?.value,
+      sellAmount
+    });
+    
+    if (sellPrice && buyPrice && sellPrice.value > 0 && buyPrice.value > 0) {
+      const sellAmountNum: number = parseFloat(sellAmount);
       if (!isNaN(sellAmountNum) && sellAmountNum > 0) {
-        const buyAmountCalculated = (sellAmountNum * sellPrice.value) / buyPrice.value;
-        setBuyAmount(buyAmountCalculated.toFixed(8));
+        const buyAmountCalculated: number = (sellAmountNum * sellPrice.value) / buyPrice.value;
+        const formattedBuyAmount: string = buyAmountCalculated.toFixed(8);
+        setBuyAmount(formattedBuyAmount);
+        console.log("Calculated buy amount:", formattedBuyAmount);
+      } else {
+        setBuyAmount("");
       }
+    } else {
+      setBuyAmount("");
+      console.log("Missing price data, cannot calculate");
     }
-  }, [sellAmount, sellToken, buyToken, prices, isCalculating]);
+  }, [sellAmount, sellToken, buyToken, prices, isCalculating, pricesFetched]);
 
-  const handleSellAmountChange = (value: string) => {
+  const handleSellAmountChange = (value: string): void => {
     setSellAmount(value);
     if (!value) {
       setBuyAmount("");
     }
   };
 
-  const handleBuyAmountChange = (value: string) => {
+  const handleBuyAmountChange = (value: string): void => {
     setBuyAmount(value);
-    if (!value) {
-      setBuyAmount("");
-    }
   };
 
-  const fetchPrices = () => {
-    if (!shouldFetchPrices) {
-      setShouldFetchPrices(true);
-    }
-  };
+  const fetchPricesOnClick = async (): Promise<void> => {
+  if (!pricesFetched) {
+    setShouldFetchPrices(true);
+    await refreshPrices(assetIds);
+    setPricesFetched(true);
+  }
+};
 
-  const handleReplaceTokens = () => {
+  const handleReplaceTokens = (): void => {
     setIsCalculating(true);
+    setPricesFetched(false);
     
+    const tempToken = sellToken;
     setSellToken(buyToken);
-    setBuyToken(sellToken);
+    setBuyToken(tempToken);
+    
+    // Clear amounts when swapping
+    setSellAmount("");
+    setBuyAmount("");
     
     setTimeout(() => setIsCalculating(false), 100);
   };
 
-const handleSwap = async () => {
-  if (!connected) {
-    return;
-  }
-  
-  // Fetch latest prices before executing swap
-  await refreshPrices(assetIds, true);
-
-  // Create notes using connected wallet
-  setIsCreatingNotes(true);
-  
-  try {
-    // Get the connected account ID from the wallet context
-    const accountId = wallet?.adapter.publicKey?.toString();
+  const handleSwap = async (): Promise<void> => {
+    if (!connected) {
+      return;
+    }
     
-    console.log("Connected wallet:", wallet);
-    console.log("Using account ID:", accountId);
-
-    await createAmmSwap(
-      accountId, 
-      sellAmount,
-      buyAmount,
-      sellToken,
-      buyToken
-    );
+    // Validate amounts before proceeding
+    const sellAmountNum: number = parseFloat(sellAmount);
+    const buyAmountNum: number = parseFloat(buyAmount);
     
-  } catch (error) {
-    console.error("Swap failed:", error);
-  } finally {
-    setIsCreatingNotes(false);
-  }
-};
+    if (isNaN(sellAmountNum) || isNaN(buyAmountNum) || sellAmountNum <= 0 || buyAmountNum <= 0) {
+      console.error("Invalid amounts for swap:", { sellAmount, buyAmount, sellAmountNum, buyAmountNum });
+      return;
+    }
+    
+    console.log("Starting swap with valid amounts:", { sellAmount, buyAmount, sellToken, buyToken });
+    
+    // Fetch latest prices before executing swap
+    await refreshPrices(assetIds, true);
 
-  const sellTokenData = TOKENS[sellToken as keyof typeof TOKENS];
-  const buyTokenData = TOKENS[buyToken as keyof typeof TOKENS];
+    setIsCreatingNotes(true);
+    
+    try {
+      const accountId: string | undefined = wallet?.adapter.publicKey?.toString();
+      console.log("Connected wallet:", wallet);
+
+      await createAmmSwap(
+        accountId, 
+        sellAmount,
+        buyAmount,
+        sellToken,
+        buyToken
+      );
+      
+    } catch (error) {
+      console.error("Swap failed:", error);
+    } finally {
+      setIsCreatingNotes(false);
+    }
+  };
+
+  const sellTokenData = TOKENS[sellToken];
+  const buyTokenData = TOKENS[buyToken];
   const sellPrice = sellTokenData ? prices[sellTokenData.priceId] : null;
   const buyPrice = buyTokenData ? prices[buyTokenData.priceId] : null;
+
+  const canSwap: boolean = Boolean(
+    sellAmount && 
+    buyAmount && 
+    !isNaN(parseFloat(sellAmount)) && 
+    !isNaN(parseFloat(buyAmount)) &&
+    parseFloat(sellAmount) > 0 &&
+    parseFloat(buyAmount) > 0 &&
+    sellPrice && 
+    buyPrice
+  );
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -156,12 +200,12 @@ const handleSwap = async () => {
         <div className="w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex bg-muted rounded-full p-0.5 sm:p-1">
-              {["Swap", "Limit"].map((tab) => (
+              {(["Swap", "Limit"] as const).map((tab) => (
                 <Button
                   key={tab}
                   variant={activeTab === tab ? "secondary" : "ghost"}
                   size="sm"
-                  onClick={() => setActiveTab(tab as TabType)}
+                  onClick={() => setActiveTab(tab)}
                   className={`rounded-full text-xs sm:text-sm font-medium px-3 sm:px-4 py-1.5 sm:py-2 ${
                     activeTab === tab
                       ? "bg-background text-foreground shadow-sm"
@@ -186,14 +230,14 @@ const handleSwap = async () => {
                         type="number"
                         value={sellAmount}
                         onChange={(e) => handleSellAmountChange(e.target.value)}
-                        onClick={fetchPrices}
+                        onClick={fetchPricesOnClick}
                         placeholder="0"
                         className="border-none text-2xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner"
                       />
                       <Button
                         variant="outline"
                         size="sm"
-                        className="border-b-0 border-l-0 rounded-full  pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background"
+                        className="border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background"
                       >
                         <img 
                           src={sellToken + ".svg"} 
@@ -229,15 +273,15 @@ const handleSwap = async () => {
                         type="number"
                         value={buyAmount}
                         onChange={(e) => handleBuyAmountChange(e.target.value)}
-                        onClick={fetchPrices}
                         placeholder="0"
+                        readOnly
                         className="border-none text-2xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner bg-transparent"
                       />
                       <Button
                         variant="outline"
                         size="sm"
                         disabled
-                        className="border-b-0 border-l-0 rounded-full  pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background"
+                        className="border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background"
                       > 
                         <img 
                           src={buyToken + ".svg"} 
@@ -246,7 +290,6 @@ const handleSwap = async () => {
                             buyToken === 'ETH' ? 'dark:invert' : ''
                           }`} 
                         />
-
                         {buyToken}
                       </Button>
                     </div>
@@ -258,7 +301,7 @@ const handleSwap = async () => {
                 {connected ? (
                   <Button 
                     onClick={handleSwap}
-                    disabled={!sellAmount || !buyAmount || connecting || !sellPrice || !buyPrice || isCreatingNotes}
+                    disabled={!canSwap || connecting || isCreatingNotes}
                     variant="outline"
                     className="w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
                   >
@@ -272,6 +315,8 @@ const handleSwap = async () => {
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Creating Notes...
                       </>
+                    ) : !canSwap ? (
+                      "Enter amount"
                     ) : (
                       "Swap"
                     )}

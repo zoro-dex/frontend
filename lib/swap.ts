@@ -1,14 +1,49 @@
 import { AccountStorageMode, WebClient, NoteType, AccountId, Account } from "@demox-labs/miden-sdk";
 
-export async function createAmmSwap(
-  connectedAccountId?: string, // wallet's account ID in Bech32 format
-  sellAmount?: string, // Amount to sell from frontend
-  buyAmount?: string, // Amount to receive (calculated from price feed)  
-  sellToken?: string, // Token being sold 
-  buyToken?: string // Token being bought
+export type NoteTypeString = 'public' | 'private';
+
+export interface MidenSendTransaction {
+  senderAccountId: string;
+  recipientAccountId: string;
+  faucetId: string;
+  noteType: NoteTypeString;
+  amount: number;
+  recallBlocks?: number;
+}
+
+export class SendTransaction implements MidenSendTransaction {
+  senderAccountId: string;
+  recipientAccountId: string;
+  faucetId: string;
+  noteType: NoteTypeString;
+  amount: number;
+  recallBlocks?: number;
+
+  constructor(
+    sender: string,
+    recipient: string,
+    faucetId: string,
+    noteType: NoteTypeString,
+    amount: number,
+    recallBlocks?: number
+  ) {
+    this.senderAccountId = sender;
+    this.recipientAccountId = recipient;
+    this.faucetId = faucetId;
+    this.noteType = noteType;
+    this.amount = amount;
+    this.recallBlocks = recallBlocks;
+  }
+}
+
+export async function createSwap(
+  connectedAccountId?: string,
+  sellAmount?: string,
+  sellToken?: string
 ): Promise<void> {
-    console.log("Starting AMM Swap with parameters:");
-    console.log("Raw arguments received:", arguments);
+    console.log("Starting simple send transaction:");
+    console.log("Parameters:", { connectedAccountId, sellAmount, sellToken });
+    
     if (typeof window === "undefined") {
         console.warn("webClient() can only run in the browser");
         return;
@@ -19,58 +54,47 @@ export async function createAmmSwap(
 
     // 1. Sync and log block
     const state = await client.syncState();
-    console.log("🔗 Latest block number:", state.blockNum());
+    console.log("🔗 Latest block number:", state.blockNum());    
 
-    let zoro: Account;
     let targetAccountId: AccountId;
+    let btcPool: Account;
     
     if (connectedAccountId) {
         console.log("Using connected wallet account:", connectedAccountId);
         try {
             targetAccountId = AccountId.fromBech32(connectedAccountId);
-            // Create a separate transaction wallet because:
-            // 1. Connected wallets don't have access to faucet private keys
-            // 2. WebClient needs full key control to authorize minting operations
-            zoro = await client.newWallet(AccountStorageMode.public(), true);
         } catch (error) {
-            console.warn("⚠️  Could not parse connected account, creating new one:", error);
-            zoro = await client.newWallet(AccountStorageMode.public(), true);
-            targetAccountId = zoro.id();
+            console.error("⚠️  Could not parse connected account:", error);
+            return;
         }
     } else {
-        console.log("🆕 Creating new account…");
-        zoro = await client.newWallet(AccountStorageMode.public(), true);
-        targetAccountId = zoro.id();
+        console.log("🆕 Creating new account for testing…");
+        const testAccount = await client.newWallet(AccountStorageMode.public(), true);
+        targetAccountId = testAccount.id();
     }
     
-    console.log("⚔️  Zoro (AMM Protocol Wallet):", zoro.id().toBech32());
-    console.log("🎯 Target recipient (Connected Wallet):", targetAccountId.toBech32());
+    console.log("👛 Sender (Connected Wallet):", targetAccountId.toBech32());
 
-    // Parse frontend amounts
-    if (!sellAmount || !buyAmount) {
-        console.error("❌ Missing sellAmount or buyAmount - cannot proceed");
-        console.log("Received values:", { sellAmount, buyAmount, sellToken, buyToken });
+    // Parse and validate amounts
+    if (!sellAmount) {
+        console.error("❌ Missing sellAmount");
         return;
     }
     
     const sellAmountNum = parseFloat(sellAmount);
-    const buyAmountNum = parseFloat(buyAmount);
     
-    if (isNaN(sellAmountNum) || isNaN(buyAmountNum) || sellAmountNum <= 0 || buyAmountNum <= 0) {
-        console.error("❌ Invalid amounts - cannot proceed");
-        console.log("Parsed values:", { sellAmountNum, buyAmountNum });
+    if (isNaN(sellAmountNum) || sellAmountNum <= 0) {
+        console.error("❌ Invalid amount");
         return;
     }
     
-    const sellAmountBaseUnits: number = Math.floor(sellAmountNum * 1000_000); // Convert to base units (6 decimals)
-    const buyAmountBaseUnits: number = Math.floor(buyAmountNum * 1000_000);
-    
-    console.log(`💱 Swap Details: ${sellAmountNum} ${sellToken} → ${buyAmountNum} ${buyToken}`);
+    const sellAmountBaseUnits = Math.floor(sellAmountNum * 1_000_000);
+    console.log(`💰 Sending ${sellAmountNum} ${sellToken} (${sellAmountBaseUnits} base units)`);
 
-    // 2. Create AMM Pool (faucet)
-    console.log("\n🏊 Creating Pool…");
+    // 2. Create BTC Pool
+    console.log("\n🏊 Creating BTC Pool…");
     
-    const btcPool = await client.newFaucet(
+    btcPool = await client.newFaucet(
         AccountStorageMode.public(),
         false,
         "BTC",
@@ -79,116 +103,128 @@ export async function createAmmSwap(
     );
     console.log("₿ BTC Pool ID:", btcPool.id().toBech32());
 
-    const ethPool = await client.newFaucet(
-        AccountStorageMode.public(),
-        false,
-        "ETH",
-        8,
-        BigInt(1_000_000_000_000),
-    );
-    console.log("Ξ ETH Pool ID:", ethPool.id().toBech32());
-
     await client.syncState();
 
-    // 3. Step 1: Create P2ID Note to Pool 1
-    console.log(`\n💰 Step 1: Sending ${sellAmountNum} ${sellToken} to pool 1 for swap...`);
+    // 3. First, mint tokens to connected wallet (WebClient needs its own version)
+    console.log(`\n💰 Step 1: Minting ${sellAmountNum} ${sellToken} to connected wallet via WebClient...`);
     
-    async function createP2IDNote(
-        sender: AccountId,
-        receiver: AccountId,
-        faucet: AccountId,
-        amount: number,
-        noteType: NoteType
-        ) {
-        const { FungibleAsset, OutputNote, Note, NoteAssets, Word, Felt } =
-            await import("@demox-labs/miden-sdk");
-
-        return OutputNote.full(
-            Note.createP2IDNote(
-            sender,
-            receiver,
-            new NoteAssets([new FungibleAsset(faucet, BigInt(amount))]),
-            noteType,
-            // @todo: replace hardcoded values with values from UI
-            Word.newFromFelts([
-                new Felt(BigInt(1)),
-                new Felt(BigInt(2)),
-                new Felt(BigInt(3)),
-                new Felt(BigInt(4)),
-            ]),
-            new Felt(BigInt(0))
-            )
+    const faucetIdForTokens = "mtst1qppen8yngje35gr223jwe6ptjy7gedn9"; // The faucet ID you provided
+    
+    try {
+        // Parse the provided faucet ID
+        const tokenFaucetId = AccountId.fromBech32(faucetIdForTokens);
+        console.log("🪙 Using token faucet ID:", tokenFaucetId.toBech32());
+        
+        // Mint tokens to the connected wallet via WebClient
+        // This is needed because WebClient can't see notes from external wallets
+        const mintRequest = client.newMintTransactionRequest(
+            targetAccountId,
+            tokenFaucetId,
+            NoteType.Public,
+            BigInt(sellAmountBaseUnits),
         );
+
+        const mintTx = await client.newTransaction(tokenFaucetId, mintRequest);
+        await client.submitTransaction(mintTx);
+        console.log(`✅ ${sellToken} mint transaction submitted to connected wallet`);
+
+        console.log(`⏳ Waiting for mint confirmation and sync...`);
+        await new Promise((resolve) => setTimeout(resolve, 15000));
+        await client.syncState();
+        
+        // Check for notes with retry logic
+        let userNotes = await client.getConsumableNotes(targetAccountId);
+        let retries = 0;
+        const maxRetries = 3;
+        
+        while (userNotes.length === 0 && retries < maxRetries) {
+            console.log(`⏳ Notes not yet available, retrying in 10 seconds... (${retries + 1}/${maxRetries})`);
+            await new Promise((resolve) => setTimeout(resolve, 10000));
+            await client.syncState();
+            userNotes = await client.getConsumableNotes(targetAccountId);
+            retries++;
+        }
+        
+        console.log(`📋 Found ${userNotes.length} notes after minting`);
+        
+        // Debug: Log details about each note
+        userNotes.forEach((note, index) => {
+            const noteId = note.inputNoteRecord().id().toString();
+            console.log(`📝 Note ${index + 1}: ID = ${noteId}`);
+        });
+        
+        if (userNotes.length === 0) {
+            console.error(`❌ Failed to mint ${sellToken} tokens to connected wallet after ${maxRetries} retries`);
+            return;
+        }
+        
+        console.log(`✅ WebClient now has access to ${userNotes.length} notes for the connected wallet`);
+
+        // 4. Create and execute the send transaction
+        console.log(`\n📤 Step 2: Sending tokens from connected wallet to BTC pool...`);
+        
+        // Create the send transaction using your class structure
+        const sendTransaction = new SendTransaction(
+            targetAccountId.toBech32(),
+            btcPool.id().toBech32(),
+            faucetIdForTokens,
+            'public',
+            sellAmountBaseUnits
+        );
+        
+        console.log("📋 Send transaction created:", {
+            sender: sendTransaction.senderAccountId,
+            recipient: sendTransaction.recipientAccountId,
+            faucetId: sendTransaction.faucetId,
+            amount: sendTransaction.amount,
+            noteType: sendTransaction.noteType
+        });
+
+        // Get note IDs to consume - use all available notes for now
+        const noteIds = userNotes.map(note => note.inputNoteRecord().id().toString());
+        console.log(`📝 Using note IDs:`, noteIds);
+
+        // Create a P2ID send transaction request
+        const sendRequest = client.newSendTransactionRequest(
+            targetAccountId,                              // sender_account_id
+            AccountId.fromBech32(sendTransaction.recipientAccountId), // target_account_id  
+            tokenFaucetId,                               // faucet_id
+            NoteType.Public,                             // note_type
+            BigInt(sendTransaction.amount)               // amount
+        );
+
+        const sendTx = await client.newTransaction(targetAccountId, sendRequest);
+        await client.submitTransaction(sendTx);
+        console.log(`✅ Send transaction submitted successfully`);
+
+        console.log(`⏳ Waiting for send confirmation...`);
+        await new Promise((resolve) => setTimeout(resolve, 15000));
+        await client.syncState();
+
+        // 5. Verify the transaction
+        console.log(`\n🔍 Verifying transaction results...`);
+        
+        // Check if BTC pool received any notes
+        try {
+            const poolNotes = await client.getConsumableNotes(btcPool.id());
+            console.log(`✅ BTC Pool now has ${poolNotes.length} consumable notes`);
+        } catch (error) {
+            console.log("⚠️  Could not verify pool notes:", error);
         }
 
-    const mintTx = await client.newTransaction(sellPoolId, mintRequest);
-    console.log(`📤 ${buyToken} mint transaction created, submitting...`);
-    await client.submitTransaction(mintTx);
-    console.log(`✅ ${buyToken} mint transaction submitted successfully`);
+        // Check sender's remaining notes
+        const remainingNotes = await client.getConsumableNotes(targetAccountId);
+        console.log(`📋 Sender now has ${remainingNotes.length} remaining notes`);
 
-    console.log(`⏳ Waiting 10 seconds for ${buyToken} mint confirmation...`);
-    await new Promise((resolve) => setTimeout(resolve, 10000));
-    await client.syncState();
+        console.log("\n📊 Transaction Summary:");
+        console.log(`👛 Sender: ${targetAccountId.toBech32()}`);
+        console.log(`🎯 Recipient (BTC Pool): ${btcPool.id().toBech32()}`);
+        console.log(`🪙 Token Faucet: ${faucetIdForTokens}`);
+        console.log(`💰 Amount: ${sellAmountNum} ${sellToken} (${sellAmountBaseUnits} base units)`);
+        console.log(`✅ Simple send transaction completed successfully!`);
 
-    // 4. Check Zoro's notes
-    const sellNotes = await client.getConsumableNotes(zoro.id());
-    const sellNoteIds = sellNotes.map((n) => n.inputNoteRecord().id().toString());
-    console.log(`📝 Transaction wallet's ${sellToken} note IDs:`, sellNoteIds);
-
-    if (sellNoteIds.length === 0) {
-        console.log(`❌ No ${sellToken} notes found, cannot proceed with swap`);
-        return;
-    }
-
-    // 5. Step 2: Zoro swaps tokens (simplified AMM logic)
-    console.log(`\n🔄 Step 2: Simulating AMM Swap - Trading ${sellAmountNum} ${sellToken} for ${buyToken}...`);
-    
-    // First consume Zoro's sell token notes
-    console.log(`🔥 Consuming transaction wallet's ${sellToken} notes...`);
-    const consumeRequest = client.newConsumeTransactionRequest(sellNoteIds);
-    const consumeTx = await client.newTransaction(zoro.id(), consumeRequest);
-    await client.submitTransaction(consumeTx);
-    
-    console.log(`⏳ Waiting for ${sellToken} consume confirmation...`);
-    await new Promise((resolve) => setTimeout(resolve, 10000));
-    await client.syncState();
-
-    // Then mint buy tokens to the CONNECTED WALLET
-    const buyPoolId = buyToken === "BTC" ? btcPool.id() : ethPool.id();
-    console.log(`🎯 Minting ${buyAmountNum} ${buyToken} to CONNECTED WALLET from ${buyToken} pool...`);
-    const buyMintRequest = client.newMintTransactionRequest(
-        targetAccountId, // Mint to connected wallet
-        buyPoolId,
-        NoteType.Public,
-        BigInt(buyAmountBaseUnits), // Use calculated buy amount
-    );
-
-    const buyMintTx = await client.newTransaction(buyPoolId, buyMintRequest);
-    await client.submitTransaction(buyMintTx);
-    console.log(`✅ ${buyToken} mint to connected wallet submitted successfully`);
-
-    console.log(`⏳ Waiting 15 seconds for ${buyToken} mint confirmation...`);
-    await new Promise((resolve) => setTimeout(resolve, 15000));
-    await client.syncState();
-
-    console.log(`\n🔍 Checking swap results...`);
-    try {
-        // The mint transaction to connected wallet was successful if we got here
-        console.log(`✅ SUCCESS: ${buyAmountNum} ${buyToken} tokens minted to connected wallet!`);
-        console.log(`💰 Check your wallet for ${buyAmountNum} ${buyToken} tokens`);
-        console.log(`📋 Your connected wallet address: ${targetAccountId.toBech32()}`);
     } catch (error) {
-        console.log("⚠️  Could not verify connected wallet notes:", error);
-        console.log("🔗 Check your connected wallet or use a Miden testnet explorer to verify the transaction");
+        console.error("❌ Error during simple send transaction:", error);
+        throw error;
     }
-
-    console.log("\n📊 AMM Swap Summary:");
-    console.log("⚔️  Zoro AMM Protocol Wallet:", zoro.id().toBech32());
-    console.log("👛 Connected Wallet (Recipient):", targetAccountId.toBech32());
-    console.log("₿ BTC Pool:", btcPool.id().toBech32());
-    console.log("Ξ ETH Pool:", ethPool.id().toBech32());
-    console.log(`💱 Swap: ${sellAmountNum} ${sellToken} → ${buyAmountNum} ${buyToken}`);
-    console.log("🎯 Tokens minted to your connected wallet!");
-    console.log("⚔️  Zoro's AMM swap completed successfully!");
-    console.log("\n💡 Check your wallet - you should see claimable tokens");
 }
