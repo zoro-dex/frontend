@@ -66,8 +66,6 @@ export async function createAmmSwap(
     const buyAmountBaseUnits: number = Math.floor(buyAmountNum * 1000_000); // Convert to base units (6 decimals)
     
     console.log(`💱 Swap Details: ${sellAmountNum} ${sellToken} → ${buyAmountNum} ${buyToken}`);
-    console.log(`🔢 Sell amount in base units: ${sellAmountBaseUnits} (${sellAmountNum} * 100,000,000)`);
-    console.log(`🔢 Buy amount in base units: ${buyAmountBaseUnits} (${buyAmountNum} * 100,000,000)`);
 
     // 2. Create AMM Pools (BTC and ETH faucets)
     // NEED TO REVISIT DECIMAL LOGIC
