@@ -1,230 +1,273 @@
-import { AccountStorageMode, WebClient, NoteType, AccountId, Account } from "@demox-labs/miden-sdk";
+import { WebClient, NoteType, AccountId, Account, AccountStorageMode } from "@demox-labs/miden-sdk";
 
-export type NoteTypeString = 'public' | 'private';
-
-export interface MidenSendTransaction {
-  senderAccountId: string;
-  recipientAccountId: string;
-  faucetId: string;
-  noteType: NoteTypeString;
-  amount: number;
-  recallBlocks?: number;
+// Initialize mock server for development
+if (typeof window !== "undefined") {
+  // Call this once when the module loads
+  setTimeout(() => {
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+      simulateMockServer();
+      console.log("🔧 Mock server initialized for development");
+    }
+  }, 100);
 }
 
-export class SendTransaction implements MidenSendTransaction {
-  senderAccountId: string;
-  recipientAccountId: string;
-  faucetId: string;
-  noteType: NoteTypeString;
-  amount: number;
-  recallBlocks?: number;
+// Types for swap parameters
+interface SwapParams {
+  sellToken: 'BTC' | 'ETH';
+  buyToken: 'BTC' | 'ETH';
+  sellAmount: string;
+  buyAmount: string;
+  connectedAccountId?: string;
+}
 
-  constructor(
-    sender: string,
-    recipient: string,
-    faucetId: string,
-    noteType: NoteTypeString,
-    amount: number,
-    recallBlocks?: number
-  ) {
-    this.senderAccountId = sender;
-    this.recipientAccountId = recipient;
-    this.faucetId = faucetId;
-    this.noteType = noteType;
-    this.amount = amount;
-    this.recallBlocks = recallBlocks;
+interface SwapNoteInputs {
+  requestedAssetPrefix: string;
+  requestedAssetSuffix: string;
+  requestedAmount: string;
+  swappTag: string;
+  p2idTag: string;
+  swappCount: string;
+  creatorPrefix: string;
+  creatorSuffix: string;
+}
+
+interface MockServerResponse {
+  success: boolean;
+  noteId?: string;
+  error?: string;
+}
+
+// Constants for token IDs (these would be the actual Miden token IDs)
+const TOKEN_IDS = {
+  BTC: {
+    prefix: "0xe62df6c8b4a85fe1",
+    suffix: "0xa67db44dc12de5db"
+  },
+  ETH: {
+    prefix: "0xff61491a931112dd",
+    suffix: "0xf1bd8147cd1b6413"
+  }
+} as const;
+
+// SWAPP script compiled to base64 (this would be the actual compiled script)
+const SWAPP_SCRIPT_BASE64 = "U1dBUFBfc2NyaXB0X2NvbXBpbGVkX3RvX2Jhc2U2NA==";
+
+// P2ID script hash for the note (from the Miden Assembly script)
+const P2ID_SCRIPT_HASH = [
+  "14355791738953101471",
+  "16880376862595469307", 
+  "4399717636953729920",
+  "18023939233288492685"
+];
+
+/**
+ * Creates swap note inputs based on swap parameters
+ */
+function createSwapNoteInputs(params: SwapParams, creatorAccountId: AccountId): SwapNoteInputs {
+  const requestedToken = TOKEN_IDS[params.buyToken];
+  const sellAmountBaseUnits = Math.floor(parseFloat(params.sellAmount) * 1_000_000);
+  const buyAmountBaseUnits = Math.floor(parseFloat(params.buyAmount) * 1_000_000);
+  
+  // Convert account ID to hex components
+  const accountHex = creatorAccountId.toString();
+  const creatorPrefix = accountHex.slice(0, 16);
+  const creatorSuffix = accountHex.slice(16, 32);
+  
+  return {
+    requestedAssetPrefix: requestedToken.prefix,
+    requestedAssetSuffix: requestedToken.suffix,
+    requestedAmount: buyAmountBaseUnits.toString(),
+    swappTag: "0x53574150", // "SWAP" in hex
+    p2idTag: "0x50324944", // "P2ID" in hex  
+    swappCount: "1",
+    creatorPrefix,
+    creatorSuffix
+  };
+}
+
+/**
+ * Compiles the SWAPP note script with inputs
+ */
+async function compileSwappNote(
+  client: WebClient, 
+  inputs: SwapNoteInputs
+): Promise<string> {
+  try {
+    // In a real implementation, this would compile the Miden Assembly script
+    // with the specific inputs. For now, we'll create a mock compiled note.
+    const noteData = {
+      script: SWAPP_SCRIPT_BASE64,
+      inputs: inputs,
+      p2idScriptHash: P2ID_SCRIPT_HASH,
+      timestamp: Date.now()
+    };
+    
+    // Convert to base64
+    const noteJson = JSON.stringify(noteData);
+    const noteBase64 = btoa(noteJson);
+    
+    console.log("Compiled SWAPP note:", noteData);
+    return noteBase64;
+    
+  } catch (error) {
+    console.error("Failed to compile SWAPP note:", error);
+    throw new Error("Failed to compile swap note");
   }
 }
 
-export async function createSwap(
-  connectedAccountId?: string,
-  sellAmount?: string,
-  sellToken?: string
-): Promise<void> {
-    console.log("Starting simple send transaction:");
-    console.log("Parameters:", { connectedAccountId, sellAmount, sellToken });
+/**
+ * Sends the compiled note to mock server for delegation
+ */
+async function delegateToMockServer(noteBase64: string): Promise<MockServerResponse> {
+  try {
+    // Mock server endpoint (replace with actual delegation server)
+    const response = await fetch('/api/delegate-swap', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        note: noteBase64,
+        type: 'SWAPP',
+        version: '1.0'
+      })
+    });
     
-    if (typeof window === "undefined") {
-        console.warn("webClient() can only run in the browser");
-        return;
+    if (!response.ok) {
+      throw new Error(`Server responded with ${response.status}`);
     }
+    
+    const result: MockServerResponse = await response.json();
+    return result;
+    
+  } catch (error) {
+    console.error("Failed to delegate to server:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown server error"
+    };
+  }
+}
 
+/**
+ * Main function to create and delegate a Zoro swap note
+ */
+export async function createZoroSwapNote(params: SwapParams): Promise<void> {
+  console.log("Creating Zoro swap note with params:", params);
+  
+  if (typeof window === "undefined") {
+    console.warn("createZoroSwapNote() can only run in the browser");
+    return;
+  }
+
+  try {
+    // Initialize Miden client
     const nodeEndpoint = "https://rpc.testnet.miden.io:443";
     const client = await WebClient.createClient(nodeEndpoint);
-
-    // 1. Sync and log block
+    
+    // Sync state
+    console.log("Syncing client state...");
     const state = await client.syncState();
-    console.log("🔗 Latest block number:", state.blockNum());    
-
-    let targetAccountId: AccountId;
-    let btcPool: Account;
+    console.log("Latest block number:", state.blockNum());
     
-    if (connectedAccountId) {
-        console.log("Using connected wallet account:", connectedAccountId);
-        try {
-            targetAccountId = AccountId.fromBech32(connectedAccountId);
-        } catch (error) {
-            console.error("⚠️  Could not parse connected account:", error);
-            return;
-        }
+    // Get or create creator account
+    let creatorAccount: Account;
+    if (params.connectedAccountId) {
+      console.log("Using connected account:", params.connectedAccountId);
+      // In a real implementation, you'd load the existing account
+      creatorAccount = await client.newWallet(AccountStorageMode.public(), true);
     } else {
-        console.log("🆕 Creating new account for testing…");
-        const testAccount = await client.newWallet(AccountStorageMode.public(), true);
-        targetAccountId = testAccount.id();
+      console.log("Creating new account for swap...");
+      creatorAccount = await client.newWallet(AccountStorageMode.public(), true);
     }
     
-    console.log("👛 Sender (Connected Wallet):", targetAccountId.toBech32());
-
-    // Parse and validate amounts
-    if (!sellAmount) {
-        console.error("❌ Missing sellAmount");
-        return;
+    console.log("Creator account ID:", creatorAccount.id().toBech32());
+    
+    // Validate swap parameters
+    const sellAmountNum = parseFloat(params.sellAmount);
+    const buyAmountNum = parseFloat(params.buyAmount);
+    
+    if (isNaN(sellAmountNum) || isNaN(buyAmountNum) || sellAmountNum <= 0 || buyAmountNum <= 0) {
+      throw new Error("Invalid swap amounts");
     }
     
-    const sellAmountNum = parseFloat(sellAmount);
-    
-    if (isNaN(sellAmountNum) || sellAmountNum <= 0) {
-        console.error("❌ Invalid amount");
-        return;
+    if (params.sellToken === params.buyToken) {
+      throw new Error("Cannot swap the same token");
     }
     
-    const sellAmountBaseUnits = Math.floor(sellAmountNum * 1_000_000);
-    console.log(`💰 Sending ${sellAmountNum} ${sellToken} (${sellAmountBaseUnits} base units)`);
-
-    // 2. Create BTC Pool
-    console.log("\n🏊 Creating BTC Pool…");
+    console.log(`Creating swap: ${sellAmountNum} ${params.sellToken} → ${buyAmountNum} ${params.buyToken}`);
     
-    btcPool = await client.newFaucet(
-        AccountStorageMode.public(),
-        false,
-        "BTC",
-        8,
-        BigInt(1_000_000_000),
-    );
-    console.log("₿ BTC Pool ID:", btcPool.id().toBech32());
-
-    await client.syncState();
-
-    // 3. First, mint tokens to connected wallet (WebClient needs its own version)
-    console.log(`\n💰 Step 1: Minting ${sellAmountNum} ${sellToken} to connected wallet via WebClient...`);
+    // Create swap note inputs
+    const swapInputs = createSwapNoteInputs(params, creatorAccount.id());
+    console.log("Swap note inputs:", swapInputs);
     
-    const faucetIdForTokens = "mtst1qppen8yngje35gr223jwe6ptjy7gedn9"; // The faucet ID you provided
+    // Compile the SWAPP note
+    console.log("Compiling SWAPP note...");
+    const compiledNote = await compileSwappNote(client, swapInputs);
+    console.log("Note compiled successfully, length:", compiledNote.length);
     
-    try {
-        // Parse the provided faucet ID
-        const tokenFaucetId = AccountId.fromBech32(faucetIdForTokens);
-        console.log("🪙 Using token faucet ID:", tokenFaucetId.toBech32());
-        
-        // Mint tokens to the connected wallet via WebClient
-        // This is needed because WebClient can't see notes from external wallets
-        const mintRequest = client.newMintTransactionRequest(
-            targetAccountId,
-            tokenFaucetId,
-            NoteType.Public,
-            BigInt(sellAmountBaseUnits),
-        );
-
-        const mintTx = await client.newTransaction(tokenFaucetId, mintRequest);
-        await client.submitTransaction(mintTx);
-        console.log(`✅ ${sellToken} mint transaction submitted to connected wallet`);
-
-        console.log(`⏳ Waiting for mint confirmation and sync...`);
-        await new Promise((resolve) => setTimeout(resolve, 15000));
-        await client.syncState();
-        
-        // Check for notes with retry logic
-        let userNotes = await client.getConsumableNotes(targetAccountId);
-        let retries = 0;
-        const maxRetries = 3;
-        
-        while (userNotes.length === 0 && retries < maxRetries) {
-            console.log(`⏳ Notes not yet available, retrying in 10 seconds... (${retries + 1}/${maxRetries})`);
-            await new Promise((resolve) => setTimeout(resolve, 10000));
-            await client.syncState();
-            userNotes = await client.getConsumableNotes(targetAccountId);
-            retries++;
-        }
-        
-        console.log(`📋 Found ${userNotes.length} notes after minting`);
-        
-        // Debug: Log details about each note
-        userNotes.forEach((note, index) => {
-            const noteId = note.inputNoteRecord().id().toString();
-            console.log(`📝 Note ${index + 1}: ID = ${noteId}`);
-        });
-        
-        if (userNotes.length === 0) {
-            console.error(`❌ Failed to mint ${sellToken} tokens to connected wallet after ${maxRetries} retries`);
-            return;
-        }
-        
-        console.log(`✅ WebClient now has access to ${userNotes.length} notes for the connected wallet`);
-
-        // 4. Create and execute the send transaction
-        console.log(`\n📤 Step 2: Sending tokens from connected wallet to BTC pool...`);
-        
-        // Create the send transaction using your class structure
-        const sendTransaction = new SendTransaction(
-            targetAccountId.toBech32(),
-            btcPool.id().toBech32(),
-            faucetIdForTokens,
-            'public',
-            sellAmountBaseUnits
-        );
-        
-        console.log("📋 Send transaction created:", {
-            sender: sendTransaction.senderAccountId,
-            recipient: sendTransaction.recipientAccountId,
-            faucetId: sendTransaction.faucetId,
-            amount: sendTransaction.amount,
-            noteType: sendTransaction.noteType
-        });
-
-        // Get note IDs to consume - use all available notes for now
-        const noteIds = userNotes.map(note => note.inputNoteRecord().id().toString());
-        console.log(`📝 Using note IDs:`, noteIds);
-
-        // Create a P2ID send transaction request
-        const sendRequest = client.newSendTransactionRequest(
-            targetAccountId,                              // sender_account_id
-            AccountId.fromBech32(sendTransaction.recipientAccountId), // target_account_id  
-            tokenFaucetId,                               // faucet_id
-            NoteType.Public,                             // note_type
-            BigInt(sendTransaction.amount)               // amount
-        );
-
-        const sendTx = await client.newTransaction(targetAccountId, sendRequest);
-        await client.submitTransaction(sendTx);
-        console.log(`✅ Send transaction submitted successfully`);
-
-        console.log(`⏳ Waiting for send confirmation...`);
-        await new Promise((resolve) => setTimeout(resolve, 15000));
-        await client.syncState();
-
-        // 5. Verify the transaction
-        console.log(`\n🔍 Verifying transaction results...`);
-        
-        // Check if BTC pool received any notes
-        try {
-            const poolNotes = await client.getConsumableNotes(btcPool.id());
-            console.log(`✅ BTC Pool now has ${poolNotes.length} consumable notes`);
-        } catch (error) {
-            console.log("⚠️  Could not verify pool notes:", error);
-        }
-
-        // Check sender's remaining notes
-        const remainingNotes = await client.getConsumableNotes(targetAccountId);
-        console.log(`📋 Sender now has ${remainingNotes.length} remaining notes`);
-
-        console.log("\n📊 Transaction Summary:");
-        console.log(`👛 Sender: ${targetAccountId.toBech32()}`);
-        console.log(`🎯 Recipient (BTC Pool): ${btcPool.id().toBech32()}`);
-        console.log(`🪙 Token Faucet: ${faucetIdForTokens}`);
-        console.log(`💰 Amount: ${sellAmountNum} ${sellToken} (${sellAmountBaseUnits} base units)`);
-        console.log(`✅ Simple send transaction completed successfully!`);
-
-    } catch (error) {
-        console.error("❌ Error during simple send transaction:", error);
-        throw error;
+    // Delegate to mock server
+    console.log("Delegating note to server...");
+    const serverResponse = await delegateToMockServer(compiledNote);
+    
+    if (serverResponse.success) {
+      console.log("✅ Swap note successfully delegated!");
+      console.log("Note ID:", serverResponse.noteId);
+      
+      // You could emit an event here or update UI state
+      if (typeof window !== "undefined" && window.dispatchEvent) {
+        window.dispatchEvent(new CustomEvent('swapNoteCreated', {
+          detail: {
+            noteId: serverResponse.noteId,
+            params: params
+          }
+        }));
+      }
+      
+    } else {
+      console.error("❌ Failed to delegate swap note:", serverResponse.error);
+      throw new Error(serverResponse.error || "Server delegation failed");
     }
+    
+  } catch (error) {
+    console.error("Failed to create Zoro swap note:", error);
+    throw error;
+  }
 }
+
+/**
+ * Mock server simulation for development
+ * Replace this with actual server integration
+ */
+export function simulateMockServer(): void {
+  if (typeof window === "undefined") return;
+  
+  // Mock the delegation endpoint
+  const originalFetch = window.fetch;
+  window.fetch = async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    const urlString = url.toString();
+    
+    if (urlString.includes('/api/delegate-swap') && init?.method === 'POST') {
+      console.log("🔧 Mock server: Received swap delegation request");
+      
+      // Simulate processing delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const mockResponse: MockServerResponse = {
+        success: true,
+        noteId: `note_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      };
+      
+      return new Response(JSON.stringify(mockResponse), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // Fall back to original fetch for other requests
+    return originalFetch(url, init);
+  };
+}
+
+// Types for external use
+export type { SwapParams, SwapNoteInputs, MockServerResponse };

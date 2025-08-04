@@ -8,7 +8,7 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { useWallet } from "@demox-labs/miden-wallet-adapter-react";
 import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter-reactui';
 import { NablaAntennaProvider, useNablaAntennaPrices, NablaAntennaContext } from './components/PriceFetcher';
-import { createAmmSwap } from "../lib/createMintConsume";
+import { createZoroSwapNote, type SwapParams } from '../lib/swap';
 
 type TabType = "Swap" | "Limit";
 
@@ -50,7 +50,8 @@ function AppContent() {
   const [isCalculating, setIsCalculating] = useState(false);
   const [pricesFetched, setPricesFetched] = useState(false);
   const [shouldFetchPrices, setShouldFetchPrices] = useState(false);
-  const [isCreatingNotes, setIsCreatingNotes] = useState(false);
+  const [isCreatingNote, setIsCreatingNote] = useState(false);
+  const [swapStatus, setSwapStatus] = useState<string>("");
   
   const { connected, connecting, wallet } = useWallet();
   const { refreshPrices } = useContext(NablaAntennaContext);
@@ -58,6 +59,20 @@ function AppContent() {
   const assetIds: string[] = Object.values(TOKENS).map(token => token.priceId);
   const priceIds: string[] = [TOKENS[sellToken]?.priceId, TOKENS[buyToken]?.priceId].filter(Boolean);
   const prices = useNablaAntennaPrices(priceIds);
+
+  // Listen for swap note creation events
+  useEffect(() => {
+    const handleSwapNoteCreated = (event: CustomEvent) => {
+      const { noteId, params } = event.detail;
+      setSwapStatus(`Swap note created: ${noteId}`);
+      console.log("Swap note created:", { noteId, params });
+    };
+
+    window.addEventListener('swapNoteCreated', handleSwapNoteCreated as EventListener);
+    return () => {
+      window.removeEventListener('swapNoteCreated', handleSwapNoteCreated as EventListener);
+    };
+  }, []);
 
   // Calculate buy amount when sell amount or tokens change
   useEffect(() => {
@@ -103,6 +118,7 @@ function AppContent() {
 
   const handleSellAmountChange = (value: string): void => {
     setSellAmount(value);
+    setSwapStatus(""); // Clear previous status
     if (!value) {
       setBuyAmount("");
     }
@@ -110,19 +126,21 @@ function AppContent() {
 
   const handleBuyAmountChange = (value: string): void => {
     setBuyAmount(value);
+    setSwapStatus(""); // Clear previous status
   };
 
   const fetchPricesOnClick = async (): Promise<void> => {
-  if (!pricesFetched) {
-    setShouldFetchPrices(true);
-    await refreshPrices(assetIds);
-    setPricesFetched(true);
-  }
-};
+    if (!pricesFetched) {
+      setShouldFetchPrices(true);
+      await refreshPrices(assetIds);
+      setPricesFetched(true);
+    }
+  };
 
   const handleReplaceTokens = (): void => {
     setIsCalculating(true);
     setPricesFetched(false);
+    setSwapStatus(""); // Clear previous status
     
     const tempToken = sellToken;
     setSellToken(buyToken);
@@ -146,32 +164,42 @@ function AppContent() {
     
     if (isNaN(sellAmountNum) || isNaN(buyAmountNum) || sellAmountNum <= 0 || buyAmountNum <= 0) {
       console.error("Invalid amounts for swap:", { sellAmount, buyAmount, sellAmountNum, buyAmountNum });
+      setSwapStatus("❌ Invalid swap amounts");
       return;
     }
     
-    console.log("Starting swap with valid amounts:", { sellAmount, buyAmount, sellToken, buyToken });
+    if (sellToken === buyToken) {
+      setSwapStatus("❌ Cannot swap the same token");
+      return;
+    }
     
-    // Fetch latest prices before executing swap
+    console.log("Creating Zoro swap note with:", { sellAmount, buyAmount, sellToken, buyToken });
+    
+    // Fetch latest prices before creating swap note
     await refreshPrices(assetIds, true);
 
-    setIsCreatingNotes(true);
+    setIsCreatingNote(true);
+    setSwapStatus("Creating swap note...");
     
     try {
       const accountId: string | undefined = wallet?.adapter.publicKey?.toString();
-      console.log("Connected wallet:", wallet);
-
-      await createAmmSwap(
-        accountId, 
+      
+      const swapParams: SwapParams = {
+        sellToken,
+        buyToken,
         sellAmount,
         buyAmount,
-        sellToken,
-        buyToken
-      );
+        connectedAccountId: accountId
+      };
+
+      await createZoroSwapNote(swapParams);
+      setSwapStatus("✅ Swap note created successfully!");
       
     } catch (error) {
-      console.error("Swap failed:", error);
+      console.error("Swap note creation failed:", error);
+      setSwapStatus(`❌ Failed to create swap note: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
-      setIsCreatingNotes(false);
+      setIsCreatingNote(false);
     }
   };
 
@@ -188,7 +216,8 @@ function AppContent() {
     parseFloat(sellAmount) > 0 &&
     parseFloat(buyAmount) > 0 &&
     sellPrice && 
-    buyPrice
+    buyPrice &&
+    sellToken !== buyToken
   );
 
   return (
@@ -297,11 +326,18 @@ function AppContent() {
                 </Card>
               </div>
 
+              {/* Status message */}
+              {swapStatus && (
+                <div className="text-center text-xs sm:text-sm text-muted-foreground py-2">
+                  {swapStatus}
+                </div>
+              )}
+
               <div className="w-full h-12 sm:h-16 mt-4 sm:mt-6">
                 {connected ? (
                   <Button 
                     onClick={handleSwap}
-                    disabled={!canSwap || connecting || isCreatingNotes}
+                    disabled={!canSwap || connecting || isCreatingNote}
                     variant="outline"
                     className="w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
                   >
@@ -310,15 +346,15 @@ function AppContent() {
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Connecting...
                       </>
-                    ) : isCreatingNotes ? (
+                    ) : isCreatingNote ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Creating Notes...
+                        Creating Note...
                       </>
                     ) : !canSwap ? (
-                      "Enter amount"
+                      sellToken === buyToken ? "Select different tokens" : "Enter amount"
                     ) : (
-                      "Swap"
+                      "Create Swap Note"
                     )}
                   </Button>
                 ) : (
