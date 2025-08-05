@@ -326,13 +326,6 @@ function AppContent() {
                 </Card>
               </div>
 
-              {/* Status message */}
-              {swapStatus && (
-                <div className="text-center text-xs sm:text-sm text-muted-foreground py-2">
-                  {swapStatus}
-                </div>
-              )}
-
               <div className="w-full h-12 sm:h-16 mt-4 sm:mt-6">
                 {connected ? (
                   <Button 
