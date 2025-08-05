@@ -228,12 +228,6 @@ function Faucet() {
       
       <main className="flex-1 flex items-center justify-center p-3 sm:p-4">
         <div className="w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6">
-          
-          {/* Page Title */}
-          <div className="text-center space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-bold">Miden Testnet Faucet</h1>
-            <p className="text-muted-foreground text-sm">Get test BTC and ETH for testing the Zoro AMM</p>
-          </div>
 
           {/* Faucet Cards */}
           <div className="space-y-4">
