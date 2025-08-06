@@ -36,7 +36,53 @@ export async function sendZoroSwapNote(): Promise<void> {
 
   console.log("Latest block:", (await client.syncState()).blockNum());
 
+  // ── Creating new account ──────────────────────────────────────────────────────
+  console.log("Creating account for Alice…");
+  const alice = await client.newWallet(AccountStorageMode.public(), true);
+  console.log("Alice accout ID:", alice.id().toString());
+
+  // ── Creating new faucet ──────────────────────────────────────────────────────
+  const faucet = await client.newFaucet(
+    AccountStorageMode.public(),
+    false,
+    "BTC",
+    8,
+    BigInt(1_000_000),
+  );
+  console.log("Faucet ID:", faucet.id().toString());
+
+  // ── mint 10 000 BTC to Alice ──────────────────────────────────────────────────────
+  await client.submitTransaction(
+    await client.newTransaction(
+      faucet.id(),
+      client.newMintTransactionRequest(
+        alice.id(),
+        faucet.id(),
+        NoteType.Public,
+        BigInt(10_000),
+      ),
+    ),
+    prover,
+  );
+
+  console.log("waiting for settlement");
+  await new Promise((r) => setTimeout(r, 7_000));
+  await client.syncState();
+
+  // ── consume the freshly minted notes ──────────────────────────────────────────────
+  const noteIds = (await client.getConsumableNotes(alice.id())).map((rec) =>
+    rec.inputNoteRecord().id().toString(),
+  );
+
+  await client.submitTransaction(
+    await client.newTransaction(
+      alice.id(),
+      client.newConsumeTransactionRequest(noteIds),
+    ),
+    prover,
+  );
+  await client.syncState();
+
   const script = client.compileNoteScript(ZOROSWAP_SCRIPT);
 
-  console.log("Compiled script:", script);
 }
