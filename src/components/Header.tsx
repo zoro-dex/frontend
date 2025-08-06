@@ -1,5 +1,5 @@
 import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter-reactui';
-import { useTheme } from "@/components/theme-provider";
+import { useTheme } from "@/components/ThemeProvider";
 import { Link } from 'react-router-dom';
 
 export function Header() {

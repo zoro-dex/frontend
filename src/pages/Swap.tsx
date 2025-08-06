@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Header } from "@/components/Header";
-import { ModeToggle } from "@/components/mode-toggle";
+import { ModeToggle } from "@/components/ModeToggle";
 import { useWallet } from "@demox-labs/miden-wallet-adapter-react";
 import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter-reactui';
 import { useNablaAntennaPrices, NablaAntennaContext } from '../components/PriceFetcher';
-import { createZoroSwapNote, type SwapParams } from '../../lib/swap';
+import { createZoroSwapNote, type SwapParams } from '../../lib/zoroswap';
 import { Link } from 'react-router-dom';
 
 
@@ -78,14 +78,6 @@ function Swap() {
     
     const sellPrice = prices[sellTokenData.priceId];
     const buyPrice = prices[buyTokenData.priceId];
-    
-    console.log("Price calculation:", {
-      sellToken,
-      buyToken,
-      sellPrice: sellPrice?.value,
-      buyPrice: buyPrice?.value,
-      sellAmount
-    });
     
     if (sellPrice && buyPrice && sellPrice.value > 0 && buyPrice.value > 0) {
       const sellAmountNum: number = parseFloat(sellAmount);

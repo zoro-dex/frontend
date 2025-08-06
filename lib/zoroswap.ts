@@ -1,15 +1,4 @@
-import { WebClient, NoteType, AccountId, Account, AccountStorageMode } from "@demox-labs/miden-sdk";
-
-// Initialize mock server for development
-if (typeof window !== "undefined") {
-  // Call this once when the module loads
-  setTimeout(() => {
-    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-      simulateMockServer();
-      console.log("🔧 Mock server initialized for development");
-    }
-  }, 100);
-}
+import { WebClient, AccountId, Account, AccountStorageMode } from "@demox-labs/miden-sdk";
 
 // Types for swap parameters
 interface SwapParams {
@@ -233,40 +222,6 @@ export async function createZoroSwapNote(params: SwapParams): Promise<void> {
     console.error("Failed to create Zoro swap note:", error);
     throw error;
   }
-}
-
-/**
- * Mock server simulation for development
- * Replace this with actual server integration
- */
-export function simulateMockServer(): void {
-  if (typeof window === "undefined") return;
-  
-  // Mock the delegation endpoint
-  const originalFetch = window.fetch;
-  window.fetch = async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
-    const urlString = url.toString();
-    
-    if (urlString.includes('/api/delegate-swap') && init?.method === 'POST') {
-      console.log("🔧 Mock server: Received swap delegation request");
-      
-      // Simulate processing delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const mockResponse: MockServerResponse = {
-        success: true,
-        noteId: `note_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      };
-      
-      return new Response(JSON.stringify(mockResponse), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-    
-    // Fall back to original fetch for other requests
-    return originalFetch(url, init);
-  };
 }
 
 // Types for external use
