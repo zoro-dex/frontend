@@ -8,7 +8,7 @@ import { ModeToggle } from "@/components/ModeToggle";
 import { useWallet } from "@demox-labs/miden-wallet-adapter-react";
 import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter-reactui';
 import { useNablaAntennaPrices, NablaAntennaContext } from '../components/PriceFetcher';
-import { createZoroSwapNote, type SwapParams } from '../../lib/zoroswap';
+import { createZoroSwapNote, type SwapParams } from '../lib/zoroswap';
 import { Link } from 'react-router-dom';
 
 
