@@ -8,7 +8,7 @@ import { ModeToggle } from "@/components/ModeToggle";
 import { useWallet } from "@demox-labs/miden-wallet-adapter-react";
 import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter-reactui';
 import { useNablaAntennaPrices, NablaAntennaContext } from '../components/PriceFetcher';
-import { createZoroSwapNote, type SwapParams } from '../lib/zoroswap';
+import { sendZoroSwapNote } from '../lib/zoroswap.ts';
 import { Link } from 'react-router-dom';
 
 
@@ -155,17 +155,17 @@ function Swap() {
     setIsCreatingNote(true);
     
     try {
-      const accountId: string | undefined = wallet?.adapter.publicKey?.toString();
+    //   const accountId: string | undefined = wallet?.adapter.publicKey?.toString();
       
-      const swapParams: SwapParams = {
-        sellToken,
-        buyToken,
-        sellAmount,
-        buyAmount,
-        connectedAccountId: accountId
-      };
+    //   const swapParams: SwapParams = {
+    //     sellToken,
+    //     buyToken,
+    //     sellAmount,
+    //     buyAmount,
+    //     connectedAccountId: accountId
+    //   };
 
-      await createZoroSwapNote(swapParams);
+      await sendZoroSwapNote();
       
     } catch (error) {
       console.error("Swap note creation failed:", error);

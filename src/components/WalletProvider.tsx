@@ -3,7 +3,7 @@ import { WalletProvider } from '@demox-labs/miden-wallet-adapter-react';
 import { WalletModalProvider } from '@demox-labs/miden-wallet-adapter-reactui';
 import { WalletError } from '@demox-labs/miden-wallet-adapter-base';
 import '@demox-labs/miden-wallet-adapter-reactui/styles.css';
-import { TridentWalletAdapter } from '@demox-labs/miden-wallet-adapter-trident';
+import { MidenWalletAdapter } from '@demox-labs/miden-wallet-adapter-miden';
 
 interface WalletContextProviderProps {
     children: React.ReactNode;
@@ -12,7 +12,7 @@ interface WalletContextProviderProps {
 export const WalletContextProvider: React.FC<WalletContextProviderProps> = ({ children }) => {
     const wallets = useMemo(
         () => [
-             new TridentWalletAdapter({
+             new MidenWalletAdapter({
             appName: "Zoro",
         }),
         ],
