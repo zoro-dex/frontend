@@ -196,6 +196,8 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<Outpu
     new Felt(BigInt(0)) // aux
   );
 
+  const deadline = 0;
+
   // Convert min buy amount to BigInt (no decimals - use base units)
   const minBuyAmountBigInt = BigInt(Math.floor(parseFloat(swapParams.buyAmount)));
 
@@ -210,11 +212,11 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<Outpu
   const inputs = new NoteInputs(new FeltArray([
     ...requestedAssetFelts,     // Felts 0-3: requested asset word
     new Felt(BigInt(1337)),     // zoroswap_tag (use case id)
-    new Felt(BigInt(0)),        // p2id_tag
+    new Felt(BigInt(0)),        // p2id_tag 0 SINCE IT IS ALREADY IN METADATA
     new Felt(BigInt(0)),        // empty_input_6
     new Felt(BigInt(0)),        // empty_input_7
     new Felt(BigInt(0)),        // swap_count
-    new Felt(BigInt(0)),        // deadline
+    new Felt(BigInt(deadline)), // deadline
     new Felt(BigInt(0)),        // empty_input_10
     new Felt(BigInt(0)),        // empty_input_11
     alice.id().prefix(),        // creator_prefix
