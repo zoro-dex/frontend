@@ -8,7 +8,7 @@ import { ModeToggle } from "@/components/ModeToggle";
 import { useWallet } from "@demox-labs/miden-wallet-adapter-react";
 import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter-reactui';
 import { useNablaAntennaPrices, NablaAntennaContext } from '../components/PriceFetcher';
-import { compileZoroSwapNote } from '../lib/zoroswap.ts';
+import { compileZoroSwapNote } from '../lib/ZoroSwapNote.ts';
 import { Link } from 'react-router-dom';
 
 
@@ -155,7 +155,7 @@ function Swap() {
     setIsCreatingNote(true);
     
     try {
-        
+
       await compileZoroSwapNote();
       
     } catch (error) {

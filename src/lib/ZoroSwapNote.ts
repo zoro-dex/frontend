@@ -77,11 +77,38 @@ function generateRandomSerialNumber(): Word {
   ]);
 }
 
+async function submitNoteToServer(outputNote: OutputNote): Promise<void> {
+  try {
+    // Convert OutputNote to string and encode as base64
+    const noteString = outputNote.toString();
+    const noteData = btoa(noteString);
+    
+    const response = await fetch('/orders/submit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        note_data: noteData
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    console.log('Note submitted successfully:', result);
+    
+  } catch (error) {
+    console.error('Failed to submit note to server:', error);
+    throw error;
+  }
+}
+
 export async function compileZoroSwapNote(): Promise<OutputNote> {
   const client = await WebClient.createClient("https://rpc.testnet.miden.io:443");
   const prover = TransactionProver.newRemoteProver("https://tx-prover.testnet.miden.io");
-
-  console.log("Latest block:", (await client.syncState()).blockNum());
 
   // ── Creating new account ──────────────────────────────────────────────────────
   console.log("Creating account for Alice…");
@@ -121,6 +148,8 @@ export async function compileZoroSwapNote(): Promise<OutputNote> {
     ),
     prover,
   );
+
+  console.log("Syncing state:", (await client.syncState()));
 
   const script = client.compileNoteScript(ZOROSWAP_SCRIPT);
   const noteType = NoteType.Public;
@@ -165,5 +194,10 @@ export async function compileZoroSwapNote(): Promise<OutputNote> {
   );
 
   console.log("Note created:", note);
-  return OutputNote.full(note);
+  const outputNote = OutputNote.full(note);
+  
+  // Submit the note to the server
+  await submitNoteToServer(outputNote);
+  
+  return outputNote;
 }
