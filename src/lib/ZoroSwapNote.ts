@@ -14,17 +14,15 @@ import {
   FeltArray,
   Felt,
   FungibleAsset,
-  OutputNote
+  OutputNote,
+  NoteExecutionMode,
+  AccountId
 } from "@demox-labs/miden-sdk";
 
 // @ts-ignore - MASM files are treated as raw text
 import ZOROSWAP_SCRIPT from './ZOROSWAP.masm?raw';
 
 type TokenSymbol = 'BTC' | 'ETH';
-
-interface Asset {
-  symbol: TokenSymbol;
-}
 
 interface SwapParams {
   sellToken: TokenSymbol;
@@ -34,45 +32,39 @@ interface SwapParams {
 }
 
 /**
- * Builds a NoteTag for Zoro swap operations
+
  * 
  * Tag interpretation:
- * - use_case_id: 1337 (identifies this as a Zoro swap)
- * - payload bits:
- *   - bit 0: note_type (0=Public, reserved for future note types)
- *   - bits 1-2: offered_asset (0=BTC, 1=ETH) 
- *   - bits 3-4: requested_asset (0=BTC, 1=ETH)
- *   - bits 5-31: reserved for future use
- * 
- * Example: BTC->ETH swap = payload 0b01000 = 8
- *          ETH->BTC swap = payload 0b10001 = 17
+ * - use_case_id: 0 (SWAP_USE_CASE_ID)
+ * - payload: combines the top 8 bits from both asset faucet ID prefixes
+ *   - bits 8-15: offered_asset faucet_id_prefix >> 56 (top 8 bits)
+ *   - bits 0-7: requested_asset faucet_id_prefix >> 56 (top 8 bits)
  */
 function buildSwapTag(
   noteType: NoteType,
-  offeredAsset: Asset,
-  requestedAsset: Asset
+  offeredFaucetId: AccountId,
+  requestedFaucetId: AccountId
 ): NoteTag {
-  const ZORO_SWAP_USE_CASE = 1337;
+  const SWAP_USE_CASE_ID: number = 0;
   
-  // Map note type (only Public supported for now)
-  const noteTypeBit = noteType === NoteType.Public ? 0 : 0;
+  // Get top 8 bits from offered asset faucet ID prefix
+  const offeredAssetId: bigint = offeredFaucetId.prefix().asInt();
+  const offeredAssetTag: number = Number((offeredAssetId >> 56n) & 0xFFn);
   
-  // Map token symbols to bits
-  const getTokenBits = (symbol: TokenSymbol): number => {
-    switch (symbol) {
-      case 'BTC': return 0;
-      case 'ETH': return 1;
-      default: throw new Error(`Unsupported token: ${symbol}`);
-    }
-  };
+  // Get top 8 bits from requested asset faucet ID prefix
+  const requestedAssetId: bigint = requestedFaucetId.prefix().asInt();
+  const requestedAssetTag: number = Number((requestedAssetId >> 56n) & 0xFFn);
   
-  const offeredBits = getTokenBits(offeredAsset.symbol);
-  const requestedBits = getTokenBits(requestedAsset.symbol);
+  // Combine: offered_asset_tag in upper 8 bits, requested_asset_tag in lower 8 bits
+  const payload: number = (offeredAssetTag << 8) | requestedAssetTag;
   
-  // Build payload: note_type | offered_asset << 1 | requested_asset << 3
-  const payload = noteTypeBit | (offeredBits << 1) | (requestedBits << 3);
-  
-  return NoteTag.forLocalUseCase(ZORO_SWAP_USE_CASE, payload);
+  // Match note type
+  if (noteType === NoteType.Public) {
+    const execution = NoteExecutionMode.newLocal();
+    return NoteTag.forPublicUseCase(SWAP_USE_CASE_ID, payload, execution);
+  } else {
+    return NoteTag.forLocalUseCase(SWAP_USE_CASE_ID, payload);
+  }
 }
 
 function generateRandomSerialNumber(): Word {
@@ -117,10 +109,19 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<Outpu
   const client = await WebClient.createClient("https://rpc.testnet.miden.io:443");
   const prover = TransactionProver.newRemoteProver("https://tx-prover.testnet.miden.io");
 
+  // ── Initial sync to ensure client is connected to blockchain ──────────────────
+  console.log("Initial sync to blockchain...");
+  await client.syncState();
+  console.log("Initial sync complete");
+
   // ── Creating new account ──────────────────────────────────────────────────────
   console.log("Creating account for Alice…");
   const alice = await client.newWallet(AccountStorageMode.public(), true);
   console.log("Alice account ID:", alice.id().toString());
+
+  // ── Sync after account creation ──────────────────────────────────────────────
+  console.log("Syncing after account creation...");
+  await client.syncState();
 
   // ── Creating test BTC faucet ──────────────────────────────────────────────────────
   const btcFaucet = await client.newFaucet(
@@ -142,16 +143,22 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<Outpu
   );
   console.log("ETH Faucet ID:", ethFaucet.id().toString());
 
-  // ── mint tokens to Alice based on sell token ──────────────────────────────────────
+  // ── Sync after faucet creation ──────────────────────────────────────────────
+  console.log("Syncing after faucet creation...");
+  await client.syncState();
+
+  // Determine which faucets to use based on swap params
   const sellFaucet = swapParams.sellToken === 'BTC' ? btcFaucet : ethFaucet;
   const buyFaucet = swapParams.buyToken === 'BTC' ? btcFaucet : ethFaucet;
   
-  // Convert sell amount to BigInt (no decimals - Miden uses base units)
+  // Convert amounts to BigInt
   const sellAmountBigInt = BigInt(Math.floor(parseFloat(swapParams.sellAmount)));
+  const buyAmountBigInt = BigInt(Math.floor(parseFloat(swapParams.buyAmount)));
   
-  // Mint a reasonable amount (max 10,000 base units to stay under faucet limit)
+  // Mint tokens to Alice
   const mintAmount = sellAmountBigInt > BigInt(5000) ? BigInt(10000) : sellAmountBigInt + BigInt(1000);
   
+  console.log("Creating mint transaction...");
   await client.submitTransaction(
     await client.newTransaction(
       sellFaucet.id(),
@@ -165,28 +172,27 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<Outpu
     prover,
   );
 
-  console.log("Syncing state:", (await client.syncState()));
+  // Sync state after minting
+  console.log("Syncing state after minting...");
+  await client.syncState();
+  console.log("Post-mint sync complete");
 
   const script = client.compileNoteScript(ZOROSWAP_SCRIPT);
   const noteType = NoteType.Public;
 
-  // Create offered asset from actual swap parameters
-  const fungibleAsset = new FungibleAsset(sellFaucet.id(), sellAmountBigInt);
-  const offeredAsset = new NoteAssets([fungibleAsset]);
-  
-  console.log("Created swap note:", {
-    sellToken: swapParams.sellToken,
-    buyToken: swapParams.buyToken,
-    sellAmount: sellAmountBigInt.toString(),
-    minBuyAmount: minBuyAmountBigInt.toString(),
-    assetsInNote: offeredAsset.assets().length
-  });
-  
-  const swapTag = buildSwapTag(
-    noteType, 
-    { symbol: swapParams.sellToken }, 
-    { symbol: swapParams.buyToken }
-  );
+  // Create assets using the faucet IDs directly
+  const offeredAsset = new FungibleAsset(sellFaucet.id(), sellAmountBigInt);
+  console.log("Created offeredAsset:", offeredAsset);
+  console.log("offeredAsset faucet ID:", sellFaucet.id().toString());
+  console.log("offeredAsset amount:", sellAmountBigInt.toString());
+
+  // Build swap tag using the simplified approach that avoids faucetId() calls
+  const swapTag = buildSwapTag(noteType, sellFaucet.id(), buyFaucet.id());
+  console.log("Created swapTag:", swapTag);
+
+  // Note should only contain the offered asset
+  const noteAssets = new NoteAssets([offeredAsset]);
+  console.log("Created noteAssets:", noteAssets);
 
   const metadata = new NoteMetadata(
     alice.id(),
@@ -198,21 +204,20 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<Outpu
 
   const deadline = 0;
 
-  // Convert min buy amount to BigInt (no decimals - use base units)
-  const minBuyAmountBigInt = BigInt(Math.floor(parseFloat(swapParams.buyAmount)));
+  const p2idTag = NoteTag.fromAccountId(alice.id()).asU32();
 
   // Following the pattern: [asset_id_prefix, asset_id_suffix, 0, min_amount_out]
   const requestedAssetFelts: Felt[] = [
     buyFaucet.id().prefix(),  // Felt 0: Asset ID prefix
     buyFaucet.id().suffix(),  // Felt 1: Asset ID suffix  
     new Felt(BigInt(0)),      // Felt 2: Always 0
-    new Felt(minBuyAmountBigInt) // Felt 3: Min amount out from swap params
+    new Felt(buyAmountBigInt) // Felt 3: Min amount out
   ];
 
   const inputs = new NoteInputs(new FeltArray([
     ...requestedAssetFelts,     // Felts 0-3: requested asset word
-    new Felt(BigInt(1337)),     // zoroswap_tag (use case id)
-    new Felt(BigInt(0)),        // p2id_tag 0 SINCE IT IS ALREADY IN METADATA
+    new Felt(BigInt(0)),        // zoroswap_tag use case id
+    new Felt(BigInt(p2idTag)),  // p2id_tag
     new Felt(BigInt(0)),        // empty_input_6
     new Felt(BigInt(0)),        // empty_input_7
     new Felt(BigInt(0)),        // swap_count
@@ -224,13 +229,16 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<Outpu
   ]));
 
   const note = new Note(
-    offeredAsset,
+    noteAssets,
     metadata,
     new NoteRecipient(generateRandomSerialNumber(), script, inputs),
   );
+  console.log("Created note:", note);
+  console.log("Note assets:", note.assets());
 
-  console.log("Note created successfully with 1 asset");
   const outputNote = OutputNote.full(note);
+  console.log("Created OutputNote:", outputNote);
+  console.log("OutputNote assets:", outputNote.assets());
   
   // Submit the note to the server
   await submitNoteToServer(outputNote);
