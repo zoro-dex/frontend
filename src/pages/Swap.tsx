@@ -129,41 +129,48 @@ function Swap() {
     setTimeout(() => setIsCalculating(false), 100);
   };
 
-  const handleSwap = async (): Promise<void> => {
-    if (!connected) {
-      return;
-    }
-    
-    // Validate amounts before proceeding
-    const sellAmountNum: number = parseFloat(sellAmount);
-    const buyAmountNum: number = parseFloat(buyAmount);
-    
-    if (isNaN(sellAmountNum) || isNaN(buyAmountNum) || sellAmountNum <= 0 || buyAmountNum <= 0) {
-      console.error("Invalid amounts for swap:", { sellAmount, buyAmount, sellAmountNum, buyAmountNum });
-      return;
-    }
-    
-    if (sellToken === buyToken) {
-      return;
-    }
-    
-    console.log("Creating Zoro swap note with:", { sellAmount, buyAmount, sellToken, buyToken });
-    
-    // Fetch latest prices before creating swap note
-    await refreshPrices(assetIds, true);
+const handleSwap = async (): Promise<void> => {
+  if (!connected) {
+    return;
+  }
+  
+  // Validate amounts before proceeding
+  const sellAmountNum: number = parseFloat(sellAmount);
+  const buyAmountNum: number = parseFloat(buyAmount);
+  
+  if (isNaN(sellAmountNum) || isNaN(buyAmountNum) || sellAmountNum <= 0 || buyAmountNum <= 0) {
+    console.error("Invalid amounts for swap:", { sellAmount, buyAmount, sellAmountNum, buyAmountNum });
+    return;
+  }
+  
+  if (sellToken === buyToken) {
+    return;
+  }
+  
+  console.log("Creating Zoro swap note with:", { sellAmount, buyAmount, sellToken, buyToken });
+  
+  // Fetch latest prices before creating swap note
+  await refreshPrices(assetIds, true);
 
-    setIsCreatingNote(true);
+  setIsCreatingNote(true);
+  
+  try {
+    // Pass actual swap parameters to compileZoroSwapNote
+    const swapParams = {
+      sellToken,
+      buyToken, 
+      sellAmount,
+      buyAmount
+    };
     
-    try {
-
-      await compileZoroSwapNote();
-      
-    } catch (error) {
-      console.error("Swap note creation failed:", error);
-    } finally {
-      setIsCreatingNote(false);
-    }
-  };
+    await compileZoroSwapNote(swapParams);
+    
+  } catch (error) {
+    console.error("Swap note creation failed:", error);
+  } finally {
+    setIsCreatingNote(false);
+  }
+};
 
   const sellTokenData = TOKENS[sellToken];
   const buyTokenData = TOKENS[buyToken];

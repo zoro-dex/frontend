@@ -26,6 +26,13 @@ interface Asset {
   symbol: TokenSymbol;
 }
 
+interface SwapParams {
+  sellToken: TokenSymbol;
+  buyToken: TokenSymbol; 
+  sellAmount: string;
+  buyAmount: string; // min_amount_out
+}
+
 /**
  * Builds a NoteTag for Zoro swap operations
  * 
@@ -106,7 +113,7 @@ async function submitNoteToServer(outputNote: OutputNote): Promise<void> {
   }
 }
 
-export async function compileZoroSwapNote(): Promise<OutputNote> {
+export async function compileZoroSwapNote(swapParams: SwapParams): Promise<OutputNote> {
   const client = await WebClient.createClient("https://rpc.testnet.miden.io:443");
   const prover = TransactionProver.newRemoteProver("https://tx-prover.testnet.miden.io");
 
@@ -135,15 +142,24 @@ export async function compileZoroSwapNote(): Promise<OutputNote> {
   );
   console.log("ETH Faucet ID:", ethFaucet.id().toString());
 
-  // ── mint 10 000 BTC to Alice ──────────────────────────────────────────────────────
+  // ── mint tokens to Alice based on sell token ──────────────────────────────────────
+  const sellFaucet = swapParams.sellToken === 'BTC' ? btcFaucet : ethFaucet;
+  const buyFaucet = swapParams.buyToken === 'BTC' ? btcFaucet : ethFaucet;
+  
+  // Convert sell amount to BigInt (no decimals - Miden uses base units)
+  const sellAmountBigInt = BigInt(Math.floor(parseFloat(swapParams.sellAmount)));
+  
+  // Mint a reasonable amount (max 10,000 base units to stay under faucet limit)
+  const mintAmount = sellAmountBigInt > BigInt(5000) ? BigInt(10000) : sellAmountBigInt + BigInt(1000);
+  
   await client.submitTransaction(
     await client.newTransaction(
-      btcFaucet.id(),
+      sellFaucet.id(),
       client.newMintTransactionRequest(
         alice.id(),
-        btcFaucet.id(),
+        sellFaucet.id(),
         NoteType.Public,
-        BigInt(10_000),
+        mintAmount,
       ),
     ),
     prover,
@@ -154,8 +170,23 @@ export async function compileZoroSwapNote(): Promise<OutputNote> {
   const script = client.compileNoteScript(ZOROSWAP_SCRIPT);
   const noteType = NoteType.Public;
 
-  const offeredAsset = new NoteAssets([new FungibleAsset(btcFaucet.id(), BigInt(100))]);
-  const swapTag = buildSwapTag(noteType, { symbol: 'BTC' }, { symbol: 'ETH' });
+  // Create offered asset from actual swap parameters
+  const fungibleAsset = new FungibleAsset(sellFaucet.id(), sellAmountBigInt);
+  const offeredAsset = new NoteAssets([fungibleAsset]);
+  
+  console.log("Created swap note:", {
+    sellToken: swapParams.sellToken,
+    buyToken: swapParams.buyToken,
+    sellAmount: sellAmountBigInt.toString(),
+    minBuyAmount: minBuyAmountBigInt.toString(),
+    assetsInNote: offeredAsset.assets().length
+  });
+  
+  const swapTag = buildSwapTag(
+    noteType, 
+    { symbol: swapParams.sellToken }, 
+    { symbol: swapParams.buyToken }
+  );
 
   const metadata = new NoteMetadata(
     alice.id(),
@@ -165,12 +196,15 @@ export async function compileZoroSwapNote(): Promise<OutputNote> {
     new Felt(BigInt(0)) // aux
   );
 
+  // Convert min buy amount to BigInt (no decimals - use base units)
+  const minBuyAmountBigInt = BigInt(Math.floor(parseFloat(swapParams.buyAmount)));
+
   // Following the pattern: [asset_id_prefix, asset_id_suffix, 0, min_amount_out]
   const requestedAssetFelts: Felt[] = [
-    ethFaucet.id().prefix(),  // Felt 0: Asset ID prefix
-    ethFaucet.id().suffix(),  // Felt 1: Asset ID suffix  
+    buyFaucet.id().prefix(),  // Felt 0: Asset ID prefix
+    buyFaucet.id().suffix(),  // Felt 1: Asset ID suffix  
     new Felt(BigInt(0)),      // Felt 2: Always 0
-    new Felt(BigInt(100))     // Felt 3: Min amount out
+    new Felt(minBuyAmountBigInt) // Felt 3: Min amount out from swap params
   ];
 
   const inputs = new NoteInputs(new FeltArray([
@@ -193,7 +227,7 @@ export async function compileZoroSwapNote(): Promise<OutputNote> {
     new NoteRecipient(generateRandomSerialNumber(), script, inputs),
   );
 
-  console.log("Note created:", note);
+  console.log("Note created successfully with 1 asset");
   const outputNote = OutputNote.full(note);
   
   // Submit the note to the server
