@@ -89,9 +89,24 @@ export default function ZoroLandingPage() {
 
         {/* Call to action */}
         <div className="space-y-3 sm:space-y-4">
-          <p className="bg-primary hover:bg-primary/90 text-primary-foreground py-3 sm:py-4 px-6 sm:px-8 text-sm sm:text-base rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg">
-            help@zoroswap.com
-          </p>
+          <button className="group relative bg-gradient-to-r from-primary to-accent hover:bg-primary/90 text-primary-foreground py-3 sm:py-4 px-6 sm:px-8 text-sm sm:text-base rounded-xl transition-all duration-500 transform hover:scale-105 shadow-lg overflow-hidden">
+            {/* Background slash effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent w-0 group-hover:w-full transition-all duration-700 transform -skew-x-12 group-hover:translate-x-full"></div>
+            
+            {/* Sword slash trail effect */}
+            <div className="absolute top-0 left-0 w-full h-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <div className="absolute top-1/2 left-0 w-0 h-0.5 bg-white/60 group-hover:w-full transition-all duration-500 transform -translate-y-1/2"></div>
+              <div className="absolute top-1/2 left-0 w-0 h-0.5 bg-white/40 group-hover:w-full transition-all duration-600 delay-75 transform -translate-y-1/2 translate-y-1"></div>
+            </div>
+            
+            {/* Button text with slight glow effect */}
+            <span className="relative z-10 group-hover:text-shadow-sm transition-all duration-300">
+              help@zoroswap.com
+            </span>
+            
+            {/* Subtle border glow */}
+            <div className="absolute inset-0 rounded-xl border-2 border-white/0 group-hover:border-white/30 transition-all duration-500"></div>
+          </button>
         </div>
       </div>
 
