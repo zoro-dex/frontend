@@ -61,7 +61,7 @@ export default function ZoroLandingPage() {
           </div> 
           <br />
           <div className="text-3xl sm:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            Zoro AMM
+            Zoro Swap
           </div>
           <div className="text-sm sm:text-lg lg:text-xl text-muted-foreground mt-2 font-medium">
             The Edge DEX on Miden.
