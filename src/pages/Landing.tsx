@@ -56,7 +56,7 @@ export default function ZoroLandingPage() {
             <img 
               src={logo}
               alt="Zoro Hat" 
-              className={`h-12 sm:h-16 lg:h-20 w-auto`}
+              className='h-12 sm:h-16 lg:h-20 w-auto'
             />
           </div> 
           <br />
@@ -76,9 +76,9 @@ export default function ZoroLandingPage() {
           
           {/* Animated status text */}
           <div className="h-6 sm:h-8 mb-6 sm:mb-8">
-            <p className="text-sm sm:text-base lg:text-lg text-accent animate-pulse transition-all duration-500">
+            <code className="font-mono dark:text-green-400 text-green-500 text-sm sm:text-base animate-pulse transition-all duration-9000">
               {phrases[currentPhrase]}
-            </p>
+            </code>
           </div>
 
           <p className="text-muted-foreground text-sm sm:text-base lg:text-lg leading-relaxed px-2">

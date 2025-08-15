@@ -121,7 +121,7 @@ function Faucet() {
     return `${hours}h ${minutes}m`;
   };
 
-  const mockFaucetRequest = async (token: TokenType, address: string): Promise<FaucetRequest> => {
+  const mockFaucetRequest = async (token: TokenType): Promise<FaucetRequest> => {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 2000));
     
@@ -175,7 +175,7 @@ function Faucet() {
     updateStatus(token, `Sending ${token} to your account...`, 'loading');
 
     try {
-      const result = await mockFaucetRequest(token, address);
+      const result = await mockFaucetRequest(token);
       
       if (result.success) {
         setRateLimitData(address, token);

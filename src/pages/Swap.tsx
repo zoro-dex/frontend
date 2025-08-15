@@ -54,7 +54,7 @@ function Swap() {
   const [shouldFetchPrices, setShouldFetchPrices] = useState(false);
   const [isCreatingNote, setIsCreatingNote] = useState(false);
   
-  const { connected, connecting, wallet } = useWallet();
+  const { connected, connecting } = useWallet();
   const { refreshPrices } = useContext(NablaAntennaContext);
   
   const assetIds: string[] = Object.values(TOKENS).map(token => token.priceId);
