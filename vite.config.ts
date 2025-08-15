@@ -12,8 +12,18 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+build: {
+    rollupOptions: {
+      // Don't let Rollup try to parse this worker file
+      external: [
+        '@demox-labs/miden-sdk/dist/workers/web-client-methods-worker.js'
+      ]
+    }
+  },
   optimizeDeps: {
-    exclude: ['@demox-labs/miden-sdk']
+    exclude: [
+      '@demox-labs/miden-sdk/dist/workers/web-client-methods-worker.js'
+    ]
   },
   assetsInclude: ['**/*.masm'] // Include .masm files as assets
 })
