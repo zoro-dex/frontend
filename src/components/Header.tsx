@@ -6,19 +6,24 @@ export function Header() {
   const { theme } = useTheme();
 
   return (
-    <div className="flex items-center justify-between p-3 sm:p-4 z-10">
+    <div className="flex items-center justify-between p-4 z-10">
       {/* Left */}
       <Link to="/">
         <div className="flex items-center gap-1">
         <img 
-            src="/blackhatmini.png" 
+            src="/Zoro_logo_final3.svg" 
             alt="Zoro Hat" 
-            className={`h-12 w-auto mirror-x ${theme === 'light' ? 'invert' : ''}`}
+            className="h-8 w-auto mirror-x"
           />
+
+          {/* WE NEED A LOGOTYPE WITH A THINNER Z - THIS TOO CLUNKY, NO ELEGANCE */}
+          {/* <p className="font-cal-sans text-3xl hidden xl:block">Zoro</p> */}
+
+          {/* THIS IS AN EVEN OLDER LOGOTYPE, MAYBE THIS KIND OF Z IS BETTER? */}
           <img 
             src="/logotype.png" 
             alt="Zoro Logotype" 
-            className={`h-4 w-auto hidden lg:block ${theme === 'light' ? 'invert' : ''}`}
+            className={`h-6 w-auto hidden xl:block ${theme === 'light' ? 'invert' : ''}`}
           /> 
         </div>
         </Link>
