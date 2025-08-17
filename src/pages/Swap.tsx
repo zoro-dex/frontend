@@ -11,7 +11,6 @@ import { useNablaAntennaPrices, NablaAntennaContext } from '../components/PriceF
 import { compileZoroSwapNote } from '../lib/ZoroSwapNote.ts';
 import { Link } from 'react-router-dom';
 
-
 type TabType = "Swap" | "Limit";
 
 const TOKENS = {
@@ -53,6 +52,7 @@ function Swap() {
   const [pricesFetched, setPricesFetched] = useState(false);
   const [shouldFetchPrices, setShouldFetchPrices] = useState(false);
   const [isCreatingNote, setIsCreatingNote] = useState(false);
+  const [lastEditedField, setLastEditedField] = useState<'sell' | 'buy'>('sell');
   
   const { connected, connecting } = useWallet();
   const { refreshPrices } = useContext(NablaAntennaContext);
@@ -61,10 +61,9 @@ function Swap() {
   const priceIds: string[] = [TOKENS[sellToken]?.priceId, TOKENS[buyToken]?.priceId].filter(Boolean);
   const prices = useNablaAntennaPrices(priceIds);
 
-  // Calculate buy amount when sell amount or tokens change
+  // Calculate opposite amount when sell amount or tokens change
   useEffect(() => {
-    if (!sellAmount || !prices || isCalculating || !pricesFetched) {
-      setBuyAmount("");
+    if (!prices || isCalculating || !pricesFetched) {
       return;
     }
     
@@ -72,7 +71,6 @@ function Swap() {
     const buyTokenData = TOKENS[buyToken];
     
     if (!sellTokenData || !buyTokenData) {
-      setBuyAmount("");
       return;
     }
     
@@ -80,23 +78,27 @@ function Swap() {
     const buyPrice = prices[buyTokenData.priceId];
     
     if (sellPrice && buyPrice && sellPrice.value > 0 && buyPrice.value > 0) {
-      const sellAmountNum: number = parseFloat(sellAmount);
-      if (!isNaN(sellAmountNum) && sellAmountNum > 0) {
-        const buyAmountCalculated: number = (sellAmountNum * sellPrice.value) / buyPrice.value;
-        const formattedBuyAmount: string = buyAmountCalculated.toFixed(8);
-        setBuyAmount(formattedBuyAmount);
-        console.log("Calculated buy amount:", formattedBuyAmount);
-      } else {
-        setBuyAmount("");
+      if (lastEditedField === 'sell' && sellAmount) {
+        const sellAmountNum: number = parseFloat(sellAmount);
+        if (!isNaN(sellAmountNum) && sellAmountNum > 0) {
+          const buyAmountCalculated: number = (sellAmountNum * sellPrice.value) / buyPrice.value;
+          const formattedBuyAmount: string = buyAmountCalculated.toFixed(8);
+          setBuyAmount(formattedBuyAmount);
+        }
+      } else if (lastEditedField === 'buy' && buyAmount) {
+        const buyAmountNum: number = parseFloat(buyAmount);
+        if (!isNaN(buyAmountNum) && buyAmountNum > 0) {
+          const sellAmountCalculated: number = (buyAmountNum * buyPrice.value) / sellPrice.value;
+          const formattedSellAmount: string = sellAmountCalculated.toFixed(8);
+          setSellAmount(formattedSellAmount);
+        }
       }
-    } else {
-      setBuyAmount("");
-      console.log("Missing price data, cannot calculate");
     }
-  }, [sellAmount, sellToken, buyToken, prices, isCalculating, pricesFetched]);
+  }, [sellAmount, buyAmount, sellToken, buyToken, prices, isCalculating, pricesFetched, lastEditedField]);
 
   const handleSellAmountChange = (value: string): void => {
     setSellAmount(value);
+    setLastEditedField('sell');
     if (!value) {
       setBuyAmount("");
     }
@@ -104,6 +106,10 @@ function Swap() {
 
   const handleBuyAmountChange = (value: string): void => {
     setBuyAmount(value);
+    setLastEditedField('buy');
+    if (!value) {
+      setSellAmount("");
+    }
   };
 
   const fetchPrices = async (): Promise<void> => {
@@ -118,65 +124,72 @@ function Swap() {
     setIsCalculating(true);
     setPricesFetched(false);
     
-    const tempToken = sellToken;
+    // Store current values before swapping
+    const tempToken: keyof typeof TOKENS = sellToken;
+    const tempSellAmount: string = sellAmount;
+    const tempBuyAmount: string = buyAmount;
+    
+    // Swap tokens
     setSellToken(buyToken);
     setBuyToken(tempToken);
     
-    // Clear amounts when swapping
-    setSellAmount("");
-    setBuyAmount("");
+    // Swap amounts - preserve user's input
+    setSellAmount(tempBuyAmount);
+    setBuyAmount(tempSellAmount);
+    
+    // Swap the last edited field as well
+    setLastEditedField(lastEditedField === 'sell' ? 'buy' : 'sell');
     
     setTimeout(() => setIsCalculating(false), 100);
   };
 
-const handleSwap = async (): Promise<void> => {
-  if (!connected) {
-    return;
-  }
-  
-  // Validate amounts before proceeding
-  const sellAmountNum: number = parseFloat(sellAmount);
-  const buyAmountNum: number = parseFloat(buyAmount);
-  
-  if (isNaN(sellAmountNum) || isNaN(buyAmountNum) || sellAmountNum <= 0 || buyAmountNum <= 0) {
-    console.error("Invalid amounts for swap:", { sellAmount, buyAmount, sellAmountNum, buyAmountNum });
-    return;
-  }
-  
-  if (sellToken === buyToken) {
-    return;
-  }
-  
-  console.log("Creating Zoro swap note with:", { sellAmount, buyAmount, sellToken, buyToken });
-  
-  // Fetch latest prices before creating swap note
-  await refreshPrices(assetIds, true);
+  const handleSwap = async (): Promise<void> => {
+    if (!connected) {
+      return;
+    }
+    
+    // Validate amounts before proceeding
+    const sellAmountNum: number = parseFloat(sellAmount);
+    const buyAmountNum: number = parseFloat(buyAmount);
+    
+    if (isNaN(sellAmountNum) || isNaN(buyAmountNum) || sellAmountNum <= 0 || buyAmountNum <= 0) {
+      console.error("Invalid amounts for swap:", { sellAmount, buyAmount, sellAmountNum, buyAmountNum });
+      return;
+    }
+    
+    if (sellToken === buyToken) {
+      return;
+    }
+    
+    console.log("Creating Zoro swap note with:", { sellAmount, buyAmount, sellToken, buyToken });
+    
+    // Fetch latest prices before creating swap note
+    await refreshPrices(assetIds, true);
 
-  setIsCreatingNote(true);
-  
-  try {
-    // Pass actual swap parameters to compileZoroSwapNote
-    const swapParams = {
-      sellToken,
-      buyToken, 
-      sellAmount,
-      buyAmount
-    };
+    setIsCreatingNote(true);
     
-    await compileZoroSwapNote(swapParams);
-    
-  } catch (error) {
-    console.error("Swap note creation failed:", error);
-  } finally {
-    setIsCreatingNote(false);
-  }
-};
+    try {
+      // Pass actual swap parameters to compileZoroSwapNote
+      const swapParams = {
+        sellToken,
+        buyToken, 
+        sellAmount,
+        buyAmount
+      };
+      
+      await compileZoroSwapNote(swapParams);
+      
+    } catch (error) {
+      console.error("Swap note creation failed:", error);
+    } finally {
+      setIsCreatingNote(false);
+    }
+  };
 
   const sellTokenData = TOKENS[sellToken];
   const buyTokenData = TOKENS[buyToken];
   const sellPrice = sellTokenData ? prices[sellTokenData.priceId] : null;
   const buyPrice = buyTokenData ? prices[buyTokenData.priceId] : null;
-
 
   const canSwap: boolean = Boolean(
     sellAmount && 
@@ -236,7 +249,7 @@ const handleSwap = async (): Promise<void> => {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background"
+                        className="border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background disabled:opacity-50"
                       >
                         <img 
                           src={sellToken + ".svg"} 
@@ -272,15 +285,15 @@ const handleSwap = async (): Promise<void> => {
                         type="number"
                         value={buyAmount}
                         onChange={(e) => handleBuyAmountChange(e.target.value)}
+                        onClick={fetchPrices}
                         placeholder="0"
-                        readOnly
                         className="border-none text-2xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner bg-transparent"
                       />
                       <Button
                         variant="outline"
                         size="sm"
                         disabled
-                        className="border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background"
+                        className="border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background disabled:opacity-50"
                       > 
                         <img 
                           src={buyToken + ".svg"} 
@@ -333,16 +346,17 @@ const handleSwap = async (): Promise<void> => {
               </div>
             </CardContent>
           </Card>
-            {/* Faucet Link */}
+          
+          {/* Faucet Link */}
           <div className="text-center">
             <Link to="/faucet">
-                <Button
+              <Button
                 variant="ghost"
                 size="sm"
                 className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
+              >
                 Thirsty for test tokens? Visit the Faucet →
-                </Button>
+              </Button>
             </Link>
           </div>
         </div>

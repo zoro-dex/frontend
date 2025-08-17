@@ -1,9 +1,7 @@
 import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter-reactui';
-import { useTheme } from "@/components/ThemeProvider";
 import { Link } from 'react-router-dom';
 
 export function Header() {
-  const { theme } = useTheme();
 
   return (
     <div className="flex items-center justify-between p-4 z-10">
@@ -20,11 +18,11 @@ export function Header() {
           {/* <p className="font-cal-sans text-3xl hidden xl:block">Zoro</p> */}
 
           {/* THIS IS AN EVEN OLDER LOGOTYPE, MAYBE THIS KIND OF Z IS BETTER? */}
-          <img 
+          {/* <img 
             src="/logotype.png" 
             alt="Zoro Logotype" 
             className={`h-6 w-auto hidden xl:block ${theme === 'light' ? 'invert' : ''}`}
-          /> 
+          />  */}
         </div>
         </Link>
 
