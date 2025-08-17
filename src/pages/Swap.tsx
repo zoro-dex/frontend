@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext, useRef } from "react";
 import { ArrowUpDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,12 +54,35 @@ function Swap() {
   const [isCreatingNote, setIsCreatingNote] = useState(false);
   const [lastEditedField, setLastEditedField] = useState<'sell' | 'buy'>('sell');
   
+  // Add ref for sell input auto-focus
+  const sellInputRef = useRef<HTMLInputElement>(null);
+  
   const { connected, connecting } = useWallet();
   const { refreshPrices } = useContext(NablaAntennaContext);
   
   const assetIds: string[] = Object.values(TOKENS).map(token => token.priceId);
   const priceIds: string[] = [TOKENS[sellToken]?.priceId, TOKENS[buyToken]?.priceId].filter(Boolean);
   const prices = useNablaAntennaPrices(priceIds);
+
+  // Auto-focus sell input on mount
+  useEffect(() => {
+    if (sellInputRef.current) {
+      sellInputRef.current.focus();
+    }
+  }, []);
+
+  // Prefetch prices on mount
+  useEffect(() => {
+    const prefetchPrices = async (): Promise<void> => {
+      if (!pricesFetched) {
+        setShouldFetchPrices(true);
+        await refreshPrices(assetIds);
+        setPricesFetched(true);
+      }
+    };
+    
+    prefetchPrices();
+  }, []); // Empty dependency array = run once on mount
 
   // Calculate opposite amount when sell amount or tokens change
   useEffect(() => {
@@ -120,27 +143,32 @@ function Swap() {
     }
   };
 
-  const handleReplaceTokens = (): void => {
+  const handleReplaceTokens = async (): Promise<void> => {
     setIsCalculating(true);
-    setPricesFetched(false);
     
-    // Store current values before swapping
-    const tempToken: keyof typeof TOKENS = sellToken;
-    const tempSellAmount: string = sellAmount;
-    const tempBuyAmount: string = buyAmount;
+    // Swap tokens first
+    const newSellToken = buyToken;
+    const newBuyToken = sellToken;
     
-    // Swap tokens
-    setSellToken(buyToken);
-    setBuyToken(tempToken);
+    setSellToken(newSellToken);
+    setBuyToken(newBuyToken);
     
-    // Swap amounts - preserve user's input
-    setSellAmount(tempBuyAmount);
-    setBuyAmount(tempSellAmount);
+    // Immediately fetch prices for new token pair
+    const newAssetIds = [TOKENS[newSellToken].priceId, TOKENS[newBuyToken].priceId];
+    await refreshPrices(newAssetIds, true);
+    setPricesFetched(true);
     
-    // Swap the last edited field as well
+    // Then swap amounts and update UI
+    setSellAmount(buyAmount);
+    setBuyAmount(sellAmount);
     setLastEditedField(lastEditedField === 'sell' ? 'buy' : 'sell');
     
-    setTimeout(() => setIsCalculating(false), 100);
+    setIsCalculating(false);
+    
+    // Focus the sell input after swap
+    if (sellInputRef.current) {
+      sellInputRef.current.focus();
+    }
   };
 
   const handleSwap = async (): Promise<void> => {
@@ -239,6 +267,7 @@ function Swap() {
                   <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
                     <div className="flex items-center justify-between gap-2">
                       <Input
+                        ref={sellInputRef}
                         type="number"
                         value={sellAmount}
                         onChange={(e) => handleSellAmountChange(e.target.value)}
