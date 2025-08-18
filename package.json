@@ -11,19 +11,16 @@
   },
   "dependencies": {
     "@demox-labs/miden-sdk": "^0.10.1",
-    "@demox-labs/miden-wallet-adapter-base": "^0.1.5",
-    "@demox-labs/miden-wallet-adapter-miden": "^0.1.1",
-    "@demox-labs/miden-wallet-adapter-react": "^0.1.1",
-    "@demox-labs/miden-wallet-adapter-reactui": "^0.1.4",
+    "@demox-labs/miden-wallet-adapter": "^0.2.1",
     "@radix-ui/react-dropdown-menu": "^2.1.15",
     "@radix-ui/react-slot": "^1.2.3",
-    "@types/react": "^18.3.23",
-    "@types/react-dom": "^18.3.7",
+    "@types/react": "npm:types-react@rc",
+    "@types/react-dom": "npm:types-react-dom@rc",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.525.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
     "react-router-dom": "^7.7.1",
     "tailwind-merge": "^3.3.1"
   },
@@ -42,5 +39,9 @@
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.35.1",
     "vite": "^7.0.4"
+  },
+  "overrides": {
+    "@types/react": "npm:types-react@rc",
+    "@types/react-dom": "npm:types-react-dom@rc"
   }
 }
