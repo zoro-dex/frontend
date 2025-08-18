@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, useRef } from "react";
+import { useState, useEffect, useContext, useRef, useCallback, useMemo } from "react";
 import { ArrowUpDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,10 +10,10 @@ import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter-reactui';
 import { useNablaAntennaPrices, NablaAntennaContext } from '../components/PriceFetcher';
 import { compileZoroSwapNote } from '../lib/ZoroSwapNote.ts';
 import { Link } from 'react-router-dom';
-import { useBalance } from '../hooks/useBalance';
-import { AccountId } from '@demox-labs/miden-sdk';
+import { AccountId, WebClient } from '@demox-labs/miden-sdk';
 
 type TabType = "Swap" | "Limit";
+type TokenSymbol = keyof typeof TOKENS;
 
 const TOKENS = {
   BTC: {
@@ -33,6 +33,13 @@ interface PriceFetcherProps {
   assetIds: string[];
 }
 
+interface TokenBalanceHookResult {
+  balance: bigint;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => Promise<void>;
+}
+
 const PriceFetcher: React.FC<PriceFetcherProps> = ({ shouldFetch, assetIds }) => {
   const { refreshPrices } = useContext(NablaAntennaContext);
   
@@ -42,6 +49,83 @@ const PriceFetcher: React.FC<PriceFetcherProps> = ({ shouldFetch, assetIds }) =>
   }, [shouldFetch, refreshPrices, assetIds]);
   
   return null;
+};
+
+/**
+ * Format BigInt balance to human-readable string
+ */
+const formatBalance = (balance: bigint, decimals: number = 8): string => {
+  if (balance === BigInt(0)) {
+    return "0";
+  }
+  
+  // Convert BigInt to number for formatting (be careful with precision)
+  const divisor = BigInt(Math.pow(10, decimals));
+  const wholePart = balance / divisor;
+  const fractionalPart = balance % divisor;
+  
+  if (fractionalPart === BigInt(0)) {
+    return wholePart.toString();
+  }
+  
+  // Format with appropriate decimal places
+  const fractionalStr = fractionalPart.toString().padStart(decimals, '0');
+  const trimmedFractional = fractionalStr.replace(/0+$/, '');
+  
+  if (trimmedFractional === '') {
+    return wholePart.toString();
+  }
+  
+  return `${wholePart}.${trimmedFractional}`;
+};
+
+/**
+ * Custom hook for token-specific balance using hardcoded faucet IDs
+ */
+const useTokenBalance = (tokenSymbol: TokenSymbol, userAccountId: string | null): TokenBalanceHookResult => {
+  const [balance, setBalance] = useState<bigint>(BigInt(0));
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchBalance = useCallback(async (): Promise<void> => {
+    if (!userAccountId || !tokenSymbol) {
+      setBalance(BigInt(0));
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const client = await WebClient.createClient('https://rpc.testnet.miden.io:443');
+      await client.syncState();
+      
+      const accountId = AccountId.fromBech32(userAccountId);
+      // Keep the hardcoded faucet ID as requested
+      const faucetId = AccountId.fromBech32('mtst1qppen8yngje35gr223jwe6ptjy7gedn9');
+      
+      let account = await client.getAccount(accountId);
+      if (account === null) {
+        await client.importAccountById(accountId);
+        account = await client.getAccount(accountId);
+      }
+      
+      const tokenBalance = account?.vault().getBalance(faucetId);
+      setBalance(BigInt(tokenBalance ?? 0));
+    } catch (err) {
+      console.error('Failed to fetch balance:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      setBalance(BigInt(0));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userAccountId, tokenSymbol]);
+
+  useEffect(() => {
+    fetchBalance();
+  }, [fetchBalance]);
+
+  return { balance, isLoading, error, refetch: fetchBalance };
 };
 
 /**
@@ -63,53 +147,56 @@ const calculateUsdValue = (amount: string, priceUsd: number): string => {
   });
 };
 
-/**
- * Format token amount with appropriate decimal places
- */
-const formatTokenAmount = (amount: string, symbol: string): string => {
-  const amountNum: number = parseFloat(amount);
-  if (isNaN(amountNum) || amountNum <= 0) {
-    return "";
-  }
-  
-  // Display more decimals for smaller amounts
-  const decimals: number = amountNum < 1 ? 8 : amountNum < 100 ? 6 : 4;
-  
-  return `${amountNum.toFixed(decimals)} ${symbol}`;
-};
-
 function Swap() {
   const [activeTab, setActiveTab] = useState<TabType>("Swap");
   const [sellAmount, setSellAmount] = useState<string>("");
   const [buyAmount, setBuyAmount] = useState<string>("");
-  const [sellToken, setSellToken] = useState<keyof typeof TOKENS>("BTC");
-  const [buyToken, setBuyToken] = useState<keyof typeof TOKENS>("ETH");
-  const [pricesFetched, setPricesFetched] = useState(false);
-  const [shouldFetchPrices, setShouldFetchPrices] = useState(false);
-  const [isCreatingNote, setIsCreatingNote] = useState(false);
+  const [sellToken, setSellToken] = useState<TokenSymbol>("BTC");
+  const [buyToken, setBuyToken] = useState<TokenSymbol>("ETH");
+  const [pricesFetched, setPricesFetched] = useState<boolean>(false);
+  const [shouldFetchPrices, setShouldFetchPrices] = useState<boolean>(false);
+  const [isCreatingNote, setIsCreatingNote] = useState<boolean>(false);
   const [lastEditedField, setLastEditedField] = useState<'sell' | 'buy'>('sell');
   
   // Add ref for sell input auto-focus
   const sellInputRef = useRef<HTMLInputElement>(null);
   
-  const { connected, connecting } = useWallet();
+  const { connected, connecting, wallet } = useWallet();
   const { refreshPrices } = useContext(NablaAntennaContext);
   
+  // Get the user's account ID from the connected wallet
+  const userAccountId = connected && wallet?.adapter.publicKey ? 
+    wallet.adapter.publicKey.toString() : null;
+  
+  // Use the token-specific balance hook
+  const { 
+    balance: sellTokenBalance, 
+    isLoading: balanceLoading, 
+    error: balanceError 
+  } = useTokenBalance(sellToken, userAccountId);
+
   const assetIds: string[] = Object.values(TOKENS).map(token => token.priceId);
   const priceIds: string[] = [TOKENS[sellToken]?.priceId, TOKENS[buyToken]?.priceId].filter(Boolean);
   const prices = useNablaAntennaPrices(priceIds);
 
-  const balance = useBalance({
-    accountId: AccountId.fromBech32('mtst1qzr4md9039v4cyzv2dw0789qc53evzea'),
-    faucetId: AccountId.fromBech32('mtst1qppen8yngje35gr223jwe6ptjy7gedn9'),
-  });
-
-    // Fetch balance on mount
-    useEffect(() => {
-      if (balance) {
-        console.log('MIDEN BALANCE', balance);
-      }
-    }, [balance]);
+  // Format the balance for display
+  const formattedBalance = useMemo(() => {
+    if (balanceLoading) return "Your balance...";
+    if (balanceError) return "Error";
+    if (sellTokenBalance === BigInt(0)) return "0";
+    
+    const formatted = formatBalance(sellTokenBalance, 6);
+    const num = parseFloat(formatted);
+    
+    // Show appropriate precision based on amount
+    if (num >= 1000) {
+      return num.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    } else if (num >= 1) {
+      return num.toLocaleString('en-US', { maximumFractionDigits: 4 });
+    } else {
+      return num.toLocaleString('en-US', { maximumFractionDigits: 8 });
+    }
+  }, [sellTokenBalance, balanceLoading, balanceError]);
 
   // Auto-focus sell input on mount
   useEffect(() => {
@@ -189,7 +276,7 @@ function Swap() {
     }
   };
 
-const handleReplaceTokens = (): void => {
+  const handleReplaceTokens = (): void => {
     // Simply swap all values without any async operations or recalculations
     const newSellToken = buyToken;
     const newBuyToken = sellToken;
@@ -207,6 +294,13 @@ const handleReplaceTokens = (): void => {
     // Focus the sell input after swap
     if (sellInputRef.current) {
       sellInputRef.current.focus();
+    }
+  };
+
+  const handleMaxBalance = (): void => {
+    if (!balanceLoading && sellTokenBalance > BigInt(0)) {
+      const maxAmount = formatBalance(sellTokenBalance, 6);
+      handleSellAmountChange(maxAmount);
     }
   };
 
@@ -338,7 +432,15 @@ const handleReplaceTokens = (): void => {
                     {/* USD Value Display */}
                     <div className="flex items-center justify-between text-xs text-muted-foreground h-5">
                       <div>{sellUsdValue || priceFor1}</div>
-                      <div className="">{balance}</div>
+                      <div className="flex items-center gap-1">
+                        <button 
+                          onClick={handleMaxBalance}
+                          className="hover:text-foreground transition-colors cursor-pointer underline mr-1"
+                          disabled={balanceLoading || sellTokenBalance === BigInt(0)}
+                        >
+                          {formattedBalance}
+                        </button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
