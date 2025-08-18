@@ -13,16 +13,6 @@ export function Header() {
             alt="Zoro Hat" 
             className="h-8 w-auto mirror-x"
           />
-
-          {/* WE NEED A LOGOTYPE WITH A THINNER Z - THIS TOO CLUNKY, NO ELEGANCE */}
-          {/* <p className="font-cal-sans text-3xl hidden xl:block">Zoro</p> */}
-
-          {/* THIS IS AN EVEN OLDER LOGOTYPE, MAYBE THIS KIND OF Z IS BETTER? */}
-          {/* <img 
-            src="/logotype.png" 
-            alt="Zoro Logotype" 
-            className={`h-6 w-auto hidden xl:block ${theme === 'light' ? 'invert' : ''}`}
-          />  */}
         </div>
         </Link>
 
