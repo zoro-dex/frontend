@@ -64,9 +64,6 @@ function Faucet(): JSX.Element {
                     />
                     <div>
                       <h3 className="text-lg sm:text-xl font-semibold">{token.name}</h3>
-                      <p className="text-muted-foreground text-xs sm:text-sm">
-                        Get {token.amount} {token.symbol} every 24 hours
-                      </p>
                     </div>
                   </div>
                   

@@ -42,13 +42,46 @@ const PriceFetcher: React.FC<PriceFetcherProps> = ({ shouldFetch, assetIds }) =>
   return null;
 };
 
+/**
+ * Calculate and format USD value for a token amount
+ */
+const calculateUsdValue = (amount: string, priceUsd: number): string => {
+  const amountNum: number = parseFloat(amount);
+  if (isNaN(amountNum) || amountNum <= 0 || !priceUsd) {
+    return "";
+  }
+  
+  const usdValue: number = amountNum * priceUsd;
+
+  return usdValue.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+};
+
+/**
+ * Format token amount with appropriate decimal places
+ */
+const formatTokenAmount = (amount: string, symbol: string): string => {
+  const amountNum: number = parseFloat(amount);
+  if (isNaN(amountNum) || amountNum <= 0) {
+    return "";
+  }
+  
+  // Display more decimals for smaller amounts
+  const decimals: number = amountNum < 1 ? 8 : amountNum < 100 ? 6 : 4;
+  
+  return `${amountNum.toFixed(decimals)} ${symbol}`;
+};
+
 function Swap() {
   const [activeTab, setActiveTab] = useState<TabType>("Swap");
   const [sellAmount, setSellAmount] = useState<string>("");
   const [buyAmount, setBuyAmount] = useState<string>("");
   const [sellToken, setSellToken] = useState<keyof typeof TOKENS>("BTC");
   const [buyToken, setBuyToken] = useState<keyof typeof TOKENS>("ETH");
-  const [isCalculating, setIsCalculating] = useState(false);
   const [pricesFetched, setPricesFetched] = useState(false);
   const [shouldFetchPrices, setShouldFetchPrices] = useState(false);
   const [isCreatingNote, setIsCreatingNote] = useState(false);
@@ -84,9 +117,8 @@ function Swap() {
     prefetchPrices();
   }, []); // Empty dependency array = run once on mount
 
-  // Calculate opposite amount when sell amount or tokens change
   useEffect(() => {
-    if (!prices || isCalculating || !pricesFetched) {
+    if (!prices || !pricesFetched) {
       return;
     }
     
@@ -117,7 +149,7 @@ function Swap() {
         }
       }
     }
-  }, [sellAmount, buyAmount, sellToken, buyToken, prices, isCalculating, pricesFetched, lastEditedField]);
+  }, [sellAmount, buyAmount, sellToken, buyToken, prices, pricesFetched, lastEditedField]);
 
   const handleSellAmountChange = (value: string): void => {
     setSellAmount(value);
@@ -143,27 +175,20 @@ function Swap() {
     }
   };
 
-  const handleReplaceTokens = async (): Promise<void> => {
-    setIsCalculating(true);
-    
-    // Swap tokens first
+const handleReplaceTokens = (): void => {
+    // Simply swap all values without any async operations or recalculations
     const newSellToken = buyToken;
     const newBuyToken = sellToken;
+    const newSellAmount = buyAmount;
+    const newBuyAmount = sellAmount;
+    const newLastEditedField = lastEditedField === 'sell' ? 'buy' : 'sell';
     
+    // Update all state in one batch to avoid intermediate renders
     setSellToken(newSellToken);
     setBuyToken(newBuyToken);
-    
-    // Immediately fetch prices for new token pair
-    const newAssetIds = [TOKENS[newSellToken].priceId, TOKENS[newBuyToken].priceId];
-    await refreshPrices(newAssetIds, true);
-    setPricesFetched(true);
-    
-    // Then swap amounts and update UI
-    setSellAmount(buyAmount);
-    setBuyAmount(sellAmount);
-    setLastEditedField(lastEditedField === 'sell' ? 'buy' : 'sell');
-    
-    setIsCalculating(false);
+    setSellAmount(newSellAmount);
+    setBuyAmount(newBuyAmount);
+    setLastEditedField(newLastEditedField);
     
     // Focus the sell input after swap
     if (sellInputRef.current) {
@@ -219,6 +244,13 @@ function Swap() {
   const sellPrice = sellTokenData ? prices[sellTokenData.priceId] : null;
   const buyPrice = buyTokenData ? prices[buyTokenData.priceId] : null;
 
+  // Calculate USD values for display
+  const sellUsdValue: string = sellPrice ? calculateUsdValue(sellAmount, sellPrice.value) : "";
+  const buyUsdValue: string = buyPrice ? calculateUsdValue(buyAmount, buyPrice.value) : "";
+  
+  // Format token amounts for display
+  const formattedSellAmount: string = formatTokenAmount(sellAmount, sellToken);
+
   const canSwap: boolean = Boolean(
     sellAmount && 
     buyAmount && 
@@ -273,7 +305,7 @@ function Swap() {
                         onChange={(e) => handleSellAmountChange(e.target.value)}
                         onClick={fetchPrices}
                         placeholder="0"
-                        className="border-none text-2xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner"
+                        className="border-none text-3xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner"
                       />
                       <Button
                         variant="outline"
@@ -289,6 +321,12 @@ function Swap() {
                         />
                         {sellToken}
                       </Button>
+                    </div>
+                    
+                    {/* USD Value Display */}
+                    <div className="flex items-center justify-between text-xs text-muted-foreground h-5">
+                      <div>{sellUsdValue}</div>
+                      <div className="">{formattedSellAmount}</div>
                     </div>
                   </CardContent>
                 </Card>
@@ -306,7 +344,7 @@ function Swap() {
               </div>
 
               <div className="space-y-2">
-                <div className="text-xs sm:text-sm text-muted-foreground">Get</div>
+                <div className="text-xs sm:text-sm">Get</div>
                 <Card className="bg-gradient-to-b from-muted/10 from-10% to-muted/30 to-50% border-none">
                   <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
                     <div className="flex items-center justify-between gap-2">
@@ -316,7 +354,7 @@ function Swap() {
                         onChange={(e) => handleBuyAmountChange(e.target.value)}
                         onClick={fetchPrices}
                         placeholder="0"
-                        className="border-none text-2xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner bg-transparent"
+                        className="border-none text-3xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner bg-transparent"
                       />
                       <Button
                         variant="outline"
@@ -333,6 +371,11 @@ function Swap() {
                         />
                         {buyToken}
                       </Button>
+                    </div>
+                    
+                    {/* USD Value Display */}
+                    <div className="flex items-center justify-center text-xs text-muted-foreground h-5 text-green-500">
+                      <div>{buyUsdValue}</div>
                     </div>
                   </CardContent>
                 </Card>
@@ -359,7 +402,7 @@ function Swap() {
                     ) : !canSwap ? (
                       sellToken === buyToken ? "Select different tokens" : "Enter amount"
                     ) : (
-                      "Create Swap Note"
+                      "Swap"
                     )}
                   </Button>
                 ) : (

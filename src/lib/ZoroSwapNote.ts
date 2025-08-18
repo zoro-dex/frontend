@@ -82,7 +82,7 @@ async function submitNoteToServer(outputNote: OutputNote): Promise<void> {
     const noteString = outputNote.toString();
     const noteData = btoa(noteString);
     
-    const response = await fetch('/orders/submit', {
+    const response = await fetch('https://api.zoroswap.com/submitOrder', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
