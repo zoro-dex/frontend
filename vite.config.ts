@@ -13,7 +13,9 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    exclude: ['@demox-labs/miden-sdk']
+    exclude: [
+      '@demox-labs/miden-sdk',
+    ]
   },
-  assetsInclude: ['**/*.masm'] // Include .masm files as assets
+  assetsInclude: ['**/*.masm'], // Include .masm files as assets
 })

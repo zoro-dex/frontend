@@ -1,4 +1,4 @@
-import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter-reactui';
+import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter';
 import { Link } from 'react-router-dom';
 
 export function Header() {
@@ -10,19 +10,9 @@ export function Header() {
         <div className="flex items-center gap-1">
         <img 
             src="/Zoro_logo_final3.svg" 
-            alt="Zoro Hat" 
+            alt="Zoro logo" 
             className="h-8 w-auto mirror-x"
           />
-
-          {/* WE NEED A LOGOTYPE WITH A THINNER Z - THIS TOO CLUNKY, NO ELEGANCE */}
-          {/* <p className="font-cal-sans text-3xl hidden xl:block">Zoro</p> */}
-
-          {/* THIS IS AN EVEN OLDER LOGOTYPE, MAYBE THIS KIND OF Z IS BETTER? */}
-          {/* <img 
-            src="/logotype.png" 
-            alt="Zoro Logotype" 
-            className={`h-6 w-auto hidden xl:block ${theme === 'light' ? 'invert' : ''}`}
-          />  */}
         </div>
         </Link>
 
