@@ -10,6 +10,8 @@ import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter-reactui';
 import { useNablaAntennaPrices, NablaAntennaContext } from '../components/PriceFetcher';
 import { compileZoroSwapNote } from '../lib/ZoroSwapNote.ts';
 import { Link } from 'react-router-dom';
+import { useBalance } from '../hooks/useBalance';
+import { AccountId } from '@demox-labs/miden-sdk';
 
 type TabType = "Swap" | "Limit";
 
@@ -97,6 +99,12 @@ function Swap() {
   const priceIds: string[] = [TOKENS[sellToken]?.priceId, TOKENS[buyToken]?.priceId].filter(Boolean);
   const prices = useNablaAntennaPrices(priceIds);
 
+  const balance = useBalance({
+    accountId: AccountId.fromBech32('mtst1qqquxrx6kh77vypk8j6lz6j5xullvu70'),
+    // accountId: AccountId.fromHex('0x01c30cdab5fde610363cb5f16a5437'),
+    faucetId: AccountId.fromBech32('mtst1qppen8yngje35gr223jwe6ptjy7gedn9'),
+  });
+
   // Auto-focus sell input on mount
   useEffect(() => {
     if (sellInputRef.current) {
@@ -116,6 +124,13 @@ function Swap() {
     
     prefetchPrices();
   }, []); // Empty dependency array = run once on mount
+
+  // Fetch balance on mount
+  // useEffect(() => {
+  //   if (balance) {
+  //     console.log('MIDEN BALANCE', balance);
+  //   }
+  // }, [balance]);
 
   useEffect(() => {
     if (!prices || !pricesFetched) {
@@ -244,9 +259,10 @@ const handleReplaceTokens = (): void => {
   const sellPrice = sellTokenData ? prices[sellTokenData.priceId] : null;
   const buyPrice = buyTokenData ? prices[buyTokenData.priceId] : null;
 
-  // Calculate USD values for display
+  // Calculate values for display
   const sellUsdValue: string = sellPrice ? calculateUsdValue(sellAmount, sellPrice.value) : "";
   const buyUsdValue: string = buyPrice ? calculateUsdValue(buyAmount, buyPrice.value) : "";
+  const priceFor1: string = sellPrice ? calculateUsdValue("1", sellPrice.value) : "";
   
   // Format token amounts for display
   const formattedSellAmount: string = formatTokenAmount(sellAmount, sellToken);
@@ -325,7 +341,7 @@ const handleReplaceTokens = (): void => {
                     
                     {/* USD Value Display */}
                     <div className="flex items-center justify-between text-xs text-muted-foreground h-5">
-                      <div>{sellUsdValue}</div>
+                      <div>{sellUsdValue || priceFor1}</div>
                       <div className="">{formattedSellAmount}</div>
                     </div>
                   </CardContent>
@@ -374,8 +390,8 @@ const handleReplaceTokens = (): void => {
                     </div>
                     
                     {/* USD Value Display */}
-                    <div className="flex items-center justify-center text-xs text-muted-foreground h-5 text-green-500">
-                      <div>{buyUsdValue}</div>
+                    <div className="flex items-center justify-center text-xs text-muted-foreground h-5">
+                      <div className="text-green-500">{buyUsdValue}</div>
                     </div>
                   </CardContent>
                 </Card>

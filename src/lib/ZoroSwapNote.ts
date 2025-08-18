@@ -16,7 +16,7 @@ import {
   FungibleAsset,
   OutputNote,
   NoteExecutionMode,
-  AccountId
+  AccountId,
 } from "@demox-labs/miden-sdk";
 
 // @ts-ignore - MASM files are treated as raw text
