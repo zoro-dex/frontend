@@ -1,37 +1,28 @@
-import { type AccountId } from '@demox-labs/miden-sdk';
+import { type AccountId, WebClient } from '@demox-labs/miden-sdk';
 import { useCallback, useEffect, useState } from 'react';
-import { useWebClient } from '@/components/WebClientContext';
 
-interface UseBalanceParams {
-  accountId: AccountId;
-  faucetId: AccountId;
-}
+export const useBalance = (
+  { accountId, faucetId }: { accountId: AccountId; faucetId: AccountId },
+) => {
+  let [balance, setBalance] = useState(BigInt(0));
 
-export const useBalance = ({ accountId, faucetId }: UseBalanceParams) => {
-  const [balance, setBalance] = useState<bigint>(BigInt(0));
-  const { client, isReady } = useWebClient();
-
-  const fetchBalance = useCallback(async (): Promise<void> => {
-    if (!client || !isReady) return;
-
-    try {
-      await client.syncState();
-      
-      let acc = await client.getAccount(accountId);
-      if (acc === null) {
-        await client.importAccountById(accountId);
-        acc = await client.getAccount(accountId);
-      }
-      
-      const balanceValue = acc?.vault().getBalance(faucetId);
-      setBalance(BigInt(balanceValue ?? 0));
-    } catch (error) {
-      console.error('Failed to fetch balance:', error);
+  const fetchBalance = useCallback(async () => {
+    const client = await WebClient.createClient('https://rpc.testnet.miden.io:443');
+    await client.syncState();
+    let acc = await client.getAccount(accountId);
+    if (acc == null) {
+      await client.importAccountById(accountId);
+      console.log('imported new account', accountId.toBech32(), 'to client');
+      acc = await client.getAccount(accountId);
     }
-  }, [client, isReady, accountId, faucetId]);
+    let balance = acc?.vault().getBalance(faucetId);
+    setBalance(BigInt(balance ?? 0));
+  }, [accountId, faucetId]);
 
   useEffect(() => {
-    fetchBalance();
+    if (fetchBalance) {
+      fetchBalance();
+    }
   }, [fetchBalance]);
 
   return balance;

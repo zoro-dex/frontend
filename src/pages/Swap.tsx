@@ -100,10 +100,16 @@ function Swap() {
   const prices = useNablaAntennaPrices(priceIds);
 
   const balance = useBalance({
-    accountId: AccountId.fromBech32('mtst1qqquxrx6kh77vypk8j6lz6j5xullvu70'),
-    // accountId: AccountId.fromHex('0x01c30cdab5fde610363cb5f16a5437'),
+    accountId: AccountId.fromBech32('mtst1qzr4md9039v4cyzv2dw0789qc53evzea'),
     faucetId: AccountId.fromBech32('mtst1qppen8yngje35gr223jwe6ptjy7gedn9'),
   });
+
+    // Fetch balance on mount
+    useEffect(() => {
+      if (balance) {
+        console.log('MIDEN BALANCE', balance);
+      }
+    }, [balance]);
 
   // Auto-focus sell input on mount
   useEffect(() => {
@@ -124,13 +130,6 @@ function Swap() {
     
     prefetchPrices();
   }, []); // Empty dependency array = run once on mount
-
-  // Fetch balance on mount
-  // useEffect(() => {
-  //   if (balance) {
-  //     console.log('MIDEN BALANCE', balance);
-  //   }
-  // }, [balance]);
 
   useEffect(() => {
     if (!prices || !pricesFetched) {
@@ -263,9 +262,6 @@ const handleReplaceTokens = (): void => {
   const sellUsdValue: string = sellPrice ? calculateUsdValue(sellAmount, sellPrice.value) : "";
   const buyUsdValue: string = buyPrice ? calculateUsdValue(buyAmount, buyPrice.value) : "";
   const priceFor1: string = sellPrice ? calculateUsdValue("1", sellPrice.value) : "";
-  
-  // Format token amounts for display
-  const formattedSellAmount: string = formatTokenAmount(sellAmount, sellToken);
 
   const canSwap: boolean = Boolean(
     sellAmount && 
@@ -342,7 +338,7 @@ const handleReplaceTokens = (): void => {
                     {/* USD Value Display */}
                     <div className="flex items-center justify-between text-xs text-muted-foreground h-5">
                       <div>{sellUsdValue || priceFor1}</div>
-                      <div className="">{formattedSellAmount}</div>
+                      <div className="">{balance}</div>
                     </div>
                   </CardContent>
                 </Card>
