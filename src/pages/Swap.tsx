@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext, useRef, useCallback, useMemo } from "react";
-import { ArrowUpDown, Loader2 } from "lucide-react";
+import { ArrowUpDown, Loader2, Settings, X, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -40,6 +40,11 @@ interface TokenBalanceHookResult {
   refetch: () => Promise<void>;
 }
 
+interface SwapSettingsProps {
+  slippage: number;
+  onSlippageChange: (slippage: number) => void;
+}
+
 const PriceFetcher: React.FC<PriceFetcherProps> = ({ shouldFetch, assetIds }) => {
   const { refreshPrices } = useContext(NablaAntennaContext);
   
@@ -50,6 +55,141 @@ const PriceFetcher: React.FC<PriceFetcherProps> = ({ shouldFetch, assetIds }) =>
   
   return null;
 };
+
+/**
+ * Calculate minimum amount out considering slippage
+ */
+const calculateMinAmountOut = (buyAmount: string, slippagePercent: number): string => {
+  const buyAmountNum = parseFloat(buyAmount);
+  if (isNaN(buyAmountNum) || buyAmountNum <= 0) {
+    return "";
+  }
+  
+  const minAmount = buyAmountNum * (1 - slippagePercent / 100);
+  return minAmount.toFixed(8);
+};
+
+/**
+ * Minimal SwapSettings Component
+ */
+function SwapSettings({ slippage, onSlippageChange }: SwapSettingsProps) {
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [inputValue, setInputValue] = useState<string>(slippage.toString());
+
+  const handleSlippageChange = (value: string): void => {
+    setInputValue(value);
+    const numValue = parseFloat(value);
+    if (!isNaN(numValue) && numValue >= 0 && numValue <= 50) {
+      onSlippageChange(numValue);
+    }
+  };
+
+  const handleToggle = (): void => {
+    setIsOpen(!isOpen);
+    // Reset input to current slippage when opening
+    if (!isOpen) {
+      setInputValue(slippage.toString());
+    }
+  };
+
+  const handleClose = (): void => {
+    setIsOpen(false);
+  };
+
+  // Update input when slippage changes externally
+  useEffect(() => {
+    setInputValue(slippage.toString());
+  }, [slippage]);
+
+  return (
+    <div className="relative">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleToggle}
+        className={`transition-all duration-200 hover:bg-accent hover:text-accent-foreground ${
+          isOpen ? 'rotate-45' : 'rotate-0'
+        }`}
+        aria-label="Slippage settings"
+      >
+        <Settings className="h-4 w-4 sm:h-[1.2rem] sm:w-[1.2rem]" />
+      </Button>
+
+      {isOpen && (
+        <>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/20 z-40"
+            onClick={handleClose}
+          />
+          
+          {/* Minimal Settings Panel */}
+          <Card className="absolute top-10 right-0 w-[200px] sm:w-[220px] z-50 border shadow-lg">
+            <CardContent className="p-4 space-y-3">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold">Max slippage</h3>
+                  <div className="group relative">
+                    <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                    {/* Tooltip on hover */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10">
+                      <div className="bg-popover text-popover-foreground text-xs rounded-md px-2 py-1 shadow-md border max-w-[200px] text-center">
+                        Your transaction will revert if the price changes unfavorably by more than this percentage
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-popover"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleClose}
+                  className="h-5 w-5 hover:bg-accent hover:text-accent-foreground"
+                  aria-label="Close settings"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+
+              {/* Slippage Input */}
+              <div className="space-y-2">
+                <div className="relative">
+                  <Input
+                    type="number"
+                    value={inputValue}
+                    onChange={(e) => handleSlippageChange(e.target.value)}
+                    className="text-center text-sm pr-8"
+                    min="0"
+                    max="50"
+                    step="0.1"
+                    placeholder="0.5"
+                  />
+                  <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+                    %
+                  </span>
+                </div>
+                
+                {/* Conditional Warnings */}
+                {slippage > 5 && (
+                  <div className="text-xs text-destructive text-center">
+                    ⚠️ High slippage risk
+                  </div>
+                )}
+                
+                {slippage < 0.1 && slippage > 0 && (
+                  <div className="text-xs text-amber-500 text-center">
+                    ⚡ May fail due to low slippage
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}
 
 /**
  * Format BigInt balance to human-readable string
@@ -157,6 +297,9 @@ function Swap() {
   const [shouldFetchPrices, setShouldFetchPrices] = useState<boolean>(false);
   const [isCreatingNote, setIsCreatingNote] = useState<boolean>(false);
   const [lastEditedField, setLastEditedField] = useState<'sell' | 'buy'>('sell');
+  
+  // Settings state (default 0.5%)
+  const [slippage, setSlippage] = useState<number>(0.5);
   
   // Add ref for sell input auto-focus
   const sellInputRef = useRef<HTMLInputElement>(null);
@@ -322,7 +465,17 @@ function Swap() {
       return;
     }
     
-    console.log("Creating Zoro swap note with:", { sellAmount, buyAmount, sellToken, buyToken });
+    // Calculate minimum amount out with slippage protection
+    const minAmountOut = calculateMinAmountOut(buyAmount, slippage);
+    
+    console.log("Creating Zoro swap note with:", { 
+      sellAmount, 
+      buyAmount, 
+      minAmountOut,
+      sellToken, 
+      buyToken,
+      slippage
+    });
     
     // Fetch latest prices before creating swap note
     await refreshPrices(assetIds, true);
@@ -330,12 +483,13 @@ function Swap() {
     setIsCreatingNote(true);
     
     try {
-      // Pass actual swap parameters to compileZoroSwapNote
+      // Pass actual swap parameters to compileZoroSwapNote including slippage settings
       const swapParams = {
         sellToken,
         buyToken, 
         sellAmount,
-        buyAmount
+        buyAmount: minAmountOut, // Use min amount out instead of expected amount
+        slippage
       };
       
       await compileZoroSwapNote(swapParams);
@@ -356,6 +510,7 @@ function Swap() {
   const sellUsdValue: string = sellPrice ? calculateUsdValue(sellAmount, sellPrice.value) : "";
   const buyUsdValue: string = buyPrice ? calculateUsdValue(buyAmount, buyPrice.value) : "";
   const priceFor1: string = sellPrice ? calculateUsdValue("1", sellPrice.value) : "";
+  const minAmountOut: string = calculateMinAmountOut(buyAmount, slippage);
 
   const canSwap: boolean = Boolean(
     sellAmount && 
@@ -394,7 +549,15 @@ function Swap() {
                 </Button>
               ))}
             </div>
-            <ModeToggle />
+            
+            {/* Settings and theme toggle */}
+            <div className="flex items-center gap-1 sm:gap-2">
+              <SwapSettings 
+                slippage={slippage}
+                onSlippageChange={setSlippage}
+              />
+              <ModeToggle />
+            </div>
           </div>
 
           <Card className="border rounded-xl sm:rounded-2xl">
@@ -435,10 +598,10 @@ function Swap() {
                       <div className="flex items-center gap-1">
                         <button 
                           onClick={handleMaxBalance}
-                          className="hover:text-foreground transition-colors cursor-pointer underline mr-1"
+                          className="hover:text-foreground transition-colors cursor-pointer mr-1"
                           disabled={balanceLoading || sellTokenBalance === BigInt(0)}
                         >
-                          {formattedBalance}
+                          {formattedBalance} {sellToken}
                         </button>
                       </div>
                     </div>
@@ -487,9 +650,16 @@ function Swap() {
                       </Button>
                     </div>
                     
-                    {/* USD Value Display */}
+                    {/* Min Amount Out Display */}
                     <div className="flex items-center justify-center text-xs text-muted-foreground h-5">
-                      <div className="text-green-500">{buyUsdValue}</div>
+                      {buyAmount && minAmountOut && (
+                        <div className="text-amber-500">
+                          Min received: {minAmountOut} {buyToken}
+                        </div>
+                      )}
+                      {!buyAmount && buyUsdValue && (
+                        <div className="text-green-500">{buyUsdValue}</div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
