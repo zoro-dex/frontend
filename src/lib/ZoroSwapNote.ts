@@ -2,7 +2,6 @@ import {
   WebClient,
   AccountStorageMode,
   NoteType,
-  TransactionProver,
   NoteInputs,
   Note,
   NoteAssets,
@@ -96,7 +95,7 @@ async function submitNoteToServer(outputNote: OutputNote): Promise<void> {
     }
     
     const result = await response.json();
-    console.log('Note submitted successfully:', result);
+    console.log( result);
     
   } catch (error) {
     console.error('Failed to submit note to server:', error);

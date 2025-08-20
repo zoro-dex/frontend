@@ -1,5 +1,6 @@
-import { useState, useEffect, useContext, useRef, useMemo } from "react";
+import { useState, useEffect, useContext, useRef } from "react";
 import { ArrowUpDown, Loader2, Settings, X, Info } from "lucide-react";
+import { AccountId } from "@demox-labs/miden-sdk";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,7 +10,7 @@ import { useNablaAntennaPrices, NablaAntennaContext } from '../components/PriceF
 import { compileZoroSwapNote } from '../lib/ZoroSwapNote.ts';
 import { Link } from 'react-router-dom';
 import { useWallet, WalletMultiButton } from "@demox-labs/miden-wallet-adapter";
-import { useTokenBalance } from '@/hooks/useBalance';
+import { useBalance } from '@/hooks/useBalance';
 
 type TabType = "Swap" | "Limit";
 type TokenSymbol = keyof typeof TOKENS;
@@ -61,9 +62,7 @@ const calculateMinAmountOut = (buyAmount: string, slippagePercent: number): stri
   return minAmount.toFixed(8);
 };
 
-/**
- * Minimal SwapSettings Component
- */
+
 function SwapSettings({ slippage, onSlippageChange }: SwapSettingsProps) {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [inputValue, setInputValue] = useState<string>(slippage.toString());
@@ -186,7 +185,7 @@ function SwapSettings({ slippage, onSlippageChange }: SwapSettingsProps) {
 /**
  * Format BigInt balance to human-readable string
  */
-const formatBalance = (balance: bigint, decimals: number = 8): string => {
+const formatBalance = (balance: bigint, decimals: number = 6): string => {
   if (balance === BigInt(0)) {
     return "0";
   }
@@ -251,38 +250,24 @@ function Swap() {
   const { refreshPrices } = useContext(NablaAntennaContext);
   
   // Get the user's account ID from the connected wallet
-  const userAccountId = wallet?.adapter.accountId || null;
-  
-  // Use the improved token balance hook - no more duplication!
-  const { 
-    balance: sellTokenBalance, 
-    isLoading: balanceLoading, 
-    error: balanceError,
-    refetch: refetchSellBalance
-  } = useTokenBalance(sellToken, userAccountId);
+  const userAccountId = wallet?.adapter.accountId;
 
   const assetIds: string[] = Object.values(TOKENS).map(token => token.priceId);
   const priceIds: string[] = [TOKENS[sellToken]?.priceId, TOKENS[buyToken]?.priceId].filter(Boolean);
   const prices = useNablaAntennaPrices(priceIds);
+  
+  const balance = useBalance({
+    accountId: userAccountId ? AccountId.fromBech32(userAccountId) : null,
+    faucetId: AccountId.fromBech32('mtst1qppen8yngje35gr223jwe6ptjy7gedn9'),
+  });
 
-  // Format the balance for display
-  const formattedBalance = useMemo(() => {
-    if (balanceLoading) return "Your balance...";
-    if (balanceError) return "Error";
-    if (sellTokenBalance === BigInt(0)) return "0";
-    
-    const formatted = formatBalance(sellTokenBalance, 6);
-    const num = parseFloat(formatted);
-    
-    // Show appropriate precision based on amount
-    if (num >= 1000) {
-      return num.toLocaleString('en-US', { maximumFractionDigits: 2 });
-    } else if (num >= 1) {
-      return num.toLocaleString('en-US', { maximumFractionDigits: 4 });
-    } else {
-      return num.toLocaleString('en-US', { maximumFractionDigits: 8 });
+  const formattedBalance = balance !== null ? formatBalance(balance) : "0";
+
+  useEffect(() => {
+    if (balance) {
+      console.log('MIDEN BALANCE', balance);
     }
-  }, [sellTokenBalance, balanceLoading, balanceError]);
+  }, [balance]);
 
   // Auto-focus sell input on mount
   useEffect(() => {
@@ -383,16 +368,8 @@ function Swap() {
     }
   };
 
-  const handleMaxBalance = (): void => {
-    if (!balanceLoading && sellTokenBalance > BigInt(0)) {
-      const maxAmount = formatBalance(sellTokenBalance, 6);
-      handleSellAmountChange(maxAmount);
-    }
-  };
-
   const handleSwap = async (): Promise<void> => {
     if (!connected || !userAccountId) {
-      console.error("Wallet not connected or userAccountId missing");
       return;
     }
     
@@ -406,7 +383,6 @@ function Swap() {
     }
     
     if (sellToken === buyToken) {
-      console.error("Cannot swap same token");
       return;
     }
     
@@ -420,7 +396,7 @@ function Swap() {
       sellToken, 
       buyToken,
       slippage,
-      userAccountId: userAccountId.toString()
+      userAccountId
     });
     
     // Fetch latest prices before creating swap note
@@ -429,19 +405,16 @@ function Swap() {
     setIsCreatingNote(true);
     
     try {
-      // Pass AccountId directly - userAccountId is AccountId type here
+      // Pass actual swap parameters to compileZoroSwapNote
       const swapParams = {
         sellToken,
         buyToken, 
         sellAmount,
-        buyAmount: minAmountOut,
+        buyAmount: minAmountOut, // Use min amount out instead of expected amount
         userAccountId
       };
       
       await compileZoroSwapNote(swapParams);
-      
-      // Refetch balance after successful swap
-      await refetchSellBalance();
       
     } catch (error) {
       console.error("Swap note creation failed:", error);
@@ -546,9 +519,7 @@ function Swap() {
                       <div>{sellUsdValue || priceFor1}</div>
                       <div className="flex items-center gap-1">
                         <button 
-                          onClick={handleMaxBalance}
                           className="hover:text-foreground transition-colors cursor-pointer mr-1"
-                          disabled={balanceLoading || sellTokenBalance === BigInt(0)}
                         >
                           {formattedBalance} {sellToken}
                         </button>
