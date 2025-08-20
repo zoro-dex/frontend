@@ -29,6 +29,7 @@ interface SwapParams {
   buyToken: TokenSymbol; 
   sellAmount: string;
   buyAmount: string; // min_amount_out
+  userAccountId: string;
 }
 
 /**
@@ -82,7 +83,7 @@ async function submitNoteToServer(outputNote: OutputNote): Promise<void> {
     const noteString = outputNote.toString();
     const noteData = btoa(noteString);
     
-    const response = await fetch('https://api.zoroswap.com/submitOrder', {
+    const response = await fetch('https://api.zoroswap.com/orders/submit', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -117,6 +118,7 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<Outpu
   // ── Creating new account ──────────────────────────────────────────────────────
   console.log("Creating account for Alice…");
   const alice = await client.newWallet(AccountStorageMode.public(), true);
+
   console.log("Alice account ID:", alice.id().toString());
 
   // ── Sync after account creation ──────────────────────────────────────────────

@@ -5,12 +5,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Header } from "@/components/Header";
 import { ModeToggle } from "@/components/ModeToggle";
-import { useWallet } from "@demox-labs/miden-wallet-adapter-react";
-import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter-reactui';
 import { useNablaAntennaPrices, NablaAntennaContext } from '../components/PriceFetcher';
 import { compileZoroSwapNote } from '../lib/ZoroSwapNote.ts';
 import { Link } from 'react-router-dom';
 import { AccountId, WebClient } from '@demox-labs/miden-sdk';
+import { useWallet, WalletMultiButton } from "@demox-labs/miden-wallet-adapter";
 
 type TabType = "Swap" | "Limit";
 type TokenSymbol = keyof typeof TOKENS;
@@ -308,8 +307,8 @@ function Swap() {
   const { refreshPrices } = useContext(NablaAntennaContext);
   
   // Get the user's account ID from the connected wallet
-  const userAccountId = connected && wallet?.adapter.publicKey ? 
-    wallet.adapter.publicKey.toString() : null;
+  const userAccountId = wallet?.adapter.accountId ? 
+    wallet.adapter.accountId.toString() : null;
   
   // Use the token-specific balance hook
   const { 
@@ -357,7 +356,7 @@ function Swap() {
         setPricesFetched(true);
       }
     };
-    
+
     prefetchPrices();
   }, []); // Empty dependency array = run once on mount
 
@@ -448,7 +447,7 @@ function Swap() {
   };
 
   const handleSwap = async (): Promise<void> => {
-    if (!connected) {
+    if (!connected || !userAccountId) {
       return;
     }
     
@@ -474,7 +473,8 @@ function Swap() {
       minAmountOut,
       sellToken, 
       buyToken,
-      slippage
+      slippage,
+      userAccountId
     });
     
     // Fetch latest prices before creating swap note
@@ -483,13 +483,13 @@ function Swap() {
     setIsCreatingNote(true);
     
     try {
-      // Pass actual swap parameters to compileZoroSwapNote including slippage settings
+      // Pass actual swap parameters to compileZoroSwapNote
       const swapParams = {
         sellToken,
         buyToken, 
         sellAmount,
         buyAmount: minAmountOut, // Use min amount out instead of expected amount
-        slippage
+        userAccountId
       };
       
       await compileZoroSwapNote(swapParams);
