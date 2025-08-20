@@ -17,6 +17,7 @@ import {
   NoteExecutionMode,
   AccountId,
 } from "@demox-labs/miden-sdk";
+import { NETWORK, API } from '@/lib/config';
 
 // @ts-ignore - MASM files are treated as raw text
 import ZOROSWAP_SCRIPT from './ZOROSWAP.masm?raw';
@@ -80,7 +81,7 @@ async function submitNoteToServer(outputNote: OutputNote): Promise<void> {
     const noteString = outputNote.toString();
     const noteData = btoa(noteString);
     
-    const response = await fetch('https://api.zoroswap.com/orders/submit', {
+    const response = await fetch(`${API.endpoint}/orders/submit`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -95,7 +96,7 @@ async function submitNoteToServer(outputNote: OutputNote): Promise<void> {
     }
     
     const result = await response.json();
-    console.log( result);
+    console.log(result);
     
   } catch (error) {
     console.error('Failed to submit note to server:', error);
@@ -105,7 +106,7 @@ async function submitNoteToServer(outputNote: OutputNote): Promise<void> {
 
 export async function compileZoroSwapNote(swapParams: SwapParams): Promise<OutputNote> {
   // Create fresh client for this operation - don't reuse clients!
-  const client = await WebClient.createClient("https://rpc.testnet.miden.io:443");
+  const client = await WebClient.createClient(NETWORK.rpcEndpoint);
   //const prover = TransactionProver.newRemoteProver("https://tx-prover.testnet.miden.io");
 
   try {

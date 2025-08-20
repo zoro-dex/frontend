@@ -1,12 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, createContext } from 'react';
-
-const MAX_AGE = 3000;
-
-// Define the specific asset IDs we want to support
-const SUPPORTED_ASSETS = {
-  'e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43': 'BTC/USD',
-  'ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace': 'ETH/USD'
-};
+import { ORACLE, SUPPORTED_ASSET_IDS } from '@/lib/config';
 
 export interface PriceData {
   value: number;
@@ -44,7 +37,7 @@ export const useNablaAntennaPrices = (ids: string[]) => {
     let r: Record<string, PriceData> = {};
     for (const id of ids) {
       // Only return prices for supported assets
-      if (prices[id] && SUPPORTED_ASSETS[id as keyof typeof SUPPORTED_ASSETS]) {
+      if (prices[id] && SUPPORTED_ASSET_IDS[id]) {
         r[id] = prices[id].priceFeed;
       }
     }
@@ -60,7 +53,7 @@ const fetchNablaAntennaPrices = async (
   binary: string[];
 }> => {
   // Filter to only request supported assets
-  const supportedIds = assetIds.filter(id => SUPPORTED_ASSETS[id as keyof typeof SUPPORTED_ASSETS]);
+  const supportedIds = assetIds.filter(id => SUPPORTED_ASSET_IDS[id]);
   
   if (supportedIds.length === 0) {
     return { priceFeeds: {}, binary: ['0x'] };
@@ -72,9 +65,7 @@ const fetchNablaAntennaPrices = async (
   }
   
   try {
-    const response = await fetch(
-      `https://antenna.nabla.fi/v1/updates/price/latest?${params}`,
-    );
+    const response = await fetch(`${ORACLE.endpoint}?${params}`);
     
     if (!response.ok) {
       return { priceFeeds: {}, binary: ['0x'] };
@@ -85,7 +76,7 @@ const fetchNablaAntennaPrices = async (
     return {
       priceFeeds: prices.parsed.reduce((allFeeds, feed) => {
         // Only process supported assets
-        const assetName = SUPPORTED_ASSETS[feed.id as keyof typeof SUPPORTED_ASSETS];
+        const assetName = SUPPORTED_ASSET_IDS[feed.id];
         if (!assetName) {
           return allFeeds;
         }
@@ -133,10 +124,10 @@ export const NablaAntennaProvider = ({ children }: { children: React.ReactNode }
       const now = Date.now();
       const want = ids.filter(id =>
         // Only consider supported assets
-        SUPPORTED_ASSETS[id as keyof typeof SUPPORTED_ASSETS] && (
+        SUPPORTED_ASSET_IDS[id] && (
           force
           || !pricesRef.current[id]
-          || (pricesRef.current[id].age < (now / 1000) - MAX_AGE)
+          || (pricesRef.current[id].age < (now / 1000) - ORACLE.cacheTtlSeconds)
         )
       );
       

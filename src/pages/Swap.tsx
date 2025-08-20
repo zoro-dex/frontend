@@ -11,22 +11,10 @@ import { compileZoroSwapNote } from '../lib/ZoroSwapNote.ts';
 import { Link } from 'react-router-dom';
 import { useWallet, WalletMultiButton } from "@demox-labs/miden-wallet-adapter";
 import { useBalance } from '@/hooks/useBalance';
+import { TOKENS, UI, ASSET_IDS, FAUCET } from '@/lib/config';
 
 type TabType = "Swap" | "Limit";
 type TokenSymbol = keyof typeof TOKENS;
-
-const TOKENS = {
-  BTC: {
-    symbol: 'BTC',
-    name: 'Bitcoin',
-    priceId: 'e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43'
-  },
-  ETH: {
-    symbol: 'ETH', 
-    name: 'Ethereum',
-    priceId: 'ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
-  }
-} as const;
 
 interface PriceFetcherProps {
   shouldFetch: boolean;
@@ -240,8 +228,8 @@ function Swap() {
   const [isCreatingNote, setIsCreatingNote] = useState<boolean>(false);
   const [lastEditedField, setLastEditedField] = useState<'sell' | 'buy'>('sell');
   
-  // Settings state (default 0.5%)
-  const [slippage, setSlippage] = useState<number>(0.5);
+  // Settings state (uses config default)
+  const [slippage, setSlippage] = useState<number>(UI.defaultSlippage);
   
   // Add ref for sell input auto-focus
   const sellInputRef = useRef<HTMLInputElement>(null);
@@ -252,13 +240,13 @@ function Swap() {
   // Get the user's account ID from the connected wallet
   const userAccountId = wallet?.adapter.accountId;
 
-  const assetIds: string[] = Object.values(TOKENS).map(token => token.priceId);
+  const assetIds: string[] = ASSET_IDS;
   const priceIds: string[] = [TOKENS[sellToken]?.priceId, TOKENS[buyToken]?.priceId].filter(Boolean);
   const prices = useNablaAntennaPrices(priceIds);
   
   const balance = useBalance({
     accountId: userAccountId ? AccountId.fromBech32(userAccountId) : null,
-    faucetId: AccountId.fromBech32('mtst1qppen8yngje35gr223jwe6ptjy7gedn9'),
+    faucetId: AccountId.fromBech32(FAUCET.testFaucetId),
   });
 
   const formattedBalance = balance !== null ? formatBalance(balance) : "0";

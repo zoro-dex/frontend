@@ -1,5 +1,6 @@
 import { type AccountId, WebClient } from '@demox-labs/miden-sdk';
 import { useCallback, useEffect, useState } from 'react';
+import { NETWORK } from '@/lib/config';
 
 export const useBalance = (
   { accountId, faucetId }: { accountId: AccountId | null | undefined; faucetId: AccountId },
@@ -14,7 +15,7 @@ export const useBalance = (
     }
 
     try {
-      const client = await WebClient.createClient('https://rpc.testnet.miden.io:443');
+      const client = await WebClient.createClient(NETWORK.rpcEndpoint);
       await client.syncState();
       let acc = await client.getAccount(accountId);
       if (acc == null) {

@@ -4,33 +4,17 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Header } from '@/components/Header';
 import { Link } from 'react-router-dom';
+import { TOKENS } from '@/lib/config';
 
-type TokenType = 'BTC' | 'ETH';
-
-const TOKENS = {
-  BTC: {
-    symbol: 'BTC',
-    name: 'Test Bitcoin',
-    amount: '0.1',
-    color: 'bg-orange-500 hover:bg-orange-600',
-    icon: '/BTC.svg',
-    iconClass: ''
-  },
-  ETH: {
-    symbol: 'ETH', 
-    name: 'Test Ethereum',
-    amount: '1.0',
-    color: 'bg-blue-500 hover:bg-blue-600',
-    icon: '/ETH.svg',
-    iconClass: 'dark:invert'
-  }
-} as const;
+type TokenType = keyof typeof TOKENS;
 
 function Faucet(): JSX.Element {
-  const [addresses, setAddresses] = useState<Record<TokenType, string>>({
-    BTC: '',
-    ETH: ''
-  });
+  const [addresses, setAddresses] = useState<Record<TokenType, string>>(
+    Object.keys(TOKENS).reduce((acc, token) => ({
+      ...acc,
+      [token]: ''
+    }), {} as Record<TokenType, string>)
+  );
 
   const handleAddressChange = (token: TokenType, value: string): void => {
     setAddresses(prev => ({
@@ -60,10 +44,10 @@ function Faucet(): JSX.Element {
                     <img 
                       src={token.icon} 
                       alt={token.name} 
-                      className={`w-10 h-10 sm:w-12 sm:h-12 ${token.iconClass}`}
+                      className={`w-10 h-10 sm:w-12 sm:h-12 ${token.iconClass || ''}`}
                     />
                     <div>
-                      <h3 className="text-lg sm:text-xl font-semibold">{token.name}</h3>
+                      <h3 className="text-lg sm:text-xl font-semibold">Test {token.name}</h3>
                     </div>
                   </div>
                   
@@ -78,7 +62,7 @@ function Faucet(): JSX.Element {
                     
                     <Button 
                       onClick={() => requestTokens(tokenKey)}
-                      className={`w-full ${token.color} text-white font-medium transition-colors`}
+                      className={`w-full bg-blue-500 hover:bg-blue-600 text-white font-medium transition-colors`}
                       variant="ghost"
                     >
                       Request {token.symbol}
