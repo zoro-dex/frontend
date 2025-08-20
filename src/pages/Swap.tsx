@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useContext, useRef, useMemo } from "react";
 import { ArrowUpDown, Loader2, Settings, X, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,8 +8,8 @@ import { ModeToggle } from "@/components/ModeToggle";
 import { useNablaAntennaPrices, NablaAntennaContext } from '../components/PriceFetcher';
 import { compileZoroSwapNote } from '../lib/ZoroSwapNote.ts';
 import { Link } from 'react-router-dom';
-import { AccountId, WebClient } from '@demox-labs/miden-sdk';
 import { useWallet, WalletMultiButton } from "@demox-labs/miden-wallet-adapter";
+import { useTokenBalance } from '@/hooks/useBalance';
 
 type TabType = "Swap" | "Limit";
 type TokenSymbol = keyof typeof TOKENS;
@@ -30,13 +30,6 @@ const TOKENS = {
 interface PriceFetcherProps {
   shouldFetch: boolean;
   assetIds: string[];
-}
-
-interface TokenBalanceHookResult {
-  balance: bigint;
-  isLoading: boolean;
-  error: string | null;
-  refetch: () => Promise<void>;
 }
 
 interface SwapSettingsProps {
@@ -219,55 +212,6 @@ const formatBalance = (balance: bigint, decimals: number = 8): string => {
 };
 
 /**
- * Custom hook for token-specific balance using hardcoded faucet IDs
- */
-const useTokenBalance = (tokenSymbol: TokenSymbol, userAccountId: string | null): TokenBalanceHookResult => {
-  const [balance, setBalance] = useState<bigint>(BigInt(0));
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchBalance = useCallback(async (): Promise<void> => {
-    if (!userAccountId || !tokenSymbol) {
-      setBalance(BigInt(0));
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const client = await WebClient.createClient('https://rpc.testnet.miden.io:443');
-      await client.syncState();
-      
-      const accountId = AccountId.fromBech32(userAccountId);
-      // Keep the hardcoded faucet ID as requested
-      const faucetId = AccountId.fromBech32('mtst1qppen8yngje35gr223jwe6ptjy7gedn9');
-      
-      let account = await client.getAccount(accountId);
-      if (account === null) {
-        await client.importAccountById(accountId);
-        account = await client.getAccount(accountId);
-      }
-      
-      const tokenBalance = account?.vault().getBalance(faucetId);
-      setBalance(BigInt(tokenBalance ?? 0));
-    } catch (err) {
-      console.error('Failed to fetch balance:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error');
-      setBalance(BigInt(0));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [userAccountId, tokenSymbol]);
-
-  useEffect(() => {
-    fetchBalance();
-  }, [fetchBalance]);
-
-  return { balance, isLoading, error, refetch: fetchBalance };
-};
-
-/**
  * Calculate and format USD value for a token amount
  */
 const calculateUsdValue = (amount: string, priceUsd: number): string => {
@@ -307,14 +251,14 @@ function Swap() {
   const { refreshPrices } = useContext(NablaAntennaContext);
   
   // Get the user's account ID from the connected wallet
-  const userAccountId = wallet?.adapter.accountId ? 
-    wallet.adapter.accountId.toString() : null;
+  const userAccountId = wallet?.adapter.accountId || null;
   
-  // Use the token-specific balance hook
+  // Use the improved token balance hook - no more duplication!
   const { 
     balance: sellTokenBalance, 
     isLoading: balanceLoading, 
-    error: balanceError 
+    error: balanceError,
+    refetch: refetchSellBalance
   } = useTokenBalance(sellToken, userAccountId);
 
   const assetIds: string[] = Object.values(TOKENS).map(token => token.priceId);
@@ -448,6 +392,7 @@ function Swap() {
 
   const handleSwap = async (): Promise<void> => {
     if (!connected || !userAccountId) {
+      console.error("Wallet not connected or userAccountId missing");
       return;
     }
     
@@ -461,6 +406,7 @@ function Swap() {
     }
     
     if (sellToken === buyToken) {
+      console.error("Cannot swap same token");
       return;
     }
     
@@ -474,7 +420,7 @@ function Swap() {
       sellToken, 
       buyToken,
       slippage,
-      userAccountId
+      userAccountId: userAccountId.toString()
     });
     
     // Fetch latest prices before creating swap note
@@ -483,16 +429,19 @@ function Swap() {
     setIsCreatingNote(true);
     
     try {
-      // Pass actual swap parameters to compileZoroSwapNote
+      // Pass AccountId directly - userAccountId is AccountId type here
       const swapParams = {
         sellToken,
         buyToken, 
         sellAmount,
-        buyAmount: minAmountOut, // Use min amount out instead of expected amount
+        buyAmount: minAmountOut,
         userAccountId
       };
       
       await compileZoroSwapNote(swapParams);
+      
+      // Refetch balance after successful swap
+      await refetchSellBalance();
       
     } catch (error) {
       console.error("Swap note creation failed:", error);

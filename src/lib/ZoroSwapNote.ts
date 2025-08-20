@@ -33,8 +33,6 @@ interface SwapParams {
 }
 
 /**
-
- * 
  * Tag interpretation:
  * - use_case_id: 0 (SWAP_USE_CASE_ID)
  * - payload: combines the top 8 bits from both asset faucet ID prefixes
@@ -107,143 +105,108 @@ async function submitNoteToServer(outputNote: OutputNote): Promise<void> {
 }
 
 export async function compileZoroSwapNote(swapParams: SwapParams): Promise<OutputNote> {
+  // Create fresh client for this operation - don't reuse clients!
   const client = await WebClient.createClient("https://rpc.testnet.miden.io:443");
-  const prover = TransactionProver.newRemoteProver("https://tx-prover.testnet.miden.io");
+  //const prover = TransactionProver.newRemoteProver("https://tx-prover.testnet.miden.io");
 
-  // ── Initial sync to ensure client is connected to blockchain ──────────────────
-  console.log("Initial sync to blockchain...");
-  await client.syncState();
-  console.log("Initial sync complete");
+  try {
+    // ── Initial sync to ensure client is connected to blockchain ──────────────────
+    console.log("Initial sync to blockchain...");
+    await client.syncState();
+    console.log("Initial sync complete");
 
-  // ── Creating new account ──────────────────────────────────────────────────────
-  console.log("Creating account for Alice…");
-  const alice = await client.newWallet(AccountStorageMode.public(), true);
+    // ── Creating test faucet ──────────────────────────────────────────────────────
+    const testFaucet = await client.newFaucet(
+      AccountStorageMode.public(),
+      false,
+      "TEST",
+      8,
+      BigInt(1_000_000),
+    );
+    console.log("TEST Faucet ID:", testFaucet.id().toString());
 
-  console.log("Alice account ID:", alice.id().toString());
+    // ── Sync after faucet creation ──────────────────────────────────────────────
+    console.log("Syncing after faucet creation...");
+    await client.syncState();
 
-  // ── Sync after account creation ──────────────────────────────────────────────
-  console.log("Syncing after account creation...");
-  await client.syncState();
+    // Determine which faucets to use based on swap params
+    const sellFaucet = swapParams.sellToken === 'MIDEN' ? midenFaucet : testFaucet;
+    const buyFaucet = swapParams.buyToken === 'MIDEN' ? midenFaucet : testFaucet;
+    
+    // Convert amounts to BigInt
+    const sellAmountBigInt = BigInt(Math.floor(parseFloat(swapParams.sellAmount)));
+    const buyAmountBigInt = BigInt(Math.floor(parseFloat(swapParams.buyAmount)));
 
-  // ── Creating test BTC faucet ──────────────────────────────────────────────────────
-  const btcFaucet = await client.newFaucet(
-    AccountStorageMode.public(),
-    false,
-    "BTC",
-    8,
-    BigInt(1_000_000),
-  );
-  console.log("BTC Faucet ID:", btcFaucet.id().toString());
+    const script = client.compileNoteScript(ZOROSWAP_SCRIPT);
+    const noteType = NoteType.Public;
 
-  // ── Creating test ETH faucet ──────────────────────────────────────────────────────
-  const ethFaucet = await client.newFaucet(
-    AccountStorageMode.public(),
-    false,
-    "ETH",
-    8,
-    BigInt(1_000_000),
-  );
-  console.log("ETH Faucet ID:", ethFaucet.id().toString());
+    // Create assets using the faucet IDs directly
+    const offeredAsset = new FungibleAsset(sellFaucet.id(), sellAmountBigInt);
 
-  // ── Sync after faucet creation ──────────────────────────────────────────────
-  console.log("Syncing after faucet creation...");
-  await client.syncState();
+    // Build swap tag using the simplified approach that avoids faucetId() calls
+    const swapTag = buildSwapTag(noteType, sellFaucet.id(), buyFaucet.id());
+    console.log("Created swapTag:", swapTag);
 
-  // Determine which faucets to use based on swap params
-  const sellFaucet = swapParams.sellToken === 'BTC' ? btcFaucet : ethFaucet;
-  const buyFaucet = swapParams.buyToken === 'BTC' ? btcFaucet : ethFaucet;
-  
-  // Convert amounts to BigInt
-  const sellAmountBigInt = BigInt(Math.floor(parseFloat(swapParams.sellAmount)));
-  const buyAmountBigInt = BigInt(Math.floor(parseFloat(swapParams.buyAmount)));
-  
-  // Mint tokens to Alice
-  const mintAmount = sellAmountBigInt > BigInt(5000) ? BigInt(10000) : sellAmountBigInt + BigInt(1000);
-  
-  console.log("Creating mint transaction...");
-  await client.submitTransaction(
-    await client.newTransaction(
-      sellFaucet.id(),
-      client.newMintTransactionRequest(
-        alice.id(),
-        sellFaucet.id(),
-        NoteType.Public,
-        mintAmount,
-      ),
-    ),
-    prover,
-  );
+    // Note should only contain the offered asset
+    const noteAssets = new NoteAssets([offeredAsset]);
 
-  // Sync state after minting
-  console.log("Syncing state after minting...");
-  await client.syncState();
-  console.log("Post-mint sync complete");
+    const userAddress = AccountId.fromBech32(swapParams.userAccountId);
 
-  const script = client.compileNoteScript(ZOROSWAP_SCRIPT);
-  const noteType = NoteType.Public;
+    const metadata = new NoteMetadata(
+      userAddress,
+      noteType,
+      swapTag,
+      NoteExecutionHint.always(),
+      new Felt(BigInt(0)) // aux
+    );
 
-  // Create assets using the faucet IDs directly
-  const offeredAsset = new FungibleAsset(sellFaucet.id(), sellAmountBigInt);
-  console.log("Created offeredAsset:", offeredAsset);
-  console.log("offeredAsset faucet ID:", sellFaucet.id().toString());
-  console.log("offeredAsset amount:", sellAmountBigInt.toString());
+    const deadline = 0;
 
-  // Build swap tag using the simplified approach that avoids faucetId() calls
-  const swapTag = buildSwapTag(noteType, sellFaucet.id(), buyFaucet.id());
-  console.log("Created swapTag:", swapTag);
+    // Use the AccountId
+    const p2idTag = NoteTag.fromAccountId(userAddress).asU32();
 
-  // Note should only contain the offered asset
-  const noteAssets = new NoteAssets([offeredAsset]);
-  console.log("Created noteAssets:", noteAssets);
+    // Following the pattern: [asset_id_prefix, asset_id_suffix, 0, min_amount_out]
+    const requestedAssetFelts: Felt[] = [
+      buyFaucet.id().prefix(),  // Felt 0: Asset ID prefix
+      buyFaucet.id().suffix(),  // Felt 1: Asset ID suffix  
+      new Felt(BigInt(0)),      // Felt 2: Always 0
+      new Felt(buyAmountBigInt) // Felt 3: Min amount out
+    ];
 
-  const metadata = new NoteMetadata(
-    alice.id(),
-    noteType,
-    swapTag,
-    NoteExecutionHint.always(),
-    new Felt(BigInt(0)) // aux
-  );
+    const inputs = new NoteInputs(new FeltArray([
+      ...requestedAssetFelts,     // Felts 0-3: requested asset word
+      new Felt(BigInt(0)),        // zoroswap_tag use case id
+      new Felt(BigInt(p2idTag)),  // p2id_tag
+      new Felt(BigInt(0)),        // empty_input_6
+      new Felt(BigInt(0)),        // empty_input_7
+      new Felt(BigInt(0)),        // swap_count
+      new Felt(BigInt(deadline)), // deadline
+      new Felt(BigInt(0)),        // empty_input_10
+      new Felt(BigInt(0)),        // empty_input_11
+      userAddress.prefix(),  // creator_prefix - using AccountId directly
+      userAddress.suffix()   // creator_suffix - using AccountId directly
+    ]));
 
-  const deadline = 0;
+    const note = new Note(
+      noteAssets,
+      metadata,
+      new NoteRecipient(generateRandomSerialNumber(), script, inputs),
+    );
+    console.log("Created note:", note);
+    console.log("Note assets:", note.assets());
 
-  const p2idTag = NoteTag.fromAccountId(alice.id()).asU32();
-
-  // Following the pattern: [asset_id_prefix, asset_id_suffix, 0, min_amount_out]
-  const requestedAssetFelts: Felt[] = [
-    buyFaucet.id().prefix(),  // Felt 0: Asset ID prefix
-    buyFaucet.id().suffix(),  // Felt 1: Asset ID suffix  
-    new Felt(BigInt(0)),      // Felt 2: Always 0
-    new Felt(buyAmountBigInt) // Felt 3: Min amount out
-  ];
-
-  const inputs = new NoteInputs(new FeltArray([
-    ...requestedAssetFelts,     // Felts 0-3: requested asset word
-    new Felt(BigInt(0)),        // zoroswap_tag use case id
-    new Felt(BigInt(p2idTag)),  // p2id_tag
-    new Felt(BigInt(0)),        // empty_input_6
-    new Felt(BigInt(0)),        // empty_input_7
-    new Felt(BigInt(0)),        // swap_count
-    new Felt(BigInt(deadline)), // deadline
-    new Felt(BigInt(0)),        // empty_input_10
-    new Felt(BigInt(0)),        // empty_input_11
-    alice.id().prefix(),        // creator_prefix
-    alice.id().suffix()         // creator_suffix
-  ]));
-
-  const note = new Note(
-    noteAssets,
-    metadata,
-    new NoteRecipient(generateRandomSerialNumber(), script, inputs),
-  );
-  console.log("Created note:", note);
-  console.log("Note assets:", note.assets());
-
-  const outputNote = OutputNote.full(note);
-  console.log("Created OutputNote:", outputNote);
-  console.log("OutputNote assets:", outputNote.assets());
-  
-  // Submit the note to the server
-  await submitNoteToServer(outputNote);
-  
-  return outputNote;
+    const outputNote = OutputNote.full(note);
+    console.log("Created OutputNote:", outputNote);
+    console.log("OutputNote assets:", outputNote.assets());
+    
+    // Submit the note to the server
+    await submitNoteToServer(outputNote);
+    
+    return outputNote;
+    
+  } catch (error) {
+    console.error("ZoroSwap note creation failed:", error);
+    throw error;
+  }
+  // Client will be garbage collected automatically when function ends
 }
