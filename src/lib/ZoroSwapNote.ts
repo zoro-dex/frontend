@@ -29,6 +29,8 @@ import {
 } from '@demox-labs/miden-wallet-adapter';
 import { Buffer } from 'buffer';
 
+window.Buffer = Buffer;
+
 // @ts-ignore - MASM files are treated as raw text
 import ZOROSWAP_SCRIPT from './ZOROSWAP.masm?raw';
 
@@ -186,16 +188,16 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<strin
       .withOwnOutputNotes(new OutputNotesArray([OutputNote.full(note)]))
       .build();
 
-    const requestBytes = transactionRequest.serialize();
-    const base64 = Buffer.from(requestBytes).toString('base64');
-    const serialized_transactionRequest = base64;
+    // const requestBytes = transactionRequest.serialize();
+    // const base64 = Buffer.from(requestBytes).toString('base64');
+    // const serialized_transactionRequest = base64;
 
-    let custom_tx: MidenCustomTransaction = {
-      accountId: userAddress.toBech32(),
-      transactionRequest: serialized_transactionRequest,
-      inputNoteIds: [],
-      importNotes: [],
-    };
+    // let custom_tx: MidenCustomTransaction = {
+    //   accountId: userAddress.toBech32(),
+    //   transactionRequest: serialized_transactionRequest,
+    //   inputNoteIds: [],
+    //   importNotes: [],
+    // };
 
     console.log('Transaction:', custom_tx);
 
