@@ -22,6 +22,7 @@ import {
   Word,
 } from '@demox-labs/miden-sdk';
 import {
+  CustomTransaction,
   type MidenCustomTransaction,
   type MidenTransaction,
   TransactionType,
@@ -188,6 +189,13 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<strin
       .withOwnOutputNotes(new OutputNotesArray([OutputNote.full(note)]))
       .build();
 
+    const tx = new CustomTransaction(
+      swapParams.wallet.adapter.accountId ?? '',
+      transactionRequest,
+      [],
+      [],
+    );
+
     // const requestBytes = transactionRequest.serialize();
     // const base64 = Buffer.from(requestBytes).toString('base64');
     // const serialized_transactionRequest = base64;
@@ -199,8 +207,6 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<strin
     //   importNotes: [],
     // };
 
-    console.log('Transaction:', custom_tx);
-
     // const txId = (transaction).executedTransaction().id().toHex();
     // const midenScanLink = `https://testnet.midenscan.com/tx/${txId}`;
 
@@ -210,7 +216,7 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<strin
     //     // Submit transaction to blockchain
     await swapParams.requestTransaction({
       type: TransactionType.Custom,
-      payload: custom_tx,
+      payload: tx,
     });
 
     console.log(
