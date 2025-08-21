@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Header } from "@/components/Header";
 import { ModeToggle } from "@/components/ModeToggle";
 import { useNablaAntennaPrices, NablaAntennaContext } from '../components/PriceFetcher';
-import { compileZoroSwapNote } from '../lib/ZoroSwapNote.ts';
+import { compileZoroSwapNote, type SwapParams } from '../lib/ZoroSwapNote.ts';
 import { Link } from 'react-router-dom';
 import { useWallet, WalletMultiButton } from "@demox-labs/miden-wallet-adapter";
 import { useBalance } from '@/hooks/useBalance';
@@ -18,7 +18,7 @@ type TokenSymbol = keyof typeof TOKENS;
 
 interface PriceFetcherProps {
   shouldFetch: boolean;
-  assetIds: string[];
+  assetIds: readonly string[];
 }
 
 interface SwapSettingsProps {
@@ -240,7 +240,7 @@ function Swap() {
   // Get the user's account ID from the connected wallet
   const userAccountId = wallet?.adapter.accountId;
 
-  const assetIds: string[] = ASSET_IDS;
+  const assetIds: readonly string[] = ASSET_IDS;
   const priceIds: string[] = [TOKENS[sellToken]?.priceId, TOKENS[buyToken]?.priceId].filter(Boolean);
   const prices = useNablaAntennaPrices(priceIds);
   
@@ -250,12 +250,6 @@ function Swap() {
   });
 
   const formattedBalance = balance !== null ? formatBalance(balance) : "0";
-
-  useEffect(() => {
-    if (balance) {
-      console.log('MIDEN BALANCE', balance);
-    }
-  }, [balance]);
 
   // Auto-focus sell input on mount
   useEffect(() => {
@@ -394,7 +388,7 @@ function Swap() {
     
     try {
       // Pass actual swap parameters to compileZoroSwapNote
-      const swapParams = {
+      const swapParams: SwapParams = {
         sellToken,
         buyToken, 
         sellAmount,

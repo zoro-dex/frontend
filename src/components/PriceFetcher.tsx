@@ -18,7 +18,7 @@ interface NablaAntennaResponse {
 }
 
 interface NablaAntennaContextProps {
-  refreshPrices: (ids: string[], force?: boolean) => Promise<void>;
+  refreshPrices: (ids: readonly string[], force?: boolean) => Promise<void>;
   prices: Record<string, { age: number; priceFeed: PriceData } | undefined>;
   getBinary: () => Promise<string[]>;
 }
@@ -31,7 +31,7 @@ const NablaAntennaContext = createContext<NablaAntennaContextProps>({
 
 export { NablaAntennaContext };
 
-export const useNablaAntennaPrices = (ids: string[]) => {
+export const useNablaAntennaPrices = (ids: readonly string[]) => {
   const { prices } = useContext(NablaAntennaContext);
   const res = useMemo(() => {
     let r: Record<string, PriceData> = {};
@@ -47,7 +47,7 @@ export const useNablaAntennaPrices = (ids: string[]) => {
 };
 
 const fetchNablaAntennaPrices = async (
-  assetIds: string[],
+  assetIds: readonly string[],
 ): Promise<{
   priceFeeds: Record<string, PriceData>;
   binary: string[];
@@ -117,7 +117,7 @@ export const NablaAntennaProvider = ({ children }: { children: React.ReactNode }
   }, [prices]);
 
   const refreshPrices = useCallback(
-    async (ids: string[], force?: boolean): Promise<void> => {
+    async (ids: readonly string[], force?: boolean): Promise<void> => {
       if (isFetching.current) return;
       isFetching.current = true;
       

@@ -13,10 +13,15 @@ import {
   FeltArray,
   Felt,
   FungibleAsset,
-  OutputNote,
   NoteExecutionMode,
   AccountId,
+  OutputNote,
+  TransactionRequestBuilder,
+  OutputNotesArray,
+  TransactionProver
 } from "@demox-labs/miden-sdk";
+import { CustomTransaction, type Wallet
+} from "@demox-labs/miden-wallet-adapter";
 import { NETWORK, API } from '@/lib/config';
 
 // @ts-ignore - MASM files are treated as raw text
@@ -24,12 +29,13 @@ import ZOROSWAP_SCRIPT from './ZOROSWAP.masm?raw';
 
 type TokenSymbol = 'BTC' | 'ETH';
 
-interface SwapParams {
+export interface SwapParams {
   sellToken: TokenSymbol;
   buyToken: TokenSymbol; 
   sellAmount: string;
   buyAmount: string; // min_amount_out
   userAccountId: string;
+  wallet: Wallet;
 }
 
 /**
@@ -75,11 +81,8 @@ function generateRandomSerialNumber(): Word {
   ]);
 }
 
-async function submitNoteToServer(outputNote: OutputNote): Promise<void> {
+async function submitNoteToServer(serializedNote: string): Promise<void> {
   try {
-    // Convert OutputNote to string and encode as base64
-    const noteString = outputNote.toString();
-    const noteData = btoa(noteString);
     
     const response = await fetch(`${API.endpoint}/orders/submit`, {
       method: 'POST',
@@ -87,7 +90,7 @@ async function submitNoteToServer(outputNote: OutputNote): Promise<void> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        note_data: noteData
+        note_data: serializedNote
       })
     });
     
@@ -104,10 +107,10 @@ async function submitNoteToServer(outputNote: OutputNote): Promise<void> {
   }
 }
 
-export async function compileZoroSwapNote(swapParams: SwapParams): Promise<OutputNote> {
+export async function compileZoroSwapNote(swapParams: SwapParams): Promise<string> {
   // Create fresh client for this operation - don't reuse clients!
   const client = await WebClient.createClient(NETWORK.rpcEndpoint);
-  //const prover = TransactionProver.newRemoteProver("https://tx-prover.testnet.miden.io");
+  const prover = TransactionProver.newRemoteProver("https://tx-prover.testnet.miden.io");
 
   try {
     // ── Initial sync to ensure client is connected to blockchain ──────────────────
@@ -193,16 +196,69 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<Outpu
       new NoteRecipient(generateRandomSerialNumber(), script, inputs),
     );
     console.log("Created note:", note);
-    console.log("Note assets:", note.assets());
 
-    const outputNote = OutputNote.full(note);
-    console.log("Created OutputNote:", outputNote);
-    console.log("OutputNote assets:", outputNote.assets());
-    
+    let transactionRequest = new TransactionRequestBuilder()
+      .withOwnOutputNotes(new OutputNotesArray([OutputNote.full(note)]))
+      .build();
+
+    const transaction = await client.newTransaction(
+      userAddress, 
+      transactionRequest
+      );
+
+    const txId = (await transaction).executedTransaction().id().toHex();
+    const midenScanLink = `https://testnet.midenscan.com/tx/${txId}`;
+
+    console.log(`Transaction ID: ${txId}`);
+    console.log(`View transaction on MidenScan: ${midenScanLink}`);
+
+        // Submit transaction to blockchain
+    await client.submitTransaction(transaction, prover);
+
+        console.log(
+      "SWAPP note created and submitted to blockchain successfully! ✅",
+    );
+
+    // Wait for the note to be included in a block before submitting to server
+    console.log(
+      "⏳ Waiting for note to be included in a block (5-6 seconds)...",
+    );
+
+    await client.syncState();
+
+     // Wait for approximately one block time
+    await new Promise((resolve) => setTimeout(resolve, 6000));
+
+    // Sync state to get the latest block data
+    await client.syncState();
+    console.log("🔄 Synced client state");
+
+    const noteId = note.id().toString();
+    console.log("Created note ID:", noteId);
+
+    //Export note with full details including inclusion proof
+    const noteExport = await client.exportNote(noteId, "Full");
+    console.log("Note export result:", noteExport);
+
+    // noteExport should be bytes
+    let noteBytes: Uint8Array;
+
+    if (noteExport instanceof Uint8Array) {
+      noteBytes = noteExport;
+    } else if (Array.isArray(noteExport)) {
+      noteBytes = new Uint8Array(noteExport);
+    } else {
+      throw new Error("Invalid note export type");
+    }
+
+    // convert to base 64 string
+    const base64String = btoa(String.fromCharCode(...noteBytes));
+    console.log("Base64 string:", base64String);
+
     // Submit the note to the server
-    await submitNoteToServer(outputNote);
-    
-    return outputNote;
+    await submitNoteToServer(base64String);
+
+    return base64String;
     
   } catch (error) {
     console.error("ZoroSwap note creation failed:", error);
