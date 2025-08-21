@@ -2,6 +2,16 @@ use.miden::note
 use.miden::contracts::wallets::basic->wallet
 use.miden::tx
 use.std::crypto::hashes::rpo
+use.std::sys
+
+# ERRORS
+# =================================================================================================
+
+# ZOROSWAP script expects exactly 9 note inputs
+const.ERR_ZOROSWAP_WRONG_NUMBER_OF_INPUTS="ZOROSWAP wrong number of inputs"
+# ZOROSWAP script requires exactly one note asset
+const.ERR_ZOROSWAP_WRONG_NUMBER_OF_ASSETS="ZOROSWAP wrong number of assets"
+
 
 # CONSTANTS
 # =================================================================================================
@@ -9,140 +19,133 @@ use.std::crypto::hashes::rpo
 const.PUBLIC_NOTE=1
 const.EXECUTION_HINT_ALWAYS=1
 
-# Memory Addresses
+# MEMORY
 # =================================================================================================
 
-# Memory Address Layout:
-# - ZOROSWAP Note Inputs: General input addresses (0 - 0xD)
-# - Reserved Input Memory Addresses: 0 to 40 (not explicitly listed)
-# - Price Calculation Procedure: Addresses 41 to 60 (0x29 to 0x2D)
-# - TokenId Addresses: Addresses 60 to 70 (0x2D to 0x30)
-# - Boolean Addresses: Addresses 70 to 80 (0x35)
-# - Full Word Addresses: Addresses 80 to 120, must be divisible by 4 (0x50 to 0x64)
+# first 4 WORDS reserved as scratch space
+# ====================================================
+# next 8  WORDS reserved for inputs
+# ====================================================
+# next 4  WORDS reserved for arguments
+# ====================================================
 
-# ZOROSWAP Note Inputs (0 to 40)
-const.REQUESTED_ASSET_WORD_INPUT = 0x0000
-const.REQUESTED_ASSET_INPUT_1 = 0x0001
-const.REQUESTED_ASSET_INPUT_2 = 0x0002
-const.REQUESTED_ASSET_INPUT_3 = 0x0003
-const.ZOROSWAP_TAG_INPUT = 0x0004
-const.P2ID_TAG_INPUT = 0x0005
-const.EMPTY_INPUT_6 = 0x0006
-const.EMPTY_INPUT_7 = 0x0007
-const.ZOROSWAP_COUNT_INPUT = 0x0008
-const.DEADLINE = 0x0009
-const.EMPTY_INPUT_10 = 0x000A
-const.EMPTY_INPUT_11 = 0x000B
-const.ZOROSWAP_CREATOR_PREFIX_INPUT = 0x000C
-const.ZOROSWAP_CREATOR_SUFFIX_INPUT = 0x000D
+const.INPUTS_POINTER = 0x0010
 
-# RESERVED INPUT MEMORY ADDRESSES 0 to 40
 
-# Memory Addresses for Price Calculation Procedure (41 to 60)
-const.AMOUNT_IN = 0x0028
-const.MIN_AMOUNT_OUT = 0x0029
-const.AMOUNT_OUT = 0x002A
 
-# TokenId Memory Addresses (60 to 70)
-const.IN_TOKEN_ID_PREFIX = 0x002D
-const.IN_TOKEN_ID_SUFFIX = 0x002E
-const.OUT_TOKEN_ID_PREFIX = 0x002F
-const.OUT_TOKEN_ID_SUFFIX = 0x0030
+const.INPUTS_WORD_0 = INPUTS_POINTER        # [REQUESTED_ASSET_WORD]
+const.INPUTS_WORD_1 = INPUTS_POINTER + 4    # [deadline, p2id_tag, empty, empty]
+const.INPUTS_WORD_2 = INPUTS_POINTER + 8    # [CREATOR_ID_WORD] = [empty, empty, creator_id_suffix, creator_id_prefix]
+const.INPUTS_WORD_3 = INPUTS_POINTER + 12   # [EMPTY]
+const.INPUTS_WORD_4 = INPUTS_POINTER + 16   # [EMPTY]
+const.INPUTS_WORD_5 = INPUTS_POINTER + 20   # [EMPTY]
+const.INPUTS_WORD_6 = INPUTS_POINTER + 24   # [EMPTY]
+const.INPUTS_WORD_7 = INPUTS_POINTER + 28   # [EMPTY]
+const.INPUTS_WORD_8 = INPUTS_POINTER + 32   # [EMPTY]
 
-# Boolean Memory Addresses (70 to 80)
-const.EMPTY_BOOL_0 = 0x0035
 
-# Full Word Memory Addresses (80 to 120, must be divisible by 4)
-const.ZOROSWAP_SCRIPT_HASH_WORD = 0x0050
-const.P2ID_SCRIPT_ROOT_WORD = 0x0054
-const.SWAP_SERIAL_NUM_WORD = 0x0058
-const.P2ID_SERIAL_NUM_WORD = 0x005C
-const.P2ID_OUTPUT_RECIPIENT_WORD = 0x0060
-const.IN_ASSET_WORD = 0x0064
+# first 3 WORDS of input space used for inputs
+# ====================================================
+const.NUMBER_OF_INPUTS = 0x000C # 12
 
-# Temporary Memory Addresses
 
-const.EMPTY_TEMP_0 = 0x0078
+# semantic names for inputs
+# ====================================================
+const.REQUESTED_ASSET_WORD = INPUTS_WORD_0
+# [deadline, p2id_tag, empty, empty]
+const.CREATOR_ID_WORD = INPUTS_WORD_2
+const.INPUTS_EMPTY_WORD_0 = INPUTS_WORD_3
+# [EMPTY]
+# [EMPTY]
+# [EMPTY]
 
-# ERRORS
+
+# ZOROSWAP Note Inputs (16 to 28)
+# [min_amount_out, empty, out_asset_id_suffix, out_asset_id_prefix]
+const.MIN_AMOUNT_OUT = REQUESTED_ASSET_WORD  # 0x0010
+const.OUT_TOKEN_EMPTY_FELT = REQUESTED_ASSET_WORD + 1
+const.OUT_TOKEN_ID_SUFFIX = REQUESTED_ASSET_WORD + 2
+const.OUT_TOKEN_ID_PREFIX = REQUESTED_ASSET_WORD + 3  # 0x0013
+
+# [deadline, p2id_tag, empty, empty]
+const.DEADLINE = INPUTS_WORD_1  # 0x0014
+const.P2ID_TAG = INPUTS_WORD_1 + 1
+const.EMPTY_INPUT_6 = INPUTS_WORD_1 + 2
+const.EMPTY_INPUT_7 = INPUTS_WORD_1 + 3  # 0x0017
+
+# [empty, empty, creator_id_suffix, creator_id_prefix]
+const.EMPTY_INPUT_8 = CREATOR_ID_WORD # 0x0018
+const.EMPTY_INPUT_9 = CREATOR_ID_WORD + 1
+const.ZOROSWAP_CREATOR_ID_SUFFIX = CREATOR_ID_WORD + 2
+const.ZOROSWAP_CREATOR_ID_PREFIX = CREATOR_ID_WORD + 3  # 0x001B
+
+# EMPTY  5WORDS 0X001C- 0x00
+
+# argument memory 4 WORDS 
+# 0x0040 - 0x004F
+# ====================================================
+
+const.ARGS_POINTER = 0x0040
+
+
+
+const.ARGS_WORD_0 = ARGS_POINTER        # [REQUESTED_ASSET_WORD]
+const.ARGS_WORD_1 = ARGS_POINTER + 4    # [deadline, p2id_tag, empty, empty]
+const.ARGS_WORD_2 = ARGS_POINTER + 8    # [CREATOR_ID_WORD] = [empty, empty, creator_id_suffix, creator_id_prefix]
+const.ARGS_WORD_3 = ARGS_POINTER + 12   # [EMPTY]
+
+
+# first 3 WORDS of ARGUMENTS space used for args
+# ====================================================
+const.NUMBER_OF_ARGS = 0x000C # 12
+
+# semantic names for inputs
+# ====================================================
+
+const.AMOUNT_OUT_WORD = ARGS_WORD_0   # 0x0040
+const.POOL0_STATE_WORD = ARGS_WORD_1  # 0x0044
+const.POOL1_STATE_WORD = ARGS_WORD_2  # 0x0048
+
+
+# [amount_out, empty, empty, empty]
+const.AMOUNT_OUT = AMOUNT_OUT_WORD
+# 3 empty felts 
+
+# [pool0_liabilities, pool0_reserve, pool0_reserve_with_slippage, empty]
+const.POOL0_LIABILITIES = POOL0_STATE_WORD  # 0x0044
+const.POOL0_RESERVE = POOL0_STATE_WORD + 1
+const.POOL0_RESERVE_WITH_SLIPPAGE = POOL0_STATE_WORD + 2
+const.POOL0_EMPTY_FELT = POOL0_STATE_WORD + 3 # 0x0047
+
+# [pool1_liabilities, pool1_reserve, pool1_reserve_with_slippage, empty]
+const.POOL1_LIABILITIES = POOL1_STATE_WORD  # 0x0048
+const.POOL1_RESERVE = POOL1_STATE_WORD + 1
+const.POOL1_RESERVE_WITH_SLIPPAGE = POOL1_STATE_WORD + 2
+const.POOL1_EMPTY_FELT = POOL1_STATE_WORD + 3 # 0x0051
+
+
+
+# space for pool state updates
+
+# space for future inuts
+
+
+
+
+# memory addresses of the assets
+const.IN_ASSET_WORD = 0x0060
+# memory locations based on IN_ASSET_WORD
+const.AMOUNT_IN = IN_ASSET_WORD
+const.IN_TOKEN_EMPTY_FELT = IN_ASSET_WORD + 1
+const.IN_TOKEN_ID_PREFIX = IN_ASSET_WORD + 3
+const.IN_TOKEN_ID_SUFIX = IN_ASSET_WORD + 2
+
+
+# "constant" MEMORY
 # =================================================================================================
 
-# SWAP script expects exactly 9 note inputs
-const.ERR_SWAP_WRONG_NUMBER_OF_INPUTS="ZOROSWAP wrong number of inputs"
+const.P2ID_SCRIPT_ROOT_WORD = 0x0080
 
-# SWAP script requires exactly one note asset
-const.ERR_SWAP_WRONG_NUMBER_OF_ASSETS="ZOROSWAP wrong number of assets"
-
-# SWAP amount must not exceed 184467440694145
-# const.ERR_INVALID_SWAP_AMOUNT="ZOROSWAP invalid SWAP amount"
-
-# SWAPp amount must not be 0
-# const.ERR_INVALID_SWAP_AMOUNT_ZERO="ZOROSWAP zero SWAP amount"
-
-
-
-# HASHING PROCEDURES
-# =================================================================================================
-
-#! Returns the P2ID RECIPIENT for a specified SERIAL_NUM, SCRIPT_HASH, and account_id
-#!
-#! Inputs: [SERIAL_NUM, SCRIPT_HASH]
-#! Outputs: [P2ID_RECIPIENT]
-#!
-proc.build_p2id_recipient_hash
-    padw hmerge
-    # => [SERIAL_NUM_HASH, SCRIPT_HASH]
-
-    swapw hmerge
-    # => [SERIAL_SCRIPT_HASH]
-
-    padw
-    mem_load.ZOROSWAP_CREATOR_SUFFIX_INPUT mem_load.ZOROSWAP_CREATOR_PREFIX_INPUT
-    push.0.0
-
-    push.4000 mem_storew dropw
-    push.4004 mem_storew dropw
-
-    push.8.4000
-    # => [ptr, elements]
-
-    exec.rpo::hash_memory
-    # => [INPUTS_HASH, SERIAL_SCRIPT_HASH]
-
-    hmerge
-    # => [P2ID_RECIPIENT]
-end
-
-
-# SWAP COUNT INCREMENT PROCEDURE
-# =================================================================================================
-
-#! Returns the incremented SWAP count value
-#!
-#! Inputs: []
-#! Outputs: []
-#!
-proc.increment_swap_count
-    mem_load.ZOROSWAP_COUNT_INPUT
-    push.1
-    add
-    mem_store.ZOROSWAP_COUNT_INPUT
-end
-
-# input: [SERIAL_NUM, swap_count, ...]
-# ouput: [P2ID_SERIAL_NUM, ...]
-proc.get_p2id_serial_num
-    swapw
-    hmerge
-end
-
-# input: []
-# output: [get_serial_number + 1]
-proc.get_new_swap_serial_num
-    exec.note::get_serial_number
-    push.1
-    add
-end
 
 
 #! Sends Assets in Note to Consuming Account
@@ -150,15 +153,62 @@ end
 #! Inputs: []
 #! Outputs: []
 #!
-
 proc.add_first_asset_to_account
-    push.0 exec.note::get_assets
-
-    mem_loadw.0
-
+    mem_loadw.IN_ASSET_WORD
     call.wallet::receive_asset
+end
 
-    dropw
+proc.store_asset_in_to_memory
+    push.IN_ASSET_WORD exec.note::get_assets assert.err=ERR_ZOROSWAP_WRONG_NUMBER_OF_ASSETS 
+    drop    
+end
+
+proc.store_inputs_to_memory
+    # store note inputs into memory starting at address 0
+    push.INPUTS_POINTER exec.note::get_inputs
+    # => [num_inputs, inputs_ptr]
+    # make sure the number of inputs is N
+    eq.NUMBER_OF_INPUTS assert.err=ERR_ZOROSWAP_WRONG_NUMBER_OF_INPUTS
+    # => [inputs_ptr]
+    drop
+
+end
+# @note TODO: pool stats will likely need to go through the advice stack
+proc.store_args_to_memory
+    mem_storew.AMOUNT_OUT_WORD dropw
+end
+
+
+#! Returns the P2ID RECIPIENT for a specified SERIAL_NUM, SCRIPT_HASH, and account_id
+#!
+#! Inputs: [SERIAL_NUM, SCRIPT_HASH]
+#! Outputs: [P2ID_RECIPIENT]
+#!
+proc.build_p2id_recipient_hash
+ 
+    padw hmerge
+    # => [SERIAL_NUM_HASH, SCRIPT_HASH]
+    swapw hmerge
+    # => [SERIAL_SCRIPT_HASH]
+    padw
+    mem_load.ZOROSWAP_CREATOR_ID_SUFFIX mem_load.ZOROSWAP_CREATOR_ID_PREFIX
+    push.0.0
+
+    push.4000 mem_storew dropw
+    push.4004 mem_storew dropw
+
+    push.8.4000
+    # => [ptr, elements]
+    exec.rpo::hash_memory
+    # => [INPUTS_HASH, SERIAL_SCRIPT_HASH]
+    hmerge
+    # => [P2ID_RECIPIENT]
+end
+
+# input: [SERIAL_NUM,...]
+# ouput: [P2ID_SERIAL_NUM, ...]
+proc.get_p2id_serial_num
+    add.1
 end
 
 #! Creates a P2ID note to creator
@@ -166,155 +216,73 @@ end
 #! Inputs: [ASSET_TO_BE_SENT]
 #! Outputs: []
 #!
-
 proc.create_p2id_reverse_note
     # @dev prepad to not to destroy ASSET_TO_BE_SENT by note creation
     # @dev if doesnt work, use memory for ASSET_TO_BE_SENT
     padw padw 
     # => [pad(8), ASSET_TO_BE_SENT]
-
-
     padw mem_loadw.P2ID_SCRIPT_ROOT_WORD
     # => [P2ID_SCRIPT_HASH, pad(8), ASSET_TO_BE_SENT]
-
-    padw mem_loadw.ZOROSWAP_COUNT_INPUT
-    # => [SWAP_COUNT, P2ID_SCRIPT_HASH, pad(8), ASSET_TO_BE_SENT]
-
     exec.note::get_serial_number
-    # => [SWAP_SERIAL_NUM, SWAP_COUNT, P2ID_SCRIPT_HASH, pad(8), ASSET_TO_BE_SENT]
-
+    # => [P2ID_SERIAL_NUM, , P2ID_SCRIPT_HASH, pad(8), ASSET_TO_BE_SENT]
     exec.get_p2id_serial_num
     # => [P2ID_SERIAL_NUM, P2ID_SCRIPT_HASH, pad(8), ASSET_TO_BE_SENT]
-
     exec.build_p2id_recipient_hash
     # => [P2ID_RECIPIENT, pad(8), ASSET_TO_BE_SENT]
 
+
     push.EXECUTION_HINT_ALWAYS
     # => [execution_hint_always, P2ID_RECIPIENT, pad(8), ASSET_TO_BE_SENT]
-
     push.PUBLIC_NOTE
     # => [public_note, execution_hint_always, P2ID_RECIPIENT, pad(8), ASSET_TO_BE_SENT]
-
     push.0 # @dev aux for p2id output note
     # => [aux, public_note, execution_hint_always, P2ID_RECIPIENT, pad(8), ASSET_TO_BE_SENT]
-
-    mem_load.P2ID_TAG_INPUT
+    mem_load.P2ID_TAG
     # => [tag, aux, public_note, execution_hint_always, P2ID_RECIPIENT, pad(8), ASSET_TO_BE_SENT]
     # => [tag, aux, note_type, execution_hint, RECIPIENT, pad(8), ASSET_TO_BE_SENT]
-
     call.tx::create_note
     # => [note_idx, pad(15), ASSET_TO_BE_SENT]
-    swapw.2 dropw swapw.3
-    
+    swapw.2 dropw swapw.3  
     # => [ASSET, note_idx, pad(11)]
-
     call.wallet::move_asset_to_note
     # => [ASSET, note_idx, pad(11)]
-
     dropw drop
     # => []
-
 end
 
-# ZORO Swap Simple Order Script (ZOROSWAP)
-# =================================================================================================
-#
-# ZORO Swap Simple Order Script (ZOROSWAP): adds an asset from the note into LP pool and
-# creates a note consumable by note issuer containing at least min_amount_out of requested ASSET.
-#
-# If the consuming account does not have sufficient liquidity to completely
-# fill the amount of the ZOROSWAP creator's requested asset, then the ZOROSWAP note
-# sends the in ASSET via P2ID to the creator
-#
+proc.store_p2id_script_hash
+    push.14355791738953101471.16880376862595469307.4399717636953729920.18023939233288492685
+    mem_storew.P2ID_SCRIPT_ROOT_WORD dropw
+end
 
-# => []
 proc.execute_ZOROSWAP
-    push.IN_ASSET_WORD exec.note::get_assets assert.err=ERR_SWAP_WRONG_NUMBER_OF_ASSETS drop
-    # => []
-
-    mem_loadw.IN_ASSET_WORD
-    # => [IN_ASSET]
-
-    mem_store.IN_TOKEN_ID_PREFIX
-    # => [in_asset_id_suffix, 0, amount_in]
-
-    mem_store.IN_TOKEN_ID_SUFFIX
-    # => [0, amount_in]
-
-    drop
-    # => [amount_in]
-
-    # store amount_in to mem
-    mem_store.AMOUNT_IN
-    # => []
-
-    # store note inputs into memory starting at address 0
-    push.0 exec.note::get_inputs
-    # => [num_inputs, inputs_ptr]
-
-    # make sure the number of inputs is N
-    eq.14 assert.err=ERR_SWAP_WRONG_NUMBER_OF_INPUTS
-    # => [inputs_ptr]
-
-    mem_loadw.REQUESTED_ASSET_WORD_INPUT
-    # => [REQUESTED_ASSET]
-    
-    mem_store.OUT_TOKEN_ID_PREFIX
-    # => [token_b_suffix, 0, min_amount_out]
-
-    mem_store.OUT_TOKEN_ID_SUFFIX drop
-    # => [min_amount_out]
-
-    # store min_amount_out to mem
-    mem_store.MIN_AMOUNT_OUT
-    # => []
-
-
-    # @dev TODO: move the swap count to the pools contract
-    exec.increment_swap_count
-
-    # ZORO executor will supply the actual amount of token out user will receive
-    # via note args. 
-
+    #mem_loadw.IN_ASSET_WORD
+    #exec.create_p2id_reverse_note
     mem_load.AMOUNT_OUT
-    # => [amount_out]
-
     mem_load.MIN_AMOUNT_OUT
-    # => [min_amount_out, amount_out]
-
     lt
-    # => [is_lt]
 
-    # if amount_out < min_amount_out
+    # min amount out is not met
     if.true
-        # swap fail
-        # return ASSET_IN to creator via P2ID
-        mem_load.AMOUNT_IN push.0 mem_load.IN_TOKEN_ID_SUFFIX mem_load.IN_TOKEN_ID_PREFIX
-        exec.create_p2id_reverse_note
+        mem_loadw.IN_ASSET_WORD
     else
-        # swap success
-        # send amount_out of out_asset to creator via P2ID
         mem_load.AMOUNT_OUT push.0 mem_load.OUT_TOKEN_ID_SUFFIX mem_load.OUT_TOKEN_ID_PREFIX
-        exec.create_p2id_reverse_note
     end
-    # => []
 
+    exec.create_p2id_reverse_note
 end
 
 begin
-    # => [NOTE_ARGS]
+    exec.store_args_to_memory
 
-    # need to provide amount_out as note args
-    mem_store.AMOUNT_OUT drop drop drop
-    # => []
+    exec.store_inputs_to_memory
 
-    push.14355791738953101471.16880376862595469307.4399717636953729920.18023939233288492685
-    mem_storew.P2ID_SCRIPT_ROOT_WORD dropw
-    # => []
-
-
+    exec.store_asset_in_to_memory
     exec.add_first_asset_to_account
-    
+
+    exec.store_p2id_script_hash
+
     exec.execute_ZOROSWAP
 
+    exec.sys::truncate_stack
 end
