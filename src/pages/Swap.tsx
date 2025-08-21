@@ -289,7 +289,7 @@ function Swap() {
   // Add ref for sell input auto-focus
   const sellInputRef = useRef<HTMLInputElement>(null);
   
-  const { connected, connecting, wallet } = useWallet();
+  const { connected, connecting, wallet, requestTransaction } = useWallet();
   const { refreshPrices } = useContext(NablaAntennaContext);
   
   // Get the user's account ID from the connected wallet
@@ -467,7 +467,8 @@ function Swap() {
         sellAmount,
         buyAmount: minAmountOut, // Use min amount out instead of expected amount
         userAccountId,
-        wallet: wallet!
+        wallet: wallet,
+        requestTransaction: requestTransaction || (async () => "")
       };
       
       await compileZoroSwapNote(swapParams);

@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@demox-labs/miden-sdk": "^0.10.1",
-    "@demox-labs/miden-wallet-adapter": "0.2.1",
+    "@demox-labs/miden-wallet-adapter": "0.3.0",
     "@radix-ui/react-dropdown-menu": "^2.1.15",
     "@radix-ui/react-slot": "^1.2.3",
     "@types/react": "^18.3.23",
