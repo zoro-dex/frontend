@@ -18,7 +18,9 @@ import {
   OutputNote,
   TransactionRequestBuilder,
   OutputNotesArray,
-  TransactionProver
+  TransactionProver,
+  Account,
+  TransactionRequest
 } from "@demox-labs/miden-sdk";
 import { CustomTransaction, type Wallet
 } from "@demox-labs/miden-wallet-adapter";
@@ -81,32 +83,6 @@ function generateRandomSerialNumber(): Word {
   ]);
 }
 
-async function submitNoteToServer(serializedNote: string): Promise<void> {
-  try {
-    
-    const response = await fetch(`${API.endpoint}/orders/submit`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        note_data: serializedNote
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
-    }
-    
-    const result = await response.json();
-    console.log(result);
-    
-  } catch (error) {
-    console.error('Failed to submit note to server:', error);
-    throw error;
-  }
-}
-
 export async function compileZoroSwapNote(swapParams: SwapParams): Promise<string> {
   // Create fresh client for this operation - don't reuse clients!
   const client = await WebClient.createClient(NETWORK.rpcEndpoint);
@@ -132,9 +108,11 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<strin
     console.log("Syncing after faucet creation...");
     await client.syncState();
 
+    const midenFaucetId = AccountId.fromBech32('mtst1qppen8yngje35gr223jwe6ptjy7gedn9');
+
     // Determine which faucets to use based on swap params
-    const sellFaucet = swapParams.sellToken === 'MIDEN' ? midenFaucet : testFaucet;
-    const buyFaucet = swapParams.buyToken === 'MIDEN' ? midenFaucet : testFaucet;
+    const sellFaucet = swapParams.sellToken === 'BTC' ? midenFaucetId : testFaucet.id();
+    const buyFaucet = swapParams.buyToken === 'BTC' ? midenFaucetId : testFaucet.id();
     
     // Convert amounts to BigInt
     const sellAmountBigInt = BigInt(Math.floor(parseFloat(swapParams.sellAmount)));
@@ -144,10 +122,10 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<strin
     const noteType = NoteType.Public;
 
     // Create assets using the faucet IDs directly
-    const offeredAsset = new FungibleAsset(sellFaucet.id(), sellAmountBigInt);
+    const offeredAsset = new FungibleAsset(sellFaucet, sellAmountBigInt);
 
     // Build swap tag using the simplified approach that avoids faucetId() calls
-    const swapTag = buildSwapTag(noteType, sellFaucet.id(), buyFaucet.id());
+    const swapTag = buildSwapTag(noteType, sellFaucet, buyFaucet);
     console.log("Created swapTag:", swapTag);
 
     // Note should only contain the offered asset
@@ -170,8 +148,8 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<strin
 
     // Following the pattern: [asset_id_prefix, asset_id_suffix, 0, min_amount_out]
     const requestedAssetFelts: Felt[] = [
-      buyFaucet.id().prefix(),  // Felt 0: Asset ID prefix
-      buyFaucet.id().suffix(),  // Felt 1: Asset ID suffix  
+      buyFaucet.prefix(),  // Felt 0: Asset ID prefix
+      buyFaucet.suffix(),  // Felt 1: Asset ID suffix  
       new Felt(BigInt(0)),      // Felt 2: Always 0
       new Felt(buyAmountBigInt) // Felt 3: Min amount out
     ];
@@ -195,28 +173,31 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<strin
       metadata,
       new NoteRecipient(generateRandomSerialNumber(), script, inputs),
     );
+
     console.log("Created note:", note);
 
     let transactionRequest = new TransactionRequestBuilder()
       .withOwnOutputNotes(new OutputNotesArray([OutputNote.full(note)]))
       .build();
 
-    const transaction = await client.newTransaction(
-      userAddress, 
-      transactionRequest
+    const transaction = new CustomTransaction(
+      userAddress.toString(), 
+      transactionRequest,
       );
 
-    const txId = (await transaction).executedTransaction().id().toHex();
-    const midenScanLink = `https://testnet.midenscan.com/tx/${txId}`;
+    console.log('Transaction:', transaction);
 
-    console.log(`Transaction ID: ${txId}`);
-    console.log(`View transaction on MidenScan: ${midenScanLink}`);
+    // const txId = (transaction).executedTransaction().id().toHex();
+    // const midenScanLink = `https://testnet.midenscan.com/tx/${txId}`;
 
-        // Submit transaction to blockchain
-    await client.submitTransaction(transaction, prover);
+    // console.log(`Transaction ID: ${txId}`);
+    // console.log(`View transaction on MidenScan: ${midenScanLink}`);
 
-        console.log(
-      "SWAPP note created and submitted to blockchain successfully! ✅",
+    //     // Submit transaction to blockchain
+    // await client.submitTransaction(transaction, prover);
+
+    console.log(
+      "note created and submitted to blockchain successfully!"
     );
 
     // Wait for the note to be included in a block before submitting to server
@@ -264,5 +245,31 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<strin
     console.error("ZoroSwap note creation failed:", error);
     throw error;
   }
-  // Client will be garbage collected automatically when function ends
+
+  async function submitNoteToServer(serializedNote: string): Promise<void> {
+  try {
+    
+    const response = await fetch(`${API.endpoint}/orders/submit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        note_data: serializedNote
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    console.log(result);
+    
+  } catch (error) {
+    console.error('Failed to submit note to server:', error);
+    throw error;
+  }
+}
+
 }

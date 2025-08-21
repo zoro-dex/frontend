@@ -10,10 +10,13 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      buffer: 'buffer/'
     },
   },
   optimizeDeps: {
-    exclude: ['@demox-labs/miden-sdk']
+    exclude: ['@demox-labs/miden-sdk'],
+    include: ['buffer']
   },
+
   assetsInclude: ['**/*.masm'] // Include .masm files as assets
 })

@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, useRef } from "react";
+import { useState, useEffect, useContext, useRef, useMemo, useCallback } from "react";
 import { ArrowUpDown, Loader2, Settings, X, Info } from "lucide-react";
 import { AccountId } from "@demox-labs/miden-sdk";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,17 @@ import { TOKENS, UI, ASSET_IDS, FAUCET } from '@/lib/config';
 
 type TabType = "Swap" | "Limit";
 type TokenSymbol = keyof typeof TOKENS;
+
+// Token decimal precision configuration
+const DECIMALS: Record<TokenSymbol, number> = {
+  BTC: 6,
+  ETH: 18
+} as const;
+
+interface BalanceValidationState {
+  hasInsufficientBalance: boolean;
+  isBalanceLoaded: boolean;
+}
 
 interface PriceFetcherProps {
   shouldFetch: boolean;
@@ -50,6 +61,33 @@ const calculateMinAmountOut = (buyAmount: string, slippagePercent: number): stri
   return minAmount.toFixed(8);
 };
 
+/**
+ * Calculate balance validation with proper decimal precision
+ */
+const getBalanceValidation = (
+  sellAmount: string, 
+  balance: bigint | null, 
+  tokenSymbol: TokenSymbol
+): BalanceValidationState => {
+  const sellAmountNum = parseFloat(sellAmount);
+  
+  // If no amount entered or balance not loaded yet
+  if (!sellAmount || isNaN(sellAmountNum) || sellAmountNum <= 0 || balance === null) {
+    return {
+      hasInsufficientBalance: false,
+      isBalanceLoaded: balance !== null
+    };
+  }
+  
+  // Convert sellAmount to BigInt using token-specific decimals
+  const decimals = DECIMALS[tokenSymbol];
+  const sellAmountBigInt = BigInt(Math.floor(sellAmountNum * Math.pow(10, decimals)));
+  
+  return {
+    hasInsufficientBalance: sellAmountBigInt > balance,
+    isBalanceLoaded: true
+  };
+};
 
 function SwapSettings({ slippage, onSlippageChange }: SwapSettingsProps) {
   const [isOpen, setIsOpen] = useState<boolean>(false);
@@ -171,14 +209,14 @@ function SwapSettings({ slippage, onSlippageChange }: SwapSettingsProps) {
 }
 
 /**
- * Format BigInt balance to human-readable string
+ * Format BigInt balance to human-readable string with token-specific decimals
  */
-const formatBalance = (balance: bigint, decimals: number = 6): string => {
+const formatBalance = (balance: bigint, tokenSymbol: TokenSymbol): string => {
   if (balance === BigInt(0)) {
     return "0";
   }
   
-  // Convert BigInt to number for formatting (be careful with precision)
+  const decimals = DECIMALS[tokenSymbol];
   const divisor = BigInt(Math.pow(10, decimals));
   const wholePart = balance / divisor;
   const fractionalPart = balance % divisor;
@@ -196,6 +234,23 @@ const formatBalance = (balance: bigint, decimals: number = 6): string => {
   }
   
   return `${wholePart}.${trimmedFractional}`;
+};
+
+/**
+ * Convert BigInt balance to decimal string for input fields
+ */
+const balanceToDecimalString = (balance: bigint, tokenSymbol: TokenSymbol): string => {
+  const decimals = DECIMALS[tokenSymbol];
+  const divisor = BigInt(Math.pow(10, decimals));
+  const wholePart = balance / divisor;
+  const fractionalPart = balance % divisor;
+  
+  if (fractionalPart === BigInt(0)) {
+    return wholePart.toString();
+  }
+  
+  const fractionalStr = fractionalPart.toString().padStart(decimals, '0');
+  return `${wholePart}.${fractionalStr}`.replace(/\.?0+$/, '');
 };
 
 /**
@@ -249,7 +304,25 @@ function Swap() {
     faucetId: AccountId.fromBech32(FAUCET.testFaucetId),
   });
 
-  const formattedBalance = balance !== null ? formatBalance(balance) : "0";
+  // Memoized balance validation
+  const balanceValidation = useMemo(
+    () => getBalanceValidation(sellAmount, balance, sellToken),
+    [sellAmount, balance, sellToken]
+  );
+
+  const formattedBalance = balance !== null ? formatBalance(balance, sellToken) : "0";
+
+  // Handle max button click
+  const handleMaxClick = useCallback((): void => {
+    if (balance !== null && balance > BigInt(0)) {
+      const maxAmount = balanceToDecimalString(balance, sellToken);
+      handleSellAmountChange(maxAmount);
+      // Focus the input after setting max amount
+      if (sellInputRef.current) {
+        sellInputRef.current.focus();
+      }
+    }
+  }, [balance, sellToken]);
 
   // Auto-focus sell input on mount
   useEffect(() => {
@@ -393,7 +466,8 @@ function Swap() {
         buyToken, 
         sellAmount,
         buyAmount: minAmountOut, // Use min amount out instead of expected amount
-        userAccountId
+        userAccountId,
+        wallet: wallet!
       };
       
       await compileZoroSwapNote(swapParams);
@@ -425,7 +499,8 @@ function Swap() {
     parseFloat(buyAmount) > 0 &&
     sellPrice && 
     buyPrice &&
-    sellToken !== buyToken
+    sellToken !== buyToken &&
+    !balanceValidation.hasInsufficientBalance
   );
 
   return (
@@ -478,7 +553,11 @@ function Swap() {
                         onChange={(e) => handleSellAmountChange(e.target.value)}
                         onClick={fetchPrices}
                         placeholder="0"
-                        className="border-none text-3xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner"
+                        className={`border-none text-3xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner ${
+                          balanceValidation.hasInsufficientBalance 
+                            ? 'text-destructive placeholder:text-destructive/50' 
+                            : ''
+                        }`}
                       />
                       <Button
                         variant="outline"
@@ -501,10 +580,27 @@ function Swap() {
                       <div>{sellUsdValue || priceFor1}</div>
                       <div className="flex items-center gap-1">
                         <button 
-                          className="hover:text-foreground transition-colors cursor-pointer mr-1"
+                          onClick={handleMaxClick}
+                          disabled={balance === null || balance === BigInt(0)}
+                          className={`hover:text-foreground transition-colors cursor-pointer mr-1 disabled:cursor-not-allowed disabled:opacity-50 ${
+                            balanceValidation.hasInsufficientBalance 
+                              ? 'text-destructive hover:text-destructive' 
+                              : ''
+                          }`}
                         >
+                          {balanceValidation.hasInsufficientBalance && '⚠️ '}
                           {formattedBalance} {sellToken}
                         </button>
+                        {balance !== null && balance > BigInt(0) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleMaxClick}
+                            className="h-5 px-1 text-xs text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20"
+                          >
+                            MAX
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -585,6 +681,10 @@ function Swap() {
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Creating Note...
                       </>
+                    ) : !balanceValidation.isBalanceLoaded ? (
+                      "Loading balance..."
+                    ) : balanceValidation.hasInsufficientBalance ? (
+                      `Insufficient ${sellToken} balance`
                     ) : !canSwap ? (
                       sellToken === buyToken ? "Select different tokens" : "Enter amount"
                     ) : (

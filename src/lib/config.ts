@@ -103,6 +103,15 @@ export const TOKENS: Record<string, TokenConfig> = {
   },
 } as const;
 
+// Token Symbol Type
+export type TokenSymbol = keyof typeof TOKENS;
+
+// Faucet Mapping - Each token can have its own faucet
+export const FAUCETS: Record<TokenSymbol, string> = {
+  BTC: getEnvVar('VITE_BTC_FAUCET_ID', FAUCET.testFaucetId),
+  ETH: getEnvVar('VITE_ETH_FAUCET_ID', FAUCET.testFaucetId),
+} as const;
+
 // Derived configurations
 export const SUPPORTED_ASSET_IDS: Record<string, string> = Object.fromEntries(
   Object.entries(TOKENS).map(([key, token]) => [token.priceId, `${token.symbol}/USD`])
@@ -133,6 +142,13 @@ function validateConfig(): void {
   for (const [symbol, token] of Object.entries(TOKENS)) {
     if (!/^[a-fA-F0-9]{64}$/.test(token.priceId)) {
       console.warn(`Price ID for ${symbol} may be invalid: ${token.priceId}`);
+    }
+  }
+
+  // Validate faucet IDs (should be valid Bech32 format)
+  for (const [symbol, faucetId] of Object.entries(FAUCETS)) {
+    if (!faucetId.startsWith('mtst1') && !faucetId.startsWith('mden1')) {
+      console.warn(`Faucet ID for ${symbol} may be invalid: ${faucetId}`);
     }
   }
 }

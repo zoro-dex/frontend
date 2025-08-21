@@ -36,7 +36,7 @@ export const WalletContextProvider: React.FC<WalletContextProviderProps> = ({ ch
     };
 
     return (
-        <WalletProvider wallets={wallets} onError={handleError}>
+        <WalletProvider wallets={wallets} autoConnect onError={handleError}>
             <WalletModalProvider>
                 {children}
             </WalletModalProvider>
