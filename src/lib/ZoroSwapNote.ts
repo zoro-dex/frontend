@@ -101,25 +101,14 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<strin
     await client.syncState();
     console.log('Initial sync complete');
 
-    // ── Creating test faucet ──────────────────────────────────────────────────────
-    const testFaucet = await client.newFaucet(
-      AccountStorageMode.public(),
-      false,
-      'TEST',
-      8,
-      BigInt(1_000_000),
-    );
-    console.log('TEST Faucet ID:', testFaucet.id().toString());
-
-    // ── Sync after faucet creation ──────────────────────────────────────────────
-    console.log('Syncing after faucet creation...');
-    await client.syncState();
 
     const midenFaucetId = AccountId.fromBech32('mtst1qppen8yngje35gr223jwe6ptjy7gedn9');
+    const testFaucetId = AccountId.fromBech32('mtst1qppen8yngje35gr223jwe6ptjy7gedn9');
+
 
     // Determine which faucets to use based on swap params
-    const sellFaucet = swapParams.sellToken === 'BTC' ? midenFaucetId : testFaucet.id();
-    const buyFaucet = swapParams.buyToken === 'BTC' ? midenFaucetId : testFaucet.id();
+    const sellFaucet = swapParams.sellToken === 'BTC' ? midenFaucetId : testFaucetId;
+    const buyFaucet = swapParams.buyToken === 'BTC' ? midenFaucetId : testFaucetId;
 
     // Convert amounts to BigInt
     const sellAmountBigInt = BigInt(Math.floor(parseFloat(swapParams.sellAmount)));
@@ -189,56 +178,28 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<strin
       .withOwnOutputNotes(new OutputNotesArray([OutputNote.full(note)]))
       .build();
 
+      console.log('TransactionRequest:', transactionRequest);
+
     const tx = new CustomTransaction(
-      swapParams.wallet.adapter.accountId ?? '',
+      swapParams.wallet.adapter.accountId ?? '', //creatorID
       transactionRequest,
       [],
       [],
     );
 
-    // const requestBytes = transactionRequest.serialize();
-    // const base64 = Buffer.from(requestBytes).toString('base64');
-    // const serialized_transactionRequest = base64;
+    console.log('Tx:', tx);
 
-    // let custom_tx: MidenCustomTransaction = {
-    //   accountId: userAddress.toBech32(),
-    //   transactionRequest: serialized_transactionRequest,
-    //   inputNoteIds: [],
-    //   importNotes: [],
-    // };
-
-    // const txId = (transaction).executedTransaction().id().toHex();
-    // const midenScanLink = `https://testnet.midenscan.com/tx/${txId}`;
-
-    // console.log(`Transaction ID: ${txId}`);
-    // console.log(`View transaction on MidenScan: ${midenScanLink}`);
-
-    //     // Submit transaction to blockchain
     await swapParams.requestTransaction({
       type: TransactionType.Custom,
       payload: tx,
     });
 
-    console.log(
-      'note created and submitted to blockchain successfully!',
-    );
-
-    // Wait for the note to be included in a block before submitting to server
-    console.log(
-      '⏳ Waiting for note to be included in a block (5-6 seconds)...',
-    );
-
-    await client.syncState();
-
-    // Wait for approximately one block time
-    await new Promise((resolve) => setTimeout(resolve, 6000));
-
-    // Sync state to get the latest block data
-    await client.syncState();
-    console.log('🔄 Synced client state');
-
     const noteId = note.id().toString();
     console.log('Created note ID:', noteId);
+    await client.syncState();
+        // Wait for approximately one block time
+    await new Promise((resolve) => setTimeout(resolve, 6000));
+
 
     // Export note with full details including inclusion proof
     const noteExport = await client.exportNote(noteId, 'Full');
