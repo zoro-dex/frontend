@@ -1,4 +1,4 @@
-import { API, NETWORK } from '@/lib/config';
+import { API, NETWORK, TOKENS, type TokenSymbol } from '@/lib/config';
 import {
   AccountId,
   AccountStorageMode,
@@ -34,8 +34,6 @@ window.Buffer = Buffer;
 
 // @ts-ignore - MASM files are treated as raw text
 import ZOROSWAP_SCRIPT from './ZOROSWAP.masm?raw';
-
-type TokenSymbol = 'BTC' | 'ETH';
 
 export interface SwapParams {
   sellToken: TokenSymbol;
@@ -91,9 +89,17 @@ function generateRandomSerialNumber(): Word {
 }
 
 export async function compileZoroSwapNote(swapParams: SwapParams): Promise<string> {
+  // Validate tokens exist in configuration
+  const sellTokenConfig = TOKENS[swapParams.sellToken];
+  const buyTokenConfig = TOKENS[swapParams.buyToken];
+  
+  if (!sellTokenConfig || !buyTokenConfig) {
+    throw new Error(`Token configuration not found for ${swapParams.sellToken} or ${swapParams.buyToken}`);
+  }
+
   // Create fresh client for this operation - don't reuse clients!
   const client = await WebClient.createClient(NETWORK.rpcEndpoint);
-  const prover = TransactionProver.newRemoteProver('https://tx-prover.testnet.miden.io');
+  const prover = TransactionProver.newRemoteProver(NETWORK.txProverEndpoint);
 
   try {
     // ── Initial sync to ensure client is connected to blockchain ──────────────────
@@ -101,27 +107,29 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<strin
     await client.syncState();
     console.log('Initial sync complete');
 
+    // Use the faucet IDs from the token configuration
+    const sellFaucetId = AccountId.fromBech32(sellTokenConfig.faucetId);
+    const buyFaucetId = AccountId.fromBech32(buyTokenConfig.faucetId);
 
-    const midenFaucetId = AccountId.fromBech32('mtst1qppen8yngje35gr223jwe6ptjy7gedn9');
-    const testFaucetId = AccountId.fromBech32('mtst1qppen8yngje35gr223jwe6ptjy7gedn9');
+    // Convert amounts to BigInt using token-specific decimals
+    const sellAmountNum = parseFloat(swapParams.sellAmount);
+    const buyAmountNum = parseFloat(swapParams.buyAmount);
+    
+    if (isNaN(sellAmountNum) || isNaN(buyAmountNum) || sellAmountNum <= 0 || buyAmountNum <= 0) {
+      throw new Error(`Invalid swap amounts: sell=${swapParams.sellAmount}, buy=${swapParams.buyAmount}`);
+    }
 
-
-    // Determine which faucets to use based on swap params
-    const sellFaucet = swapParams.sellToken === 'BTC' ? midenFaucetId : testFaucetId;
-    const buyFaucet = swapParams.buyToken === 'BTC' ? midenFaucetId : testFaucetId;
-
-    // Convert amounts to BigInt
-    const sellAmountBigInt = BigInt(Math.floor(parseFloat(swapParams.sellAmount)));
-    const buyAmountBigInt = BigInt(Math.floor(parseFloat(swapParams.buyAmount)));
+    const sellAmountBigInt = BigInt(Math.floor(sellAmountNum * Math.pow(10, sellTokenConfig.decimals)));
+    const buyAmountBigInt = BigInt(Math.floor(buyAmountNum * Math.pow(10, buyTokenConfig.decimals)));
 
     const script = client.compileNoteScript(ZOROSWAP_SCRIPT);
     const noteType = NoteType.Public;
 
-    // Create assets using the faucet IDs directly
-    const offeredAsset = new FungibleAsset(sellFaucet, sellAmountBigInt);
+    // Create assets using the faucet IDs from token configuration
+    const offeredAsset = new FungibleAsset(sellFaucetId, sellAmountBigInt);
 
-    // Build swap tag using the simplified approach that avoids faucetId() calls
-    const swapTag = buildSwapTag(noteType, sellFaucet, buyFaucet);
+    // Build swap tag using the faucet IDs
+    const swapTag = buildSwapTag(noteType, sellFaucetId, buyFaucetId);
     console.log('Created swapTag:', swapTag);
 
     // Note should only contain the offered asset
@@ -139,13 +147,13 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<strin
 
     const deadline = 0;
 
-    // Use the AccountId
+    // Use the AccountId for p2id tag
     const p2idTag = NoteTag.fromAccountId(userAddress).asU32();
 
     // Following the pattern: [asset_id_prefix, asset_id_suffix, 0, min_amount_out]
     const requestedAssetFelts: Felt[] = [
-      buyFaucet.prefix(), // Felt 0: Asset ID prefix
-      buyFaucet.suffix(), // Felt 1: Asset ID suffix
+      buyFaucetId.prefix(), // Felt 0: Asset ID prefix
+      buyFaucetId.suffix(), // Felt 1: Asset ID suffix
       new Felt(BigInt(0)), // Felt 2: Always 0
       new Felt(buyAmountBigInt), // Felt 3: Min amount out
     ];
@@ -173,12 +181,24 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<strin
     );
 
     console.log('Created note:', note);
+    console.log('Swap details:', {
+      sellToken: swapParams.sellToken,
+      buyToken: swapParams.buyToken,
+      sellAmount: swapParams.sellAmount,
+      buyAmount: swapParams.buyAmount,
+      sellFaucetId: sellTokenConfig.faucetId,
+      buyFaucetId: buyTokenConfig.faucetId,
+      sellDecimals: sellTokenConfig.decimals,
+      buyDecimals: buyTokenConfig.decimals,
+      sellAmountBigInt: sellAmountBigInt.toString(),
+      buyAmountBigInt: buyAmountBigInt.toString(),
+    });
 
     let transactionRequest = new TransactionRequestBuilder()
       .withOwnOutputNotes(new OutputNotesArray([OutputNote.full(note)]))
       .build();
 
-      console.log('TransactionRequest:', transactionRequest);
+    console.log('TransactionRequest:', transactionRequest);
 
     const tx = new CustomTransaction(
       swapParams.wallet.adapter.accountId ?? '', //creatorID
@@ -197,9 +217,9 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<strin
     const noteId = note.id().toString();
     console.log('Created note ID:', noteId);
     await client.syncState();
-        // Wait for approximately one block time
+    
+    // Wait for approximately one block time
     await new Promise((resolve) => setTimeout(resolve, 6000));
-
 
     // Export note with full details including inclusion proof
     const noteExport = await client.exportNote(noteId, 'Full');
@@ -248,7 +268,7 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<strin
       }
 
       const result = await response.json();
-      console.log(result);
+      console.log('Note submitted to server:', result);
     } catch (error) {
       console.error('Failed to submit note to server:', error);
       throw error;

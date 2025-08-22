@@ -3,13 +3,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { NETWORK } from '@/lib/config';
 
 export const useBalance = (
-  { accountId, faucetId }: { accountId: AccountId | null | undefined; faucetId: AccountId },
+  { accountId, faucetId }: { accountId: AccountId | null | undefined; faucetId: AccountId | undefined },
 ) => {
   let [balance, setBalance] = useState<bigint | null>(null);
 
   const fetchBalance = useCallback(async () => {
-    // Early return if no accountId
-    if (!accountId) {
+    // Early return if no accountId or faucetId
+    if (!accountId || !faucetId) {
       setBalance(null);
       return;
     }

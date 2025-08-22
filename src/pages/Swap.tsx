@@ -11,16 +11,15 @@ import { compileZoroSwapNote, type SwapParams } from '../lib/ZoroSwapNote.ts';
 import { Link } from 'react-router-dom';
 import { useWallet, WalletMultiButton } from "@demox-labs/miden-wallet-adapter";
 import { useBalance } from '@/hooks/useBalance';
-import { TOKENS, UI, ASSET_IDS, FAUCET } from '@/lib/config';
+import { 
+  TOKENS, 
+  UI, 
+  initializeTokenConfig, 
+  getAssetIds, 
+  type TokenSymbol 
+} from '@/lib/config';
 
 type TabType = "Swap" | "Limit";
-type TokenSymbol = keyof typeof TOKENS;
-
-// Token decimal precision configuration
-const DECIMALS: Record<TokenSymbol, number> = {
-  BTC: 6,
-  ETH: 18
-} as const;
 
 interface BalanceValidationState {
   hasInsufficientBalance: boolean;
@@ -80,8 +79,12 @@ const getBalanceValidation = (
   }
   
   // Convert sellAmount to BigInt using token-specific decimals
-  const decimals = DECIMALS[tokenSymbol];
-  const sellAmountBigInt = BigInt(Math.floor(sellAmountNum * Math.pow(10, decimals)));
+  const token = TOKENS[tokenSymbol];
+  if (!token) {
+    return { hasInsufficientBalance: false, isBalanceLoaded: false };
+  }
+  
+  const sellAmountBigInt = BigInt(Math.floor(sellAmountNum * Math.pow(10, token.decimals)));
   
   return {
     hasInsufficientBalance: sellAmountBigInt > balance,
@@ -216,8 +219,10 @@ const formatBalance = (balance: bigint, tokenSymbol: TokenSymbol): string => {
     return "0";
   }
   
-  const decimals = DECIMALS[tokenSymbol];
-  const divisor = BigInt(Math.pow(10, decimals));
+  const token = TOKENS[tokenSymbol];
+  if (!token) return "0";
+  
+  const divisor = BigInt(Math.pow(10, token.decimals));
   const wholePart = balance / divisor;
   const fractionalPart = balance % divisor;
   
@@ -226,7 +231,7 @@ const formatBalance = (balance: bigint, tokenSymbol: TokenSymbol): string => {
   }
   
   // Format with appropriate decimal places
-  const fractionalStr = fractionalPart.toString().padStart(decimals, '0');
+  const fractionalStr = fractionalPart.toString().padStart(token.decimals, '0');
   const trimmedFractional = fractionalStr.replace(/0+$/, '');
   
   if (trimmedFractional === '') {
@@ -240,8 +245,10 @@ const formatBalance = (balance: bigint, tokenSymbol: TokenSymbol): string => {
  * Convert BigInt balance to decimal string for input fields
  */
 const balanceToDecimalString = (balance: bigint, tokenSymbol: TokenSymbol): string => {
-  const decimals = DECIMALS[tokenSymbol];
-  const divisor = BigInt(Math.pow(10, decimals));
+  const token = TOKENS[tokenSymbol];
+  if (!token) return "0";
+  
+  const divisor = BigInt(Math.pow(10, token.decimals));
   const wholePart = balance / divisor;
   const fractionalPart = balance % divisor;
   
@@ -249,7 +256,7 @@ const balanceToDecimalString = (balance: bigint, tokenSymbol: TokenSymbol): stri
     return wholePart.toString();
   }
   
-  const fractionalStr = fractionalPart.toString().padStart(decimals, '0');
+  const fractionalStr = fractionalPart.toString().padStart(token.decimals, '0');
   return `${wholePart}.${fractionalStr}`.replace(/\.?0+$/, '');
 };
 
@@ -276,12 +283,15 @@ function Swap() {
   const [activeTab, setActiveTab] = useState<TabType>("Swap");
   const [sellAmount, setSellAmount] = useState<string>("");
   const [buyAmount, setBuyAmount] = useState<string>("");
-  const [sellToken, setSellToken] = useState<TokenSymbol>("BTC");
-  const [buyToken, setBuyToken] = useState<TokenSymbol>("ETH");
+  const [tokensLoaded, setTokensLoaded] = useState<boolean>(false);
+  const [availableTokens, setAvailableTokens] = useState<TokenSymbol[]>([]);
+  const [sellToken, setSellToken] = useState<TokenSymbol | undefined>(undefined);
+  const [buyToken, setBuyToken] = useState<TokenSymbol | undefined>(undefined);
   const [pricesFetched, setPricesFetched] = useState<boolean>(false);
   const [shouldFetchPrices, setShouldFetchPrices] = useState<boolean>(false);
   const [isCreatingNote, setIsCreatingNote] = useState<boolean>(false);
   const [lastEditedField, setLastEditedField] = useState<'sell' | 'buy'>('sell');
+  const [isSwappingTokens, setIsSwappingTokens] = useState<boolean>(false);
   
   // Settings state (uses config default)
   const [slippage, setSlippage] = useState<number>(UI.defaultSlippage);
@@ -295,31 +305,76 @@ function Swap() {
   // Get the user's account ID from the connected wallet
   const userAccountId = wallet?.adapter.accountId;
 
-  const assetIds: readonly string[] = ASSET_IDS;
-  const priceIds: string[] = useMemo(() => 
-    [TOKENS[sellToken]?.priceId, TOKENS[buyToken]?.priceId].filter(Boolean),
-    [sellToken, buyToken]
+  // Initialize tokens on mount
+  useEffect(() => {
+    const loadTokens = async (): Promise<void> => {
+      try {
+        await initializeTokenConfig();
+        const tokenSymbols = Object.keys(TOKENS) as TokenSymbol[];
+        setAvailableTokens(tokenSymbols);
+        
+        // Set default tokens if available
+        if (tokenSymbols.includes('BTC' as TokenSymbol)) {
+          setSellToken('BTC' as TokenSymbol);
+        }
+        if (tokenSymbols.includes('ETH' as TokenSymbol)) {
+          setBuyToken('ETH' as TokenSymbol);
+        }
+        
+        setTokensLoaded(true);
+        console.log('Tokens loaded:', tokenSymbols);
+      } catch (error) {
+        console.error('Failed to initialize tokens:', error);
+        setTokensLoaded(true); // Still set to true to show error state
+      }
+    };
+
+    loadTokens();
+  }, []);
+
+  const assetIds: readonly string[] = useMemo(() => 
+    tokensLoaded ? getAssetIds() : [],
+    [tokensLoaded]
   );
+
+  const priceIds: string[] = useMemo(() => {
+    if (!sellToken || !buyToken || !tokensLoaded) return [];
+    return [TOKENS[sellToken]?.priceId, TOKENS[buyToken]?.priceId].filter(Boolean);
+  }, [sellToken, buyToken, tokensLoaded]);
+
   const prices = useNablaAntennaPrices(priceIds);
   
   const balance = useBalance({
     accountId: userAccountId ? AccountId.fromBech32(userAccountId) : null,
-    faucetId: AccountId.fromBech32(FAUCET.testFaucetId),
+    faucetId: sellToken && TOKENS[sellToken] ? AccountId.fromBech32(TOKENS[sellToken].faucetId) : undefined,
   });
 
   // Memoized balance validation
-  const balanceValidation = useMemo(
-    () => getBalanceValidation(sellAmount, balance, sellToken),
-    [sellAmount, balance, sellToken]
-  );
+  const balanceValidation = useMemo(() => {
+    if (!sellToken) return { hasInsufficientBalance: false, isBalanceLoaded: false };
+    return getBalanceValidation(sellAmount, balance, sellToken);
+  }, [sellAmount, balance, sellToken]);
 
-  const formattedBalance = useMemo(() => 
-    balance !== null ? formatBalance(balance, sellToken) : "0",
-    [balance, sellToken]
-  );
+  const formattedBalance = useMemo(() => {
+    if (!sellToken || balance === null) return "0";
+    return formatBalance(balance, sellToken);
+  }, [balance, sellToken]);
 
   // Memoized calculated values
   const calculatedValues = useMemo(() => {
+    if (!sellToken || !buyToken || !tokensLoaded) {
+      return {
+        sellTokenData: undefined,
+        buyTokenData: undefined,
+        sellPrice: null,
+        buyPrice: null,
+        sellUsdValue: "",
+        buyUsdValue: "",
+        priceFor1: "",
+        minAmountOut: ""
+      };
+    }
+
     const sellTokenData = TOKENS[sellToken];
     const buyTokenData = TOKENS[buyToken];
     const sellPrice = sellTokenData ? prices[sellTokenData.priceId] : null;
@@ -340,7 +395,7 @@ function Swap() {
       priceFor1,
       minAmountOut
     };
-  }, [sellToken, buyToken, prices, sellAmount, buyAmount, slippage]);
+  }, [sellToken, buyToken, tokensLoaded, prices, sellAmount, buyAmount, slippage]);
 
   // Memoized canSwap calculation
   const canSwap: boolean = useMemo(() => Boolean(
@@ -353,6 +408,9 @@ function Swap() {
     calculatedValues.sellPrice && 
     calculatedValues.buyPrice &&
     sellToken !== buyToken &&
+    sellToken &&
+    buyToken &&
+    tokensLoaded &&
     !balanceValidation.hasInsufficientBalance
   ), [
     sellAmount, 
@@ -360,7 +418,8 @@ function Swap() {
     calculatedValues.sellPrice, 
     calculatedValues.buyPrice, 
     sellToken, 
-    buyToken, 
+    buyToken,
+    tokensLoaded,
     balanceValidation.hasInsufficientBalance
   ]);
 
@@ -382,15 +441,15 @@ function Swap() {
   }, []);
 
   const fetchPrices = useCallback(async (): Promise<void> => {
-    if (!pricesFetched) {
+    if (!pricesFetched && tokensLoaded) {
       setShouldFetchPrices(true);
       await refreshPrices(assetIds);
       setPricesFetched(true);
     }
-  }, [pricesFetched, refreshPrices, assetIds]);
+  }, [pricesFetched, tokensLoaded, refreshPrices, assetIds]);
 
   const handleMaxClick = useCallback((): void => {
-    if (balance !== null && balance > BigInt(0)) {
+    if (balance !== null && balance > BigInt(0) && sellToken) {
       const maxAmount = balanceToDecimalString(balance, sellToken);
       handleSellAmountChange(maxAmount);
       // Focus the input after setting max amount
@@ -401,6 +460,11 @@ function Swap() {
   }, [balance, sellToken, handleSellAmountChange]);
 
   const handleReplaceTokens = useCallback((): void => {
+    if (!sellToken || !buyToken) return;
+    
+    // Set flag to prevent price calculations during swap
+    setIsSwappingTokens(true);
+    
     // Simply swap all values without any async operations or recalculations
     const newSellToken = buyToken;
     const newBuyToken = sellToken;
@@ -415,14 +479,17 @@ function Swap() {
     setBuyAmount(newBuyAmount);
     setLastEditedField(newLastEditedField);
     
-    // Focus the sell input after swap
-    if (sellInputRef.current) {
-      sellInputRef.current.focus();
-    }
+    // Re-enable price calculations after state updates are complete
+    setTimeout(() => {
+      setIsSwappingTokens(false);
+      if (sellInputRef.current) {
+        sellInputRef.current.focus();
+      }
+    }, 0);
   }, [buyToken, sellToken, buyAmount, sellAmount, lastEditedField]);
 
   const handleSwap = useCallback(async (): Promise<void> => {
-    if (!connected || !userAccountId) {
+    if (!connected || !userAccountId || !sellToken || !buyToken) {
       return;
     }
     
@@ -500,15 +567,15 @@ function Swap() {
 
   // Auto-focus sell input on mount
   useEffect(() => {
-    if (sellInputRef.current) {
+    if (sellInputRef.current && tokensLoaded) {
       sellInputRef.current.focus();
     }
-  }, []);
+  }, [tokensLoaded]);
 
-  // Prefetch prices on mount
+  // Prefetch prices when tokens are loaded
   useEffect(() => {
     const prefetchPrices = async (): Promise<void> => {
-      if (!pricesFetched) {
+      if (!pricesFetched && tokensLoaded && assetIds.length > 0) {
         setShouldFetchPrices(true);
         await refreshPrices(assetIds);
         setPricesFetched(true);
@@ -516,11 +583,12 @@ function Swap() {
     };
 
     prefetchPrices();
-  }, [refreshPrices, assetIds, pricesFetched]);
+  }, [refreshPrices, assetIds, pricesFetched, tokensLoaded]);
 
   // Price calculation effect - optimized with stable dependencies
   useEffect(() => {
-    if (!prices || !pricesFetched) {
+    // Skip price calculations if we're in the middle of swapping tokens
+    if (!prices || !pricesFetched || !tokensLoaded || !sellToken || !buyToken || isSwappingTokens) {
       return;
     }
     
@@ -543,7 +611,39 @@ function Swap() {
         }
       }
     }
-  }, [sellAmount, buyAmount, lastEditedField, prices, pricesFetched, calculatedValues]);
+  }, [sellAmount, buyAmount, lastEditedField, prices, pricesFetched, tokensLoaded, sellToken, buyToken, calculatedValues, isSwappingTokens]);
+
+  // Show loading state while tokens are being fetched
+  if (!tokensLoaded) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="flex items-center gap-2">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span>Loading token configuration...</span>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Show error state if no tokens are available
+  if (availableTokens.length === 0) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="text-destructive">Failed to load token configuration</div>
+            <Button onClick={() => window.location.reload()}>
+              Retry
+            </Button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -606,14 +706,16 @@ function Swap() {
                         size="sm"
                         className="border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background disabled:opacity-50"
                       >
-                        <img 
-                          src={sellToken + ".svg"} 
-                          alt="sell token logo" 
-                          className={`w-8 h-8 -ml-2 ${
-                            sellToken === 'ETH' ? 'dark:invert' : ''
-                          }`} 
-                        />
-                        {sellToken}
+                        {sellToken && (
+                          <>
+                            <img 
+                              src={TOKENS[sellToken].icon} 
+                              alt="sell token logo" 
+                              className={`w-8 h-8 -ml-2 ${TOKENS[sellToken].iconClass || ''}`} 
+                            />
+                            {sellToken}
+                          </>
+                        )}
                       </Button>
                     </div>
                     
@@ -655,6 +757,7 @@ function Swap() {
                   size="icon" 
                   className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border dark:bg-black bg-white dark:text-white text-black hover:text-black dark:hover:bg-gray-500/10 hover:bg-gray-500/10 dark:hover:text-white"
                   onClick={handleReplaceTokens}
+                  disabled={!sellToken || !buyToken || isCreatingNote || connecting || isSwappingTokens}
                 >
                   <ArrowUpDown className="w-3 h-3 sm:w-4 sm:h-4" />
                 </Button>
@@ -679,14 +782,16 @@ function Swap() {
                         disabled
                         className="border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background disabled:opacity-50"
                       > 
-                        <img 
-                          src={buyToken + ".svg"} 
-                          alt="buy token logo" 
-                          className={`w-8 h-8 -ml-2 ${
-                            buyToken === 'ETH' ? 'dark:invert' : ''
-                          }`} 
-                        />
-                        {buyToken}
+                        {buyToken && (
+                          <>
+                            <img 
+                              src={TOKENS[buyToken].icon} 
+                              alt="buy token logo" 
+                              className={`w-8 h-8 -ml-2 ${TOKENS[buyToken].iconClass || ''}`} 
+                            />
+                            {buyToken}
+                          </>
+                        )}
                       </Button>
                     </div>
                     

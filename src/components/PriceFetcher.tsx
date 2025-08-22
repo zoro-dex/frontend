@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, createContext } from 'react';
-import { ORACLE, SUPPORTED_ASSET_IDS } from '@/lib/config';
+import { ORACLE, getSupportedAssetIds } from '@/lib/config';
 
 export interface PriceData {
   value: number;
@@ -35,9 +35,11 @@ export const useNablaAntennaPrices = (ids: readonly string[]) => {
   const { prices } = useContext(NablaAntennaContext);
   const res = useMemo(() => {
     let r: Record<string, PriceData> = {};
+    const supportedAssetIds = getSupportedAssetIds();
+    
     for (const id of ids) {
       // Only return prices for supported assets
-      if (prices[id] && SUPPORTED_ASSET_IDS[id]) {
+      if (prices[id] && supportedAssetIds[id]) {
         r[id] = prices[id].priceFeed;
       }
     }
@@ -52,8 +54,11 @@ const fetchNablaAntennaPrices = async (
   priceFeeds: Record<string, PriceData>;
   binary: string[];
 }> => {
+  // Get supported asset IDs dynamically
+  const supportedAssetIds = getSupportedAssetIds();
+  
   // Filter to only request supported assets
-  const supportedIds = assetIds.filter(id => SUPPORTED_ASSET_IDS[id]);
+  const supportedIds = assetIds.filter(id => supportedAssetIds[id]);
   
   if (supportedIds.length === 0) {
     return { priceFeeds: {}, binary: ['0x'] };
@@ -76,7 +81,7 @@ const fetchNablaAntennaPrices = async (
     return {
       priceFeeds: prices.parsed.reduce((allFeeds, feed) => {
         // Only process supported assets
-        const assetName = SUPPORTED_ASSET_IDS[feed.id];
+        const assetName = supportedAssetIds[feed.id];
         if (!assetName) {
           return allFeeds;
         }
@@ -122,9 +127,11 @@ export const NablaAntennaProvider = ({ children }: { children: React.ReactNode }
       isFetching.current = true;
       
       const now = Date.now();
+      const supportedAssetIds = getSupportedAssetIds();
+      
       const want = ids.filter(id =>
         // Only consider supported assets
-        SUPPORTED_ASSET_IDS[id] && (
+        supportedAssetIds[id] && (
           force
           || !pricesRef.current[id]
           || (pricesRef.current[id].age < (now / 1000) - ORACLE.cacheTtlSeconds)
