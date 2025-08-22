@@ -43,31 +43,7 @@ export const useWalletEventTracker = (handlers: WalletEventHandlers = {}) => {
     pendingTransactionsRef.current.set(txId, status);
     handlers.onTransactionStatusChange?.(status);
 
-    console.log('🔄 Transaction started:', { txId, noteId, timestamp: new Date().toISOString() });
-
-    // Simulate status progression (in real implementation, this would come from blockchain events)
-    setTimeout(() => {
-      const confirmedStatus: TransactionStatus = {
-        ...status,
-        status: 'confirmed',
-        timestamp: Date.now(),
-      };
-      pendingTransactionsRef.current.set(txId, confirmedStatus);
-      handlers.onTransactionStatusChange?.(confirmedStatus);
-      console.log('✅ Transaction confirmed:', { txId, noteId });
-
-      // After confirmation, mark as ready to claim
-      setTimeout(() => {
-        const readyStatus: TransactionStatus = {
-          ...confirmedStatus,
-          status: 'ready_to_claim',
-          timestamp: Date.now(),
-        };
-        pendingTransactionsRef.current.set(txId, readyStatus);
-        handlers.onTransactionStatusChange?.(readyStatus);
-        console.log('🎯 Transaction ready to claim:', { txId, noteId });
-      }, 3000); // 3 seconds after confirmation
-    }, 6000); // 6 seconds for confirmation
+    console.log('🔄 Transaction started:', { txId, noteId, timestamp: new Date().toISOString() });  
   }, [handlers]);
 
   // Set up wallet event listeners

@@ -448,7 +448,7 @@ function Swap() {
     faucetId: sellToken && TOKENS[sellToken] ? AccountId.fromBech32(TOKENS[sellToken].faucetId) : undefined,
   }), [stableUserAccountId, sellToken]); // Only depends on accountId and sellToken
 
-  const balance = useBalance(balanceParams);
+  const { balance, refreshBalance } = useBalance(balanceParams);
 
   // AUTO-REFETCH: Prices and Balance every 10 seconds
   const autoRefetchCallback = useCallback(async () => {
@@ -457,12 +457,12 @@ function Swap() {
       return;
     }
 
-    // Refresh prices
-    await refreshPrices(assetIds, true); // Force refresh
-    
-    // Balance refetch is handled by useBalance hook internally
-    // We could add a manual balance refetch here if needed
-  }, [tokensLoaded, connected, assetIds, refreshPrices]);
+    // Refresh prices and balance together
+    await Promise.all([
+      refreshPrices(assetIds, true), // Force refresh
+      refreshBalance()
+    ]);
+  }, [tokensLoaded, connected, assetIds, refreshPrices, refreshBalance]);
 
   // Enable auto-refetch when tokens are loaded and wallet is connected
   const autoRefetchEnabled = tokensLoaded && connected && assetIds.length > 0;
@@ -712,7 +712,10 @@ function Swap() {
       userAccountId: stableUserAccountId
     });
     
-    await refreshPrices(assetIds, true);
+    await Promise.all([
+      refreshPrices(assetIds, true),
+      refreshBalance()
+    ]);
     setIsCreatingNote(true);
     
     try {
