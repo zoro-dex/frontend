@@ -279,6 +279,71 @@ const calculateUsdValue = (amount: string, priceUsd: number): string => {
   });
 };
 
+/**
+ * Custom hook for auto-refetching data every 10 seconds
+ */
+const useAutoRefetch = (
+  refreshCallback: () => Promise<void>,
+  dependencies: readonly any[],
+  enabled: boolean = true
+) => {
+  const intervalRef = useRef<NodeJS.Timeout>();
+  const isRefetching = useRef<boolean>(false);
+
+  const stableRefreshCallback = useCallback(async () => {
+    if (isRefetching.current) return;
+    
+    try {
+      isRefetching.current = true;
+      await refreshCallback();
+      console.log('🔄 Auto-refetch completed:', new Date().toLocaleTimeString());
+    } catch (error) {
+      console.error('❌ Auto-refetch failed:', error);
+    } finally {
+      isRefetching.current = false;
+    }
+  }, [refreshCallback]);
+
+  useEffect(() => {
+    if (!enabled) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = undefined;
+      }
+      return;
+    }
+
+    // Clear existing interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+
+    console.log('⏰ Starting auto-refetch every 10 seconds');
+
+    // Set up new interval
+    intervalRef.current = setInterval(() => {
+      stableRefreshCallback();
+    }, 10000); // 10 seconds
+
+    // Cleanup on unmount or dependency change
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = undefined;
+      }
+    };
+  }, [stableRefreshCallback, enabled, ...dependencies]);
+
+  // Stop interval when component unmounts
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
+};
+
 function Swap() {
   const [activeTab, setActiveTab] = useState<TabType>("Swap");
   const [sellAmount, setSellAmount] = useState<string>("");
@@ -299,13 +364,22 @@ function Swap() {
   // Add ref for sell input auto-focus
   const sellInputRef = useRef<HTMLInputElement>(null);
   
+  // Refs for stable price calculations
+  const pricesRef = useRef<any>(null);
+  const tokensLoadedRef = useRef<boolean>(false);
+  const sellTokenRef = useRef<TokenSymbol | undefined>(undefined);
+  const buyTokenRef = useRef<TokenSymbol | undefined>(undefined);
+  const isSwappingTokensRef = useRef<boolean>(false);
+  
   const { connected, connecting, wallet, requestTransaction } = useWallet();
   const { refreshPrices } = useContext(NablaAntennaContext);
   
-  // Get the user's account ID from the connected wallet
-  const userAccountId = wallet?.adapter.accountId;
+  // STABLE user account ID - prevent re-renders
+  const stableUserAccountId = useMemo(() => {
+    return wallet?.adapter?.accountId;
+  }, [wallet?.adapter?.accountId]);
 
-  // Initialize tokens on mount
+  // Initialize tokens on mount ONLY
   useEffect(() => {
     const loadTokens = async (): Promise<void> => {
       try {
@@ -330,26 +404,76 @@ function Swap() {
     };
 
     loadTokens();
-  }, []);
+  }, []); // Only run once on mount
 
+  // Update refs when values change - but don't cause re-renders
+  useEffect(() => {
+    tokensLoadedRef.current = tokensLoaded;
+  }, [tokensLoaded]);
+
+  useEffect(() => {
+    sellTokenRef.current = sellToken;
+  }, [sellToken]);
+
+  useEffect(() => {
+    buyTokenRef.current = buyToken;
+  }, [buyToken]);
+
+  useEffect(() => {
+    isSwappingTokensRef.current = isSwappingTokens;
+  }, [isSwappingTokens]);
+
+  // STABLE asset IDs - prevent re-calculations
   const assetIds: readonly string[] = useMemo(() => 
     tokensLoaded ? getAssetIds() : [],
-    [tokensLoaded]
+    [tokensLoaded] // Only depends on tokensLoaded, not on input changes
   );
 
+  // STABLE price IDs - only change when tokens change, not on input
   const priceIds: string[] = useMemo(() => {
     if (!sellToken || !buyToken || !tokensLoaded) return [];
     return [TOKENS[sellToken]?.priceId, TOKENS[buyToken]?.priceId].filter(Boolean);
-  }, [sellToken, buyToken, tokensLoaded]);
+  }, [sellToken, buyToken, tokensLoaded]); // No input dependencies
 
   const prices = useNablaAntennaPrices(priceIds);
   
-  const balance = useBalance({
-    accountId: userAccountId ? AccountId.fromBech32(userAccountId) : null,
+  // Update prices ref
+  useEffect(() => {
+    pricesRef.current = prices;
+  }, [prices]);
+  
+  // STABLE balance hook params - prevent useBalance from re-running on input changes
+  const balanceParams = useMemo(() => ({
+    accountId: stableUserAccountId ? AccountId.fromBech32(stableUserAccountId) : null,
     faucetId: sellToken && TOKENS[sellToken] ? AccountId.fromBech32(TOKENS[sellToken].faucetId) : undefined,
-  });
+  }), [stableUserAccountId, sellToken]); // Only depends on accountId and sellToken
 
-  // Memoized balance validation
+  const balance = useBalance(balanceParams);
+
+  // AUTO-REFETCH: Prices and Balance every 10 seconds
+  const autoRefetchCallback = useCallback(async () => {
+    // Only refetch if we have tokens loaded and are connected
+    if (!tokensLoaded || !connected || assetIds.length === 0) {
+      return;
+    }
+
+    // Refresh prices
+    await refreshPrices(assetIds, true); // Force refresh
+    
+    // Balance refetch is handled by useBalance hook internally
+    // We could add a manual balance refetch here if needed
+  }, [tokensLoaded, connected, assetIds, refreshPrices]);
+
+  // Enable auto-refetch when tokens are loaded and wallet is connected
+  const autoRefetchEnabled = tokensLoaded && connected && assetIds.length > 0;
+  
+  useAutoRefetch(
+    autoRefetchCallback,
+    [tokensLoaded, connected, assetIds.length], // Dependencies that affect refetch
+    autoRefetchEnabled
+  );
+
+  // Memoized balance validation - only changes when sellAmount or balance changes
   const balanceValidation = useMemo(() => {
     if (!sellToken) return { hasInsufficientBalance: false, isBalanceLoaded: false };
     return getBalanceValidation(sellAmount, balance, sellToken);
@@ -360,42 +484,89 @@ function Swap() {
     return formatBalance(balance, sellToken);
   }, [balance, sellToken]);
 
-  // Memoized calculated values
-  const calculatedValues = useMemo(() => {
+  // Stabilized price calculation logic with empty deps
+  const calculateAndSetPrice = useCallback((
+    sellAmt: string,
+    buyAmt: string,
+    field: 'sell' | 'buy'
+  ) => {
+    // Use refs to avoid dependency on frequently changing values
+    const currentPrices = pricesRef.current;
+    const currentTokensLoaded = tokensLoadedRef.current;
+    const currentSellToken = sellTokenRef.current;
+    const currentBuyToken = buyTokenRef.current;
+    const currentIsSwapping = isSwappingTokensRef.current;
+
+    if (!currentPrices || !currentTokensLoaded || !currentSellToken || !currentBuyToken || currentIsSwapping) {
+      return;
+    }
+
+    const sellTokenData = TOKENS[currentSellToken];
+    const buyTokenData = TOKENS[currentBuyToken];
+    
+    if (!sellTokenData || !buyTokenData) return;
+    
+    const sellPrice = currentPrices[sellTokenData.priceId];
+    const buyPrice = currentPrices[buyTokenData.priceId];
+    
+    if (!sellPrice || !buyPrice || sellPrice.value <= 0 || buyPrice.value <= 0) return;
+
+    if (field === 'sell' && sellAmt) {
+      const sellAmountNum = parseFloat(sellAmt);
+      if (!isNaN(sellAmountNum) && sellAmountNum > 0) {
+        const buyAmountCalculated = (sellAmountNum * sellPrice.value) / buyPrice.value;
+        setBuyAmount(buyAmountCalculated.toFixed(8));
+      }
+    } else if (field === 'buy' && buyAmt) {
+      const buyAmountNum = parseFloat(buyAmt);
+      if (!isNaN(buyAmountNum) && buyAmountNum > 0) {
+        const sellAmountCalculated = (buyAmountNum * buyPrice.value) / sellPrice.value;
+        setSellAmount(sellAmountCalculated.toFixed(8));
+      }
+    }
+  }, []); // Empty dependency array since we use refs
+
+  // STABLE token data that doesn't depend on input amounts
+  const tokenData = useMemo(() => {
     if (!sellToken || !buyToken || !tokensLoaded) {
       return {
         sellTokenData: undefined,
         buyTokenData: undefined,
         sellPrice: null,
         buyPrice: null,
-        sellUsdValue: "",
-        buyUsdValue: "",
-        priceFor1: "",
-        minAmountOut: ""
       };
     }
 
     const sellTokenData = TOKENS[sellToken];
     const buyTokenData = TOKENS[buyToken];
-    const sellPrice = sellTokenData ? prices[sellTokenData.priceId] : null;
-    const buyPrice = buyTokenData ? prices[buyTokenData.priceId] : null;
-
-    const sellUsdValue: string = sellPrice ? calculateUsdValue(sellAmount, sellPrice.value) : "";
-    const buyUsdValue: string = buyPrice ? calculateUsdValue(buyAmount, buyPrice.value) : "";
-    const priceFor1: string = sellPrice ? calculateUsdValue("1", sellPrice.value) : "";
-    const minAmountOut: string = calculateMinAmountOut(buyAmount, slippage);
-
+    
     return {
       sellTokenData,
       buyTokenData,
-      sellPrice,
-      buyPrice,
-      sellUsdValue,
-      buyUsdValue,
-      priceFor1,
-      minAmountOut
+      sellPrice: sellTokenData ? prices[sellTokenData.priceId] : null,
+      buyPrice: buyTokenData ? prices[buyTokenData.priceId] : null,
     };
-  }, [sellToken, buyToken, tokensLoaded, prices, sellAmount, buyAmount, slippage]);
+  }, [sellToken, buyToken, tokensLoaded, prices]); // No input dependencies
+
+  // Calculate USD values separately to avoid re-renders on input
+  const sellUsdValue = useMemo(() => {
+    const { sellPrice } = tokenData;
+    return sellPrice ? calculateUsdValue(sellAmount, sellPrice.value) : "";
+  }, [sellAmount, tokenData.sellPrice]);
+
+  const buyUsdValue = useMemo(() => {
+    const { buyPrice } = tokenData;
+    return buyPrice ? calculateUsdValue(buyAmount, buyPrice.value) : "";
+  }, [buyAmount, tokenData.buyPrice]);
+
+  const priceFor1 = useMemo(() => {
+    const { sellPrice } = tokenData;
+    return sellPrice ? calculateUsdValue("1", sellPrice.value) : "";
+  }, [tokenData.sellPrice]);
+
+  const minAmountOut = useMemo(() => {
+    return calculateMinAmountOut(buyAmount, slippage);
+  }, [buyAmount, slippage]);
 
   // Memoized canSwap calculation
   const canSwap: boolean = useMemo(() => Boolean(
@@ -405,8 +576,8 @@ function Swap() {
     !isNaN(parseFloat(buyAmount)) &&
     parseFloat(sellAmount) > 0 &&
     parseFloat(buyAmount) > 0 &&
-    calculatedValues.sellPrice && 
-    calculatedValues.buyPrice &&
+    tokenData.sellPrice && 
+    tokenData.buyPrice &&
     sellToken !== buyToken &&
     sellToken &&
     buyToken &&
@@ -415,44 +586,72 @@ function Swap() {
   ), [
     sellAmount, 
     buyAmount, 
-    calculatedValues.sellPrice, 
-    calculatedValues.buyPrice, 
+    tokenData.sellPrice, 
+    tokenData.buyPrice, 
     sellToken, 
     buyToken,
     tokensLoaded,
     balanceValidation.hasInsufficientBalance
   ]);
 
-  // Optimized callbacks
+  // Debounced input handlers - prevent immediate re-renders
+  const debounceRef = useRef<NodeJS.Timeout>();
+
   const handleSellAmountChange = useCallback((value: string): void => {
     setSellAmount(value);
     setLastEditedField('sell');
     if (!value) {
       setBuyAmount("");
+      return;
     }
-  }, []);
+    
+    // Clear existing timeout
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    
+    // Set new timeout for price calculation
+    debounceRef.current = setTimeout(() => {
+      calculateAndSetPrice(value, "", 'sell');
+    }, 300); // 300ms debounce
+  }, [calculateAndSetPrice]);
 
   const handleBuyAmountChange = useCallback((value: string): void => {
     setBuyAmount(value);
     setLastEditedField('buy');
     if (!value) {
       setSellAmount("");
+      return;
     }
-  }, []);
+    
+    // Clear existing timeout
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    
+    // Set new timeout for price calculation
+    debounceRef.current = setTimeout(() => {
+      calculateAndSetPrice("", value, 'buy');
+    }, 300); // 300ms debounce
+  }, [calculateAndSetPrice]);
 
+  // STABLE callbacks - prevent re-renders
   const fetchPrices = useCallback(async (): Promise<void> => {
-    if (!pricesFetched && tokensLoaded) {
-      setShouldFetchPrices(true);
-      await refreshPrices(assetIds);
-      setPricesFetched(true);
-    }
-  }, [pricesFetched, tokensLoaded, refreshPrices, assetIds]);
+    if (pricesFetched || !tokensLoaded || assetIds.length === 0) return;
+    
+    setShouldFetchPrices(true);
+    await refreshPrices(assetIds);
+    setPricesFetched(true);
+  }, [pricesFetched, tokensLoaded, assetIds.length, refreshPrices]);
+
+  const handleInputFocus = useCallback(() => {
+    fetchPrices();
+  }, [fetchPrices]);
 
   const handleMaxClick = useCallback((): void => {
     if (balance !== null && balance > BigInt(0) && sellToken) {
       const maxAmount = balanceToDecimalString(balance, sellToken);
       handleSellAmountChange(maxAmount);
-      // Focus the input after setting max amount
       if (sellInputRef.current) {
         sellInputRef.current.focus();
       }
@@ -462,24 +661,20 @@ function Swap() {
   const handleReplaceTokens = useCallback((): void => {
     if (!sellToken || !buyToken) return;
     
-    // Set flag to prevent price calculations during swap
     setIsSwappingTokens(true);
     
-    // Simply swap all values without any async operations or recalculations
     const newSellToken = buyToken;
     const newBuyToken = sellToken;
     const newSellAmount = buyAmount;
     const newBuyAmount = sellAmount;
     const newLastEditedField = lastEditedField === 'sell' ? 'buy' : 'sell';
     
-    // Update all state in one batch to avoid intermediate renders
     setSellToken(newSellToken);
     setBuyToken(newBuyToken);
     setSellAmount(newSellAmount);
     setBuyAmount(newBuyAmount);
     setLastEditedField(newLastEditedField);
     
-    // Re-enable price calculations after state updates are complete
     setTimeout(() => {
       setIsSwappingTokens(false);
       if (sellInputRef.current) {
@@ -489,11 +684,10 @@ function Swap() {
   }, [buyToken, sellToken, buyAmount, sellAmount, lastEditedField]);
 
   const handleSwap = useCallback(async (): Promise<void> => {
-    if (!connected || !userAccountId || !sellToken || !buyToken) {
+    if (!connected || !stableUserAccountId || !sellToken || !buyToken) {
       return;
     }
     
-    // Validate amounts before proceeding
     const sellAmountNum: number = parseFloat(sellAmount);
     const buyAmountNum: number = parseFloat(buyAmount);
     
@@ -506,46 +700,48 @@ function Swap() {
       return;
     }
     
-    // Calculate minimum amount out with slippage protection
-    const minAmountOut = calculateMinAmountOut(buyAmount, slippage);
+    const minAmountOutValue = calculateMinAmountOut(buyAmount, slippage);
     
-    console.log("Creating Zoro swap note with:", { 
+    console.log("🚀 Creating Zoro swap note with:", { 
       sellAmount, 
       buyAmount, 
-      minAmountOut,
+      minAmountOut: minAmountOutValue,
       sellToken, 
       buyToken,
       slippage,
-      userAccountId
+      userAccountId: stableUserAccountId
     });
     
-    // Fetch latest prices before creating swap note
     await refreshPrices(assetIds, true);
-
     setIsCreatingNote(true);
     
     try {
-      // Pass actual swap parameters to compileZoroSwapNote
       const swapParams: SwapParams = {
         sellToken,
         buyToken, 
         sellAmount,
-        buyAmount: minAmountOut, // Use min amount out instead of expected amount
-        userAccountId,
+        buyAmount: minAmountOutValue,
+        userAccountId: stableUserAccountId,
         wallet: wallet,
-        requestTransaction: requestTransaction || (async () => "")
+        requestTransaction: requestTransaction || (async () => ""),
       };
       
-      await compileZoroSwapNote(swapParams);
+      const result = await compileZoroSwapNote(swapParams);
+      
+      console.log('🎉 Swap note created successfully:', {
+        txId: result.txId,
+        noteId: result.noteId,
+        serializedNoteLength: result.serializedNote.length
+      });
       
     } catch (error) {
-      console.error("Swap note creation failed:", error);
+      console.error("💥 Swap note creation failed:", error);
     } finally {
       setIsCreatingNote(false);
     }
   }, [
     connected, 
-    userAccountId, 
+    stableUserAccountId, 
     sellAmount, 
     buyAmount, 
     sellToken, 
@@ -565,14 +761,14 @@ function Swap() {
     setSlippage(newSlippage);
   }, []);
 
-  // Auto-focus sell input on mount
+  // Auto-focus sell input on mount ONLY
   useEffect(() => {
     if (sellInputRef.current && tokensLoaded) {
       sellInputRef.current.focus();
     }
   }, [tokensLoaded]);
 
-  // Prefetch prices when tokens are loaded
+  // Prefetch prices when tokens are loaded ONLY
   useEffect(() => {
     const prefetchPrices = async (): Promise<void> => {
       if (!pricesFetched && tokensLoaded && assetIds.length > 0) {
@@ -583,35 +779,16 @@ function Swap() {
     };
 
     prefetchPrices();
-  }, [refreshPrices, assetIds, pricesFetched, tokensLoaded]);
+  }, [refreshPrices, pricesFetched, tokensLoaded, assetIds.length]);
 
-  // Price calculation effect - optimized with stable dependencies
+  // Price calculation effect - ONLY runs when prices change, not on input
   useEffect(() => {
-    // Skip price calculations if we're in the middle of swapping tokens
-    if (!prices || !pricesFetched || !tokensLoaded || !sellToken || !buyToken || isSwappingTokens) {
-      return;
+    if (lastEditedField === 'sell' && sellAmount) {
+      calculateAndSetPrice(sellAmount, "", 'sell');
+    } else if (lastEditedField === 'buy' && buyAmount) {
+      calculateAndSetPrice("", buyAmount, 'buy');
     }
-    
-    const { sellPrice, buyPrice } = calculatedValues;
-    
-    if (sellPrice && buyPrice && sellPrice.value > 0 && buyPrice.value > 0) {
-      if (lastEditedField === 'sell' && sellAmount) {
-        const sellAmountNum: number = parseFloat(sellAmount);
-        if (!isNaN(sellAmountNum) && sellAmountNum > 0) {
-          const buyAmountCalculated: number = (sellAmountNum * sellPrice.value) / buyPrice.value;
-          const formattedBuyAmount: string = buyAmountCalculated.toFixed(8);
-          setBuyAmount(formattedBuyAmount);
-        }
-      } else if (lastEditedField === 'buy' && buyAmount) {
-        const buyAmountNum: number = parseFloat(buyAmount);
-        if (!isNaN(buyAmountNum) && buyAmountNum > 0) {
-          const sellAmountCalculated: number = (buyAmountNum * buyPrice.value) / sellPrice.value;
-          const formattedSellAmount: string = sellAmountCalculated.toFixed(8);
-          setSellAmount(formattedSellAmount);
-        }
-      }
-    }
-  }, [sellAmount, buyAmount, lastEditedField, prices, pricesFetched, tokensLoaded, sellToken, buyToken, calculatedValues, isSwappingTokens]);
+  }, [prices]); // Only depend on prices, not on amounts or calculateAndSetPrice
 
   // Show loading state while tokens are being fetched
   if (!tokensLoaded) {
@@ -693,7 +870,7 @@ function Swap() {
                         type="number"
                         value={sellAmount}
                         onChange={(e) => handleSellAmountChange(e.target.value)}
-                        onClick={fetchPrices}
+                        onFocus={handleInputFocus}
                         placeholder="0"
                         className={`border-none text-3xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner ${
                           balanceValidation.hasInsufficientBalance 
@@ -721,7 +898,7 @@ function Swap() {
                     
                     {/* USD Value Display */}
                     <div className="flex items-center justify-between text-xs text-muted-foreground h-5">
-                      <div>{calculatedValues.sellUsdValue || calculatedValues.priceFor1}</div>
+                      <div>{sellUsdValue || priceFor1}</div>
                       <div className="flex items-center gap-1">
                         <button 
                           onClick={handleMaxClick}
@@ -772,7 +949,7 @@ function Swap() {
                         type="number"
                         value={buyAmount}
                         onChange={(e) => handleBuyAmountChange(e.target.value)}
-                        onClick={fetchPrices}
+                        onFocus={handleInputFocus}
                         placeholder="0"
                         className="border-none text-3xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner bg-transparent"
                       />
@@ -797,13 +974,13 @@ function Swap() {
                     
                     {/* Min Amount Out Display */}
                     <div className="flex items-center justify-center text-xs text-muted-foreground h-5">
-                      {buyAmount && calculatedValues.minAmountOut && (
+                      {buyAmount && minAmountOut && (
                         <div className="text-amber-500">
-                          Min received: {calculatedValues.minAmountOut} {buyToken}
+                          Min received: {minAmountOut} {buyToken}
                         </div>
                       )}
-                      {!buyAmount && calculatedValues.buyUsdValue && (
-                        <div className="text-green-500">{calculatedValues.buyUsdValue}</div>
+                      {!buyAmount && buyUsdValue && (
+                        <div className="text-green-500">{buyUsdValue}</div>
                       )}
                     </div>
                   </CardContent>

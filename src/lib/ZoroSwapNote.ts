@@ -1,7 +1,6 @@
 import { API, NETWORK, TOKENS, type TokenSymbol } from '@/lib/config';
 import {
   AccountId,
-  AccountStorageMode,
   Felt,
   FeltArray,
   FungibleAsset,
@@ -23,7 +22,6 @@ import {
 } from '@demox-labs/miden-sdk';
 import {
   CustomTransaction,
-  type MidenCustomTransaction,
   type MidenTransaction,
   TransactionType,
   type Wallet,
@@ -36,13 +34,19 @@ window.Buffer = Buffer;
 import ZOROSWAP_SCRIPT from './ZOROSWAP.masm?raw';
 
 export interface SwapParams {
-  sellToken: TokenSymbol;
-  buyToken: TokenSymbol;
-  sellAmount: string;
-  buyAmount: string; // min_amount_out
-  userAccountId: string;
-  wallet: Wallet;
-  requestTransaction: (tx: MidenTransaction) => Promise<string>;
+  readonly sellToken: TokenSymbol;
+  readonly buyToken: TokenSymbol;
+  readonly sellAmount: string;
+  readonly buyAmount: string; // min_amount_out
+  readonly userAccountId: string;
+  readonly wallet: Wallet | null;
+  readonly requestTransaction: (tx: MidenTransaction) => Promise<string>;
+}
+
+export interface SwapResult {
+  readonly txId: string;
+  readonly noteId: string;
+  readonly serializedNote: string;
 }
 
 /**
@@ -88,7 +92,7 @@ function generateRandomSerialNumber(): Word {
   ]);
 }
 
-export async function compileZoroSwapNote(swapParams: SwapParams): Promise<string> {
+export async function compileZoroSwapNote(swapParams: SwapParams): Promise<SwapResult> {
   // Validate tokens exist in configuration
   const sellTokenConfig = TOKENS[swapParams.sellToken];
   const buyTokenConfig = TOKENS[swapParams.buyToken];
@@ -103,9 +107,9 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<strin
 
   try {
     // ── Initial sync to ensure client is connected to blockchain ──────────────────
-    console.log('Initial sync to blockchain...');
+    console.log('🔄 Initial sync to blockchain...');
     await client.syncState();
-    console.log('Initial sync complete');
+    console.log('✅ Initial sync complete');
 
     // Use the faucet IDs from the token configuration
     const sellFaucetId = AccountId.fromBech32(sellTokenConfig.faucetId);
@@ -130,7 +134,7 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<strin
 
     // Build swap tag using the faucet IDs
     const swapTag = buildSwapTag(noteType, sellFaucetId, buyFaucetId);
-    console.log('Created swapTag:', swapTag);
+    console.log('🏷️ Created swapTag:', swapTag);
 
     // Note should only contain the offered asset
     const noteAssets = new NoteAssets([offeredAsset]);
@@ -180,8 +184,9 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<strin
       new NoteRecipient(generateRandomSerialNumber(), script, inputs),
     );
 
-    console.log('Created note:', note);
-    console.log('Swap details:', {
+    const noteId = note.id().toString();
+    console.log('📝 Created note:', note);
+    console.log('💱 Swap details:', {
       sellToken: swapParams.sellToken,
       buyToken: swapParams.buyToken,
       sellAmount: swapParams.sellAmount,
@@ -192,38 +197,43 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<strin
       buyDecimals: buyTokenConfig.decimals,
       sellAmountBigInt: sellAmountBigInt.toString(),
       buyAmountBigInt: buyAmountBigInt.toString(),
+      noteId,
     });
 
     let transactionRequest = new TransactionRequestBuilder()
       .withOwnOutputNotes(new OutputNotesArray([OutputNote.full(note)]))
       .build();
 
-    console.log('TransactionRequest:', transactionRequest);
+    console.log('📄 TransactionRequest:', transactionRequest);
 
     const tx = new CustomTransaction(
-      swapParams.wallet.adapter.accountId ?? '', //creatorID
+      swapParams.wallet?.adapter.accountId ?? '', //creatorID
       transactionRequest,
       [],
       [],
     );
 
-    console.log('Tx:', tx);
+    console.log('💳 Tx:', tx);
 
-    await swapParams.requestTransaction({
+    // Submit transaction and get transaction ID
+    const txId = await swapParams.requestTransaction({
       type: TransactionType.Custom,
       payload: tx,
     });
 
-    const noteId = note.id().toString();
-    console.log('Created note ID:', noteId);
+    console.log('🚀 Transaction submitted with ID:', txId);
+
+    console.log('⏳ Syncing state after transaction submission...');
     await client.syncState();
     
     // Wait for approximately one block time
+    console.log('⏰ Waiting for block confirmation...');
     await new Promise((resolve) => setTimeout(resolve, 6000));
 
     // Export note with full details including inclusion proof
+    console.log('📤 Exporting note with inclusion proof...');
     const noteExport = await client.exportNote(noteId, 'Full');
-    console.log('Note export result:', noteExport);
+    console.log('✅ Note export result:', noteExport);
 
     // noteExport should be bytes
     let noteBytes: Uint8Array;
@@ -238,19 +248,24 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<strin
 
     // convert to base 64 string
     const base64String = btoa(String.fromCharCode(...noteBytes));
-    console.log('Base64 string:', base64String);
+    console.log('🔐 Base64 string length:', base64String.length);
 
     // Submit the note to the server
     await submitNoteToServer(base64String);
 
-    return base64String;
+    return {
+      txId,
+      noteId,
+      serializedNote: base64String,
+    };
   } catch (error) {
-    console.error('ZoroSwap note creation failed:', error);
+    console.error('❌ ZoroSwap note creation failed:', error);
     throw error;
   }
 
   async function submitNoteToServer(serializedNote: string): Promise<void> {
     try {
+      console.log('📡 Submitting note to server...');
       const response = await fetch(`${API.endpoint}/orders/submit`, {
         method: 'POST',
         headers: {
@@ -268,9 +283,9 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<strin
       }
 
       const result = await response.json();
-      console.log('Note submitted to server:', result);
+      console.log('✅ Note submitted to server:', result);
     } catch (error) {
-      console.error('Failed to submit note to server:', error);
+      console.error('❌ Failed to submit note to server:', error);
       throw error;
     }
   }
