@@ -11,10 +11,6 @@ export interface PoolInfo {
   readonly symbol: string;
 }
 
-export interface PoolsResponse {
-  readonly liquidity_pools: PoolInfo[];
-}
-
 /**
  * Extended pool information with additional metadata
  */
@@ -23,6 +19,10 @@ export interface ExtendedPoolInfo extends PoolInfo {
   readonly iconClass?: string;
   readonly isActive?: boolean;
   readonly lastUpdated?: number;
+}
+
+export interface PoolsResponse {
+  readonly liquidity_pools: PoolInfo[];
 }
 
 export interface TokenConfig {
