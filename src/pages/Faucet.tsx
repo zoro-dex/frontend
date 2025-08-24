@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Header } from '@/components/Header';
 import { Link } from 'react-router-dom';
 import { useWallet } from '@demox-labs/miden-wallet-adapter';
-import { Loader2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { mintFromFaucet, type FaucetMintResult } from '@/lib/faucetService';
 import { TOKENS, initializeTokenConfig, type TokenSymbol } from '@/lib/config';
 
@@ -16,40 +16,16 @@ interface MintStatus {
 
 type TokenMintStatuses = Record<TokenSymbol, MintStatus>;
 
-interface LoadingState {
-  readonly isLoading: boolean;
-  readonly usingFallback: boolean;
-  readonly error: string | null;
-}
-
 function Faucet(): JSX.Element {
   const { wallet, connected } = useWallet();
-  const [loadingState, setLoadingState] = useState<LoadingState>({
-    isLoading: true,
-    usingFallback: false,
-    error: null,
-  });
+  const [tokensLoaded, setTokensLoaded] = useState<boolean>(false);
   const [availableTokens, setAvailableTokens] = useState<TokenSymbol[]>([]);
   const [mintStatuses, setMintStatuses] = useState<TokenMintStatuses>({} as TokenMintStatuses);
 
-  // Initialize tokens and detect fallback usage
+  // Initialize tokens and set up available tokens list
   useEffect(() => {
     const loadTokens = async (): Promise<void> => {
       try {
-        // Check if we can reach the API first
-        let usingFallback = false;
-        try {
-          const response = await fetch('https://api.zoroswap.com/pools/info', { 
-            method: 'HEAD',
-            signal: AbortSignal.timeout(5000)
-          });
-          if (!response.ok) {
-            usingFallback = true;
-          }
-        } catch {
-          usingFallback = true;
-        }
-
         await initializeTokenConfig();
         const tokenSymbols = Object.keys(TOKENS) as TokenSymbol[];
         setAvailableTokens(tokenSymbols);
@@ -65,23 +41,11 @@ function Faucet(): JSX.Element {
         }
         setMintStatuses(initialStatuses);
         
-        setLoadingState({
-          isLoading: false,
-          usingFallback,
-          error: null,
-        });
-        
-        console.log('Available tokens for faucet:', {
-          tokens: tokenSymbols,
-          usingFallback,
-        });
+        setTokensLoaded(true);
+        console.log('Available tokens for faucet:', tokenSymbols);
       } catch (error) {
         console.error('Failed to initialize tokens:', error);
-        setLoadingState({
-          isLoading: false,
-          usingFallback: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
+        setTokensLoaded(true); // Still set to true to show error state
       }
     };
 
@@ -183,7 +147,7 @@ function Faucet(): JSX.Element {
   };
 
   // Show loading state while tokens are being fetched
-  if (loadingState.isLoading) {
+  if (!tokensLoaded) {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col">
         <Header />
@@ -191,24 +155,6 @@ function Faucet(): JSX.Element {
           <div className="flex items-center gap-2">
             <Loader2 className="w-5 h-5 animate-spin" />
             <span>Loading faucet configuration...</span>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  // Show error state if configuration failed
-  if (loadingState.error) {
-    return (
-      <div className="min-h-screen bg-background text-foreground flex flex-col">
-        <Header />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-4">
-            <div className="text-destructive">Failed to load faucet configuration</div>
-            <div className="text-sm text-muted-foreground">{loadingState.error}</div>
-            <Button onClick={() => window.location.reload()}>
-              Retry
-            </Button>
           </div>
         </main>
       </div>
@@ -238,24 +184,7 @@ function Faucet(): JSX.Element {
       
       <main className="flex-1 flex items-center justify-center p-3 sm:p-4">
         <div className="w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6">
-          {/* Fallback Data Warning */}
-          {loadingState.usingFallback && (
-            <Card className="rounded-xl border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20">
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm text-amber-800 dark:text-amber-200">
-                    <div className="font-medium mb-1">Using Cached Data</div>
-                    <div className="text-xs leading-relaxed">
-                      Unable to reach the server. Using cached pool configuration. 
-                      Some information may be outdated.
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
+          
           {/* Connection Status */}
           {!connected && (
             <Card className="rounded-xl border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20">

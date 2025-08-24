@@ -100,24 +100,6 @@ export const UI: UiConfig = {
   defaultSlippage: getNumericEnvVar('VITE_DEFAULT_SLIPPAGE', 0.5),
 } as const;
 
-// Fallback pool data from your actual API response
-const FALLBACK_POOLS: PoolInfo[] = [
-  {
-    decimals: 8,
-    faucet_id: "mtst1qp35fyhljwdecgq79gu2das7vq2jcl0g",
-    name: "Bitcoin pool",
-    oracle_id: "e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43",
-    symbol: "BTC"
-  },
-  {
-    decimals: 12,
-    faucet_id: "mtst1qr0req9cd3q5vgrq4wdqnx7hzy36w3jv", 
-    name: "Ethereum pool",
-    oracle_id: "ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace",
-    symbol: "ETH"
-  }
-] as const;
-
 // Token icon mapping - only includes the two supported tokens
 const TOKEN_ICONS: Record<string, { icon: string; iconClass?: string }> = {
   BTC: {
@@ -166,41 +148,30 @@ export type TokenSymbol = keyof typeof TOKENS;
 
 /**
  * Initialize token configuration from server
- * Falls back to hardcoded pool data if server is unavailable
+ * Only loads tokens that match our supported icon configurations
  */
 export async function initializeTokenConfig(): Promise<void> {
-  let pools: PoolInfo[] = [];
-  let usingFallback = false;
-
   try {
     const { fetchPoolInfo } = await import('./poolService');
-    pools = await fetchPoolInfo();
-    console.log('✅ Successfully fetched pools from server:', pools);
+    const pools = await fetchPoolInfo();
+    
+    // Filter pools to only those we have icons for
+    const supportedPools = pools.filter(pool => TOKEN_ICONS[pool.symbol]);
+    
+    if (supportedPools.length === 0) {
+      throw new Error('No supported tokens found in pool info');
+    }
+    
+    TOKENS = buildTokenConfigFromPools(supportedPools);
+    
+    console.log('Initialized supported tokens from server:', {
+      total_pools: pools.length,
+      supported_tokens: Object.keys(TOKENS),
+      token_details: TOKENS,
+    });
   } catch (error) {
-    console.warn('⚠️ Failed to fetch pools from server, using fallback data:', error);
-    pools = FALLBACK_POOLS;
-    usingFallback = true;
-  }
-
-  // Filter pools to only those we have icons for
-  const supportedPools = pools.filter(pool => TOKEN_ICONS[pool.symbol]);
-  
-  if (supportedPools.length === 0) {
-    throw new Error(`No supported tokens found. Available pools: ${pools.map(p => p.symbol).join(', ')}`);
-  }
-  
-  TOKENS = buildTokenConfigFromPools(supportedPools);
-  
-  console.log('🪙 Initialized token configuration:', {
-    data_source: usingFallback ? 'fallback' : 'server',
-    total_pools: pools.length,
-    supported_tokens: Object.keys(TOKENS),
-    token_details: TOKENS,
-  });
-
-  // Log warning if using fallback data
-  if (usingFallback) {
-    console.warn('🔧 Using fallback pool configuration - some data may be stale');
+    console.error('Failed to load tokens from server:', error);
+    throw error; // Don't use fallback - fail fast if server is unavailable
   }
 }
 
