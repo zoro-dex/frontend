@@ -49,10 +49,6 @@ export interface ApiConfig {
   readonly endpoint: string;
 }
 
-export interface FaucetConfig {
-  readonly testFaucetId: string;
-}
-
 export interface UiConfig {
   readonly defaultSlippage: number;
 }
@@ -99,56 +95,63 @@ export const API: ApiConfig = {
   endpoint: getEnvVar('VITE_API_ENDPOINT', 'https://api.zoroswap.com'),
 } as const;
 
-// Faucet Configuration
-export const FAUCET: FaucetConfig = {
-  testFaucetId: getEnvVar('VITE_TEST_FAUCET_ID', 'mtst1qppen8yngje35gr223jwe6ptjy7gedn9'),
-} as const;
-
 // UI Configuration
 export const UI: UiConfig = {
   defaultSlippage: getNumericEnvVar('VITE_DEFAULT_SLIPPAGE', 0.5),
 } as const;
 
-// Static fallback configuration for development
-const FALLBACK_TOKENS: Record<string, Omit<TokenConfig, 'faucetId'>> = {
+// Fallback pool data from your actual API response
+const FALLBACK_POOLS: PoolInfo[] = [
+  {
+    decimals: 8,
+    faucet_id: "mtst1qp35fyhljwdecgq79gu2das7vq2jcl0g",
+    name: "Bitcoin pool",
+    oracle_id: "e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43",
+    symbol: "BTC"
+  },
+  {
+    decimals: 12,
+    faucet_id: "mtst1qr0req9cd3q5vgrq4wdqnx7hzy36w3jv", 
+    name: "Ethereum pool",
+    oracle_id: "ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace",
+    symbol: "ETH"
+  }
+] as const;
+
+// Token icon mapping - only includes the two supported tokens
+const TOKEN_ICONS: Record<string, { icon: string; iconClass?: string }> = {
   BTC: {
-    symbol: 'BTC',
-    name: 'Bitcoin',
-    priceId: getEnvVar('VITE_BTC_PRICE_ID', 'e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43'),
     icon: '/BTC.svg',
     iconClass: '',
-    decimals: 8,
   },
   ETH: {
-    symbol: 'ETH',
-    name: 'Ethereum', 
-    priceId: getEnvVar('VITE_ETH_PRICE_ID', 'ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'),
     icon: '/ETH.svg',
     iconClass: 'dark:invert',
-    decimals: 18,
   },
 } as const;
 
 /**
  * Build token configuration from server pool data
+ * Only processes tokens that have icon configurations
  */
 export function buildTokenConfigFromPools(pools: PoolInfo[]): Record<string, TokenConfig> {
   const tokens: Record<string, TokenConfig> = {};
   
   for (const pool of pools) {
-    const fallback = FALLBACK_TOKENS[pool.symbol];
+    const iconConfig = TOKEN_ICONS[pool.symbol];
     
-    if (!fallback) {
-      console.warn(`No fallback configuration for pool symbol: ${pool.symbol}`);
+    if (!iconConfig) {
+      console.warn(`No icon configuration for pool symbol: ${pool.symbol} - skipping`);
       continue;
     }
     
     tokens[pool.symbol] = {
-      ...fallback,
+      symbol: pool.symbol,
       name: pool.name,
+      priceId: pool.oracle_id,
       decimals: pool.decimals,
       faucetId: pool.faucet_id,
-      priceId: pool.oracle_id,
+      ...iconConfig,
     };
   }
   
@@ -163,27 +166,41 @@ export type TokenSymbol = keyof typeof TOKENS;
 
 /**
  * Initialize token configuration from server
+ * Falls back to hardcoded pool data if server is unavailable
  */
 export async function initializeTokenConfig(): Promise<void> {
+  let pools: PoolInfo[] = [];
+  let usingFallback = false;
+
   try {
     const { fetchPoolInfo } = await import('./poolService');
-    const pools = await fetchPoolInfo();
-    TOKENS = buildTokenConfigFromPools(pools);
-    
-    console.log('Initialized tokens from server:', Object.keys(TOKENS));
+    pools = await fetchPoolInfo();
+    console.log('✅ Successfully fetched pools from server:', pools);
   } catch (error) {
-    console.error('Failed to load tokens from server, using fallback:', error);
-    
-    // Use fallback configuration with default faucet IDs
-    TOKENS = Object.fromEntries(
-      Object.entries(FALLBACK_TOKENS).map(([symbol, config]) => [
-        symbol,
-        {
-          ...config,
-          faucetId: FAUCET.testFaucetId,
-        }
-      ])
-    );
+    console.warn('⚠️ Failed to fetch pools from server, using fallback data:', error);
+    pools = FALLBACK_POOLS;
+    usingFallback = true;
+  }
+
+  // Filter pools to only those we have icons for
+  const supportedPools = pools.filter(pool => TOKEN_ICONS[pool.symbol]);
+  
+  if (supportedPools.length === 0) {
+    throw new Error(`No supported tokens found. Available pools: ${pools.map(p => p.symbol).join(', ')}`);
+  }
+  
+  TOKENS = buildTokenConfigFromPools(supportedPools);
+  
+  console.log('🪙 Initialized token configuration:', {
+    data_source: usingFallback ? 'fallback' : 'server',
+    total_pools: pools.length,
+    supported_tokens: Object.keys(TOKENS),
+    token_details: TOKENS,
+  });
+
+  // Log warning if using fallback data
+  if (usingFallback) {
+    console.warn('🔧 Using fallback pool configuration - some data may be stale');
   }
 }
 
