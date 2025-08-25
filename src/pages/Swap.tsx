@@ -1,25 +1,25 @@
-import { useState, useEffect, useContext, useRef, useMemo, useCallback } from "react";
-import { ArrowUpDown, Loader2, Settings, X, Info } from "lucide-react";
-import { AccountId } from "@demox-labs/miden-sdk";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Header } from "@/components/Header";
-import { ModeToggle } from "@/components/ModeToggle";
-import { useNablaAntennaPrices, NablaAntennaContext } from '../components/PriceFetcher';
-import { compileZoroSwapNote, type SwapParams } from '../lib/ZoroSwapNote.ts';
-import { Link } from 'react-router-dom';
-import { useWallet, WalletMultiButton } from "@demox-labs/miden-wallet-adapter";
+import { Header } from '@/components/Header';
+import { ModeToggle } from '@/components/ModeToggle';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { useBalance } from '@/hooks/useBalance';
-import { 
-  TOKENS, 
-  UI, 
-  initializeTokenConfig, 
-  getAssetIds, 
-  type TokenSymbol 
+import {
+  getAssetIds,
+  initializeTokenConfig,
+  TOKENS,
+  type TokenSymbol,
+  UI,
 } from '@/lib/config';
+import { AccountId } from '@demox-labs/miden-sdk';
+import { useWallet, WalletMultiButton } from '@demox-labs/miden-wallet-adapter';
+import { ArrowUpDown, Info, Loader2, Settings, X } from 'lucide-react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { NablaAntennaContext, useNablaAntennaPrices } from '../components/PriceFetcher';
+import { compileZoroSwapNote, type SwapParams } from '../lib/ZoroSwapNote.ts';
 
-type TabType = "Swap" | "Limit";
+type TabType = 'Swap' | 'Limit';
 
 interface BalanceValidationState {
   hasInsufficientBalance: boolean;
@@ -38,12 +38,12 @@ interface SwapSettingsProps {
 
 const PriceFetcher: React.FC<PriceFetcherProps> = ({ shouldFetch, assetIds }) => {
   const { refreshPrices } = useContext(NablaAntennaContext);
-  
+
   useEffect(() => {
     if (!shouldFetch) return;
     refreshPrices(assetIds);
   }, [shouldFetch, refreshPrices, assetIds]);
-  
+
   return null;
 };
 
@@ -53,9 +53,9 @@ const PriceFetcher: React.FC<PriceFetcherProps> = ({ shouldFetch, assetIds }) =>
 const calculateMinAmountOut = (buyAmount: string, slippagePercent: number): string => {
   const buyAmountNum = parseFloat(buyAmount);
   if (isNaN(buyAmountNum) || buyAmountNum <= 0) {
-    return "";
+    return '';
   }
-  
+
   const minAmount = buyAmountNum * (1 - slippagePercent / 100);
   return minAmount.toFixed(8);
 };
@@ -64,31 +64,33 @@ const calculateMinAmountOut = (buyAmount: string, slippagePercent: number): stri
  * Calculate balance validation with proper decimal precision
  */
 const getBalanceValidation = (
-  sellAmount: string, 
-  balance: bigint | null, 
-  tokenSymbol: TokenSymbol
+  sellAmount: string,
+  balance: bigint | null,
+  tokenSymbol: TokenSymbol,
 ): BalanceValidationState => {
   const sellAmountNum = parseFloat(sellAmount);
-  
+
   // If no amount entered or balance not loaded yet
   if (!sellAmount || isNaN(sellAmountNum) || sellAmountNum <= 0 || balance === null) {
     return {
       hasInsufficientBalance: false,
-      isBalanceLoaded: balance !== null
+      isBalanceLoaded: balance !== null,
     };
   }
-  
+
   // Convert sellAmount to BigInt using token-specific decimals
   const token = TOKENS[tokenSymbol];
   if (!token) {
     return { hasInsufficientBalance: false, isBalanceLoaded: false };
   }
-  
-  const sellAmountBigInt = BigInt(Math.floor(sellAmountNum * Math.pow(10, token.decimals)));
-  
+
+  const sellAmountBigInt = BigInt(
+    Math.floor(sellAmountNum * Math.pow(10, token.decimals)),
+  );
+
   return {
     hasInsufficientBalance: sellAmountBigInt > balance,
-    isBalanceLoaded: true
+    isBalanceLoaded: true,
   };
 };
 
@@ -122,83 +124,85 @@ function SwapSettings({ slippage, onSlippageChange }: SwapSettingsProps) {
   }, [slippage]);
 
   return (
-    <div className="relative">
+    <div className='relative'>
       <Button
-        variant="ghost"
-        size="icon"
+        variant='ghost'
+        size='icon'
         onClick={handleToggle}
         className={`transition-all duration-200 hover:bg-accent hover:text-accent-foreground ${
           isOpen ? 'rotate-45' : 'rotate-0'
         }`}
-        aria-label="Slippage settings"
+        aria-label='Slippage settings'
       >
-        <Settings className="h-4 w-4 sm:h-[1.2rem] sm:w-[1.2rem]" />
+        <Settings className='h-4 w-4 sm:h-[1.2rem] sm:w-[1.2rem]' />
       </Button>
 
       {isOpen && (
         <>
           {/* Backdrop */}
-          <div 
-            className="fixed inset-0 bg-black/20 z-40"
+          <div
+            className='fixed inset-0 bg-black/20 z-40'
             onClick={handleClose}
           />
-          
+
           {/* Minimal Settings Panel */}
-          <Card className="absolute top-10 right-0 w-[200px] sm:w-[220px] z-50 border shadow-lg">
-            <CardContent className="p-4 space-y-3">
+          <Card className='absolute top-10 right-0 w-[200px] sm:w-[220px] z-50 border shadow-lg'>
+            <CardContent className='p-4 space-y-3'>
               {/* Header */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold">Max slippage</h3>
-                  <div className="group relative">
-                    <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+              <div className='flex items-center justify-between'>
+                <div className='flex items-center gap-2'>
+                  <h3 className='text-sm font-semibold'>Max slippage</h3>
+                  <div className='group relative'>
+                    <Info className='h-3 w-3 text-muted-foreground cursor-help' />
                     {/* Tooltip on hover */}
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                      <div className="bg-popover text-popover-foreground text-xs rounded-md px-2 py-1 shadow-md border max-w-[200px] text-center">
-                        Your transaction will revert if the price changes unfavorably by more than this percentage
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-popover"></div>
+                    <div className='absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10'>
+                      <div className='bg-popover text-popover-foreground text-xs rounded-md px-2 py-1 shadow-md border max-w-[200px] text-center'>
+                        Your transaction will revert if the price changes unfavorably by
+                        more than this percentage
+                        <div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-popover'>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
                 <Button
-                  variant="ghost"
-                  size="icon"
+                  variant='ghost'
+                  size='icon'
                   onClick={handleClose}
-                  className="h-5 w-5 hover:bg-accent hover:text-accent-foreground"
-                  aria-label="Close settings"
+                  className='h-5 w-5 hover:bg-accent hover:text-accent-foreground'
+                  aria-label='Close settings'
                 >
-                  <X className="h-3 w-3" />
+                  <X className='h-3 w-3' />
                 </Button>
               </div>
 
               {/* Slippage Input */}
-              <div className="space-y-2">
-                <div className="relative">
+              <div className='space-y-2'>
+                <div className='relative'>
                   <Input
-                    type="number"
+                    type='number'
                     value={inputValue}
                     onChange={(e) => handleSlippageChange(e.target.value)}
-                    className="text-center text-sm pr-8"
-                    min="0"
-                    max="50"
-                    step="0.1"
-                    placeholder="0.5"
+                    className='text-center text-sm pr-8'
+                    min='0'
+                    max='50'
+                    step='0.1'
+                    placeholder='0.5'
                   />
-                  <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+                  <span className='absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-muted-foreground pointer-events-none'>
                     %
                   </span>
                 </div>
-                
+
                 {/* Conditional Warnings */}
                 {slippage > 5 && (
-                  <div className="text-xs text-destructive text-center">
+                  <div className='text-xs text-destructive text-center'>
                     ⚠️ High slippage risk
                   </div>
                 )}
-                
+
                 {slippage < 0.1 && slippage > 0 && (
-                  <div className="text-xs text-amber-500 text-center">
+                  <div className='text-xs text-amber-500 text-center'>
                     ⚡ May fail due to low slippage
                   </div>
                 )}
@@ -216,28 +220,28 @@ function SwapSettings({ slippage, onSlippageChange }: SwapSettingsProps) {
  */
 const formatBalance = (balance: bigint, tokenSymbol: TokenSymbol): string => {
   if (balance === BigInt(0)) {
-    return "0";
+    return '0';
   }
-  
+
   const token = TOKENS[tokenSymbol];
-  if (!token) return "0";
-  
+  if (!token) return '0';
+
   const divisor = BigInt(Math.pow(10, token.decimals));
   const wholePart = balance / divisor;
   const fractionalPart = balance % divisor;
-  
+
   if (fractionalPart === BigInt(0)) {
     return wholePart.toString();
   }
-  
+
   // Format with appropriate decimal places
   const fractionalStr = fractionalPart.toString().padStart(token.decimals, '0');
   const trimmedFractional = fractionalStr.replace(/0+$/, '');
-  
+
   if (trimmedFractional === '') {
     return wholePart.toString();
   }
-  
+
   return `${wholePart}.${trimmedFractional}`;
 };
 
@@ -246,16 +250,16 @@ const formatBalance = (balance: bigint, tokenSymbol: TokenSymbol): string => {
  */
 const balanceToDecimalString = (balance: bigint, tokenSymbol: TokenSymbol): string => {
   const token = TOKENS[tokenSymbol];
-  if (!token) return "0";
-  
+  if (!token) return '0';
+
   const divisor = BigInt(Math.pow(10, token.decimals));
   const wholePart = balance / divisor;
   const fractionalPart = balance % divisor;
-  
+
   if (fractionalPart === BigInt(0)) {
     return wholePart.toString();
   }
-  
+
   const fractionalStr = fractionalPart.toString().padStart(token.decimals, '0');
   return `${wholePart}.${fractionalStr}`.replace(/\.?0+$/, '');
 };
@@ -266,16 +270,16 @@ const balanceToDecimalString = (balance: bigint, tokenSymbol: TokenSymbol): stri
 const calculateUsdValue = (amount: string, priceUsd: number): string => {
   const amountNum: number = parseFloat(amount);
   if (isNaN(amountNum) || amountNum <= 0 || !priceUsd) {
-    return "";
+    return '';
   }
-  
+
   const usdValue: number = amountNum * priceUsd;
 
   return usdValue.toLocaleString('en-US', {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    maximumFractionDigits: 2,
   });
 };
 
@@ -285,14 +289,14 @@ const calculateUsdValue = (amount: string, priceUsd: number): string => {
 const useAutoRefetch = (
   refreshCallback: () => Promise<void>,
   dependencies: readonly any[],
-  enabled: boolean = true
+  enabled: boolean = true,
 ) => {
   const intervalRef = useRef<NodeJS.Timeout>();
   const isRefetching = useRef<boolean>(false);
 
   const stableRefreshCallback = useCallback(async () => {
     if (isRefetching.current) return;
-    
+
     try {
       isRefetching.current = true;
       await refreshCallback();
@@ -345,9 +349,9 @@ const useAutoRefetch = (
 };
 
 function Swap() {
-  const [activeTab, setActiveTab] = useState<TabType>("Swap");
-  const [sellAmount, setSellAmount] = useState<string>("");
-  const [buyAmount, setBuyAmount] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<TabType>('Swap');
+  const [sellAmount, setSellAmount] = useState<string>('');
+  const [buyAmount, setBuyAmount] = useState<string>('');
   const [tokensLoaded, setTokensLoaded] = useState<boolean>(false);
   const [availableTokens, setAvailableTokens] = useState<TokenSymbol[]>([]);
   const [sellToken, setSellToken] = useState<TokenSymbol | undefined>(undefined);
@@ -357,23 +361,23 @@ function Swap() {
   const [isCreatingNote, setIsCreatingNote] = useState<boolean>(false);
   const [lastEditedField, setLastEditedField] = useState<'sell' | 'buy'>('sell');
   const [isSwappingTokens, setIsSwappingTokens] = useState<boolean>(false);
-  
+
   // Settings state (uses config default)
   const [slippage, setSlippage] = useState<number>(UI.defaultSlippage);
-  
+
   // Add ref for sell input auto-focus
   const sellInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Refs for stable price calculations
   const pricesRef = useRef<any>(null);
   const tokensLoadedRef = useRef<boolean>(false);
   const sellTokenRef = useRef<TokenSymbol | undefined>(undefined);
   const buyTokenRef = useRef<TokenSymbol | undefined>(undefined);
   const isSwappingTokensRef = useRef<boolean>(false);
-  
+
   const { connected, connecting, wallet, requestTransaction } = useWallet();
   const { refreshPrices } = useContext(NablaAntennaContext);
-  
+
   // STABLE user account ID - prevent re-renders
   const stableUserAccountId = useMemo(() => {
     return wallet?.adapter?.accountId;
@@ -386,7 +390,7 @@ function Swap() {
         await initializeTokenConfig();
         const tokenSymbols = Object.keys(TOKENS) as TokenSymbol[];
         setAvailableTokens(tokenSymbols);
-        
+
         // Set default tokens if available
         if (tokenSymbols.includes('BTC' as TokenSymbol)) {
           setSellToken('BTC' as TokenSymbol);
@@ -394,7 +398,7 @@ function Swap() {
         if (tokenSymbols.includes('ETH' as TokenSymbol)) {
           setBuyToken('ETH' as TokenSymbol);
         }
-        
+
         setTokensLoaded(true);
         console.log('Tokens loaded:', tokenSymbols);
       } catch (error) {
@@ -424,9 +428,9 @@ function Swap() {
   }, [isSwappingTokens]);
 
   // STABLE asset IDs - prevent re-calculations
-  const assetIds: readonly string[] = useMemo(() => 
-    tokensLoaded ? getAssetIds() : [],
-    [tokensLoaded] // Only depends on tokensLoaded, not on input changes
+  const assetIds: readonly string[] = useMemo(() => tokensLoaded ? getAssetIds() : [], [
+    tokensLoaded,
+  ] // Only depends on tokensLoaded, not on input changes
   );
 
   // STABLE price IDs - only change when tokens change, not on input
@@ -436,16 +440,18 @@ function Swap() {
   }, [sellToken, buyToken, tokensLoaded]); // No input dependencies
 
   const prices = useNablaAntennaPrices(priceIds);
-  
+
   // Update prices ref
   useEffect(() => {
     pricesRef.current = prices;
   }, [prices]);
-  
+
   // STABLE balance hook params - prevent useBalance from re-running on input changes
   const balanceParams = useMemo(() => ({
     accountId: stableUserAccountId ? AccountId.fromBech32(stableUserAccountId) : null,
-    faucetId: sellToken && TOKENS[sellToken] ? AccountId.fromBech32(TOKENS[sellToken].faucetId) : undefined,
+    faucetId: sellToken && TOKENS[sellToken]
+      ? AccountId.fromBech32(TOKENS[sellToken].faucetId)
+      : undefined,
   }), [stableUserAccountId, sellToken]); // Only depends on accountId and sellToken
 
   const { balance, refreshBalance } = useBalance(balanceParams);
@@ -460,17 +466,17 @@ function Swap() {
     // Refresh prices and balance together
     await Promise.all([
       refreshPrices(assetIds, true), // Force refresh
-      refreshBalance()
+      refreshBalance(),
     ]);
   }, [tokensLoaded, connected, assetIds, refreshPrices, refreshBalance]);
 
   // Enable auto-refetch when tokens are loaded and wallet is connected
   const autoRefetchEnabled = tokensLoaded && connected && assetIds.length > 0;
-  
+
   useAutoRefetch(
     autoRefetchCallback,
     [tokensLoaded, connected, assetIds.length], // Dependencies that affect refetch
-    autoRefetchEnabled
+    autoRefetchEnabled,
   );
 
   // Memoized balance validation - only changes when sellAmount or balance changes
@@ -480,7 +486,7 @@ function Swap() {
   }, [sellAmount, balance, sellToken]);
 
   const formattedBalance = useMemo(() => {
-    if (!sellToken || balance === null) return "0";
+    if (!sellToken || balance === null) return '0';
     return formatBalance(balance, sellToken);
   }, [balance, sellToken]);
 
@@ -488,7 +494,7 @@ function Swap() {
   const calculateAndSetPrice = useCallback((
     sellAmt: string,
     buyAmt: string,
-    field: 'sell' | 'buy'
+    field: 'sell' | 'buy',
   ) => {
     // Use refs to avoid dependency on frequently changing values
     const currentPrices = pricesRef.current;
@@ -497,18 +503,21 @@ function Swap() {
     const currentBuyToken = buyTokenRef.current;
     const currentIsSwapping = isSwappingTokensRef.current;
 
-    if (!currentPrices || !currentTokensLoaded || !currentSellToken || !currentBuyToken || currentIsSwapping) {
+    if (
+      !currentPrices || !currentTokensLoaded || !currentSellToken || !currentBuyToken
+      || currentIsSwapping
+    ) {
       return;
     }
 
     const sellTokenData = TOKENS[currentSellToken];
     const buyTokenData = TOKENS[currentBuyToken];
-    
+
     if (!sellTokenData || !buyTokenData) return;
-    
+
     const sellPrice = currentPrices[sellTokenData.priceId];
     const buyPrice = currentPrices[buyTokenData.priceId];
-    
+
     if (!sellPrice || !buyPrice || sellPrice.value <= 0 || buyPrice.value <= 0) return;
 
     if (field === 'sell' && sellAmt) {
@@ -539,7 +548,7 @@ function Swap() {
 
     const sellTokenData = TOKENS[sellToken];
     const buyTokenData = TOKENS[buyToken];
-    
+
     return {
       sellTokenData,
       buyTokenData,
@@ -551,17 +560,17 @@ function Swap() {
   // Calculate USD values separately to avoid re-renders on input
   const sellUsdValue = useMemo(() => {
     const { sellPrice } = tokenData;
-    return sellPrice ? calculateUsdValue(sellAmount, sellPrice.value) : "";
+    return sellPrice ? calculateUsdValue(sellAmount, sellPrice.value) : '';
   }, [sellAmount, tokenData.sellPrice]);
 
   const buyUsdValue = useMemo(() => {
     const { buyPrice } = tokenData;
-    return buyPrice ? calculateUsdValue(buyAmount, buyPrice.value) : "";
+    return buyPrice ? calculateUsdValue(buyAmount, buyPrice.value) : '';
   }, [buyAmount, tokenData.buyPrice]);
 
   const priceFor1 = useMemo(() => {
     const { sellPrice } = tokenData;
-    return sellPrice ? calculateUsdValue("1", sellPrice.value) : "";
+    return sellPrice ? calculateUsdValue('1', sellPrice.value) : '';
   }, [tokenData.sellPrice]);
 
   const minAmountOut = useMemo(() => {
@@ -569,29 +578,30 @@ function Swap() {
   }, [buyAmount, slippage]);
 
   // Memoized canSwap calculation
-  const canSwap: boolean = useMemo(() => Boolean(
-    sellAmount && 
-    buyAmount && 
-    !isNaN(parseFloat(sellAmount)) && 
-    !isNaN(parseFloat(buyAmount)) &&
-    parseFloat(sellAmount) > 0 &&
-    parseFloat(buyAmount) > 0 &&
-    tokenData.sellPrice && 
-    tokenData.buyPrice &&
-    sellToken !== buyToken &&
-    sellToken &&
-    buyToken &&
-    tokensLoaded &&
-    !balanceValidation.hasInsufficientBalance
-  ), [
-    sellAmount, 
-    buyAmount, 
-    tokenData.sellPrice, 
-    tokenData.buyPrice, 
-    sellToken, 
+  const canSwap: boolean = useMemo(() =>
+    Boolean(
+      sellAmount
+        && buyAmount
+        && !isNaN(parseFloat(sellAmount))
+        && !isNaN(parseFloat(buyAmount))
+        && parseFloat(sellAmount) > 0
+        && parseFloat(buyAmount) > 0
+        && tokenData.sellPrice
+        && tokenData.buyPrice
+        && sellToken !== buyToken
+        && sellToken
+        && buyToken
+        && tokensLoaded
+        && !balanceValidation.hasInsufficientBalance,
+    ), [
+    sellAmount,
+    buyAmount,
+    tokenData.sellPrice,
+    tokenData.buyPrice,
+    sellToken,
     buyToken,
     tokensLoaded,
-    balanceValidation.hasInsufficientBalance
+    balanceValidation.hasInsufficientBalance,
   ]);
 
   // Debounced input handlers - prevent immediate re-renders
@@ -601,18 +611,18 @@ function Swap() {
     setSellAmount(value);
     setLastEditedField('sell');
     if (!value) {
-      setBuyAmount("");
+      setBuyAmount('');
       return;
     }
-    
+
     // Clear existing timeout
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
-    
+
     // Set new timeout for price calculation
     debounceRef.current = setTimeout(() => {
-      calculateAndSetPrice(value, "", 'sell');
+      calculateAndSetPrice(value, '', 'sell');
     }, 300); // 300ms debounce
   }, [calculateAndSetPrice]);
 
@@ -620,25 +630,25 @@ function Swap() {
     setBuyAmount(value);
     setLastEditedField('buy');
     if (!value) {
-      setSellAmount("");
+      setSellAmount('');
       return;
     }
-    
+
     // Clear existing timeout
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
-    
+
     // Set new timeout for price calculation
     debounceRef.current = setTimeout(() => {
-      calculateAndSetPrice("", value, 'buy');
+      calculateAndSetPrice('', value, 'buy');
     }, 300); // 300ms debounce
   }, [calculateAndSetPrice]);
 
   // STABLE callbacks - prevent re-renders
   const fetchPrices = useCallback(async (): Promise<void> => {
     if (pricesFetched || !tokensLoaded || assetIds.length === 0) return;
-    
+
     setShouldFetchPrices(true);
     await refreshPrices(assetIds);
     setPricesFetched(true);
@@ -660,21 +670,21 @@ function Swap() {
 
   const handleReplaceTokens = useCallback((): void => {
     if (!sellToken || !buyToken) return;
-    
+
     setIsSwappingTokens(true);
-    
+
     const newSellToken = buyToken;
     const newBuyToken = sellToken;
     const newSellAmount = buyAmount;
     const newBuyAmount = sellAmount;
     const newLastEditedField = lastEditedField === 'sell' ? 'buy' : 'sell';
-    
+
     setSellToken(newSellToken);
     setBuyToken(newBuyToken);
     setSellAmount(newSellAmount);
     setBuyAmount(newBuyAmount);
     setLastEditedField(newLastEditedField);
-    
+
     setTimeout(() => {
       setIsSwappingTokens(false);
       if (sellInputRef.current) {
@@ -687,73 +697,79 @@ function Swap() {
     if (!connected || !stableUserAccountId || !sellToken || !buyToken) {
       return;
     }
-    
+
     const sellAmountNum: number = parseFloat(sellAmount);
     const buyAmountNum: number = parseFloat(buyAmount);
-    
-    if (isNaN(sellAmountNum) || isNaN(buyAmountNum) || sellAmountNum <= 0 || buyAmountNum <= 0) {
-      console.error("Invalid amounts for swap:", { sellAmount, buyAmount, sellAmountNum, buyAmountNum });
+
+    if (
+      isNaN(sellAmountNum) || isNaN(buyAmountNum) || sellAmountNum <= 0
+      || buyAmountNum <= 0
+    ) {
+      console.error('Invalid amounts for swap:', {
+        sellAmount,
+        buyAmount,
+        sellAmountNum,
+        buyAmountNum,
+      });
       return;
     }
-    
+
     if (sellToken === buyToken) {
       return;
     }
-    
+
     const minAmountOutValue = calculateMinAmountOut(buyAmount, slippage);
-    
-    console.log("🚀 Creating Zoro swap note with:", { 
-      sellAmount, 
-      buyAmount, 
+
+    console.log('🚀 Creating Zoro swap note with:', {
+      sellAmount,
+      buyAmount,
       minAmountOut: minAmountOutValue,
-      sellToken, 
+      sellToken,
       buyToken,
       slippage,
-      userAccountId: stableUserAccountId
+      userAccountId: stableUserAccountId,
     });
-    
+
     await Promise.all([
       refreshPrices(assetIds, true),
-      refreshBalance()
+      refreshBalance(),
     ]);
     setIsCreatingNote(true);
-    
+
     try {
       const swapParams: SwapParams = {
         sellToken,
-        buyToken, 
+        buyToken,
         sellAmount,
         buyAmount: minAmountOutValue,
         userAccountId: stableUserAccountId,
         wallet: wallet,
-        requestTransaction: requestTransaction || (async () => ""),
+        requestTransaction: requestTransaction || (async () => ''),
       };
-      
+
       const result = await compileZoroSwapNote(swapParams);
-      
+
       console.log('🎉 Swap note created successfully:', {
         txId: result.txId,
         noteId: result.noteId,
-        serializedNoteLength: result.serializedNote.length
       });
-      
     } catch (error) {
-      console.error("💥 Swap note creation failed:", error);
+      console.error('💥 Swap note creation failed:', error);
     } finally {
       setIsCreatingNote(false);
     }
   }, [
-    connected, 
-    stableUserAccountId, 
-    sellAmount, 
-    buyAmount, 
-    sellToken, 
-    buyToken, 
-    slippage, 
-    wallet, 
-    requestTransaction, 
-    refreshPrices, 
-    assetIds
+    connected,
+    stableUserAccountId,
+    sellAmount,
+    buyAmount,
+    sellToken,
+    buyToken,
+    slippage,
+    wallet,
+    requestTransaction,
+    refreshPrices,
+    assetIds,
   ]);
 
   const handleTabChange = useCallback((tab: TabType) => {
@@ -787,20 +803,20 @@ function Swap() {
   // Price calculation effect - ONLY runs when prices change, not on input
   useEffect(() => {
     if (lastEditedField === 'sell' && sellAmount) {
-      calculateAndSetPrice(sellAmount, "", 'sell');
+      calculateAndSetPrice(sellAmount, '', 'sell');
     } else if (lastEditedField === 'buy' && buyAmount) {
-      calculateAndSetPrice("", buyAmount, 'buy');
+      calculateAndSetPrice('', buyAmount, 'buy');
     }
   }, [prices]); // Only depend on prices, not on amounts or calculateAndSetPrice
 
   // Show loading state while tokens are being fetched
   if (!tokensLoaded) {
     return (
-      <div className="min-h-screen bg-background text-foreground flex flex-col">
+      <div className='min-h-screen bg-background text-foreground flex flex-col'>
         <Header />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="flex items-center gap-2">
-            <Loader2 className="w-5 h-5 animate-spin" />
+        <main className='flex-1 flex items-center justify-center'>
+          <div className='flex items-center gap-2'>
+            <Loader2 className='w-5 h-5 animate-spin' />
             <span>Loading token configuration...</span>
           </div>
         </main>
@@ -811,11 +827,11 @@ function Swap() {
   // Show error state if no tokens are available
   if (availableTokens.length === 0) {
     return (
-      <div className="min-h-screen bg-background text-foreground flex flex-col">
+      <div className='min-h-screen bg-background text-foreground flex flex-col'>
         <Header />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-4">
-            <div className="text-destructive">Failed to load token configuration</div>
+        <main className='flex-1 flex items-center justify-center'>
+          <div className='text-center space-y-4'>
+            <div className='text-destructive'>Failed to load token configuration</div>
             <Button onClick={() => window.location.reload()}>
               Retry
             </Button>
@@ -826,34 +842,34 @@ function Swap() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className='min-h-screen bg-background text-foreground flex flex-col'>
       <PriceFetcher shouldFetch={shouldFetchPrices} assetIds={assetIds} />
       <Header />
-      
-      <main className="flex-1 flex items-center justify-center p-3 sm:p-4 -mt-20">
-        <div className="w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex bg-muted rounded-full p-0.5 sm:p-1">
-              {(["Swap", "Limit"] as const).map((tab) => (
+
+      <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-20'>
+        <div className='w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6'>
+          <div className='flex items-center justify-between'>
+            <div className='flex bg-muted rounded-full p-0.5 sm:p-1'>
+              {(['Swap', 'Limit'] as const).map((tab) => (
                 <Button
                   key={tab}
-                  variant={activeTab === tab ? "secondary" : "ghost"}
-                  size="sm"
+                  variant={activeTab === tab ? 'secondary' : 'ghost'}
+                  size='sm'
                   onClick={() => handleTabChange(tab)}
                   className={`rounded-full text-xs sm:text-sm font-medium px-3 sm:px-4 py-1.5 sm:py-2 ${
                     activeTab === tab
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   {tab}
                 </Button>
               ))}
             </div>
-            
+
             {/* Settings and theme toggle */}
-            <div className="flex items-center gap-1 sm:gap-2">
-              <SwapSettings 
+            <div className='flex items-center gap-1 sm:gap-2'>
+              <SwapSettings
                 slippage={slippage}
                 onSlippageChange={handleSlippageChange}
               />
@@ -861,54 +877,56 @@ function Swap() {
             </div>
           </div>
 
-          <Card className="border rounded-xl sm:rounded-2xl">
-            <CardContent className="p-3 sm:p-4 space-y-3 sm:space-y-4">
-              <div className="space-y-2">
-                <div className="text-xs sm:text-sm">Sell</div>
-                <Card className="bg-gradient-to-b from-muted/10 from-10% to-muted/30 to-50% border-none">
-                  <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
-                    <div className="flex items-center justify-between gap-2">
+          <Card className='border rounded-xl sm:rounded-2xl'>
+            <CardContent className='p-3 sm:p-4 space-y-3 sm:space-y-4'>
+              <div className='space-y-2'>
+                <div className='text-xs sm:text-sm'>Sell</div>
+                <Card className='bg-gradient-to-b from-muted/10 from-10% to-muted/30 to-50% border-none'>
+                  <CardContent className='p-3 sm:p-4 space-y-2 sm:space-y-3'>
+                    <div className='flex items-center justify-between gap-2'>
                       <Input
                         ref={sellInputRef}
-                        type="number"
+                        type='number'
                         value={sellAmount}
                         onChange={(e) => handleSellAmountChange(e.target.value)}
                         onFocus={handleInputFocus}
-                        placeholder="0"
+                        placeholder='0'
                         className={`border-none text-3xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner ${
-                          balanceValidation.hasInsufficientBalance 
-                            ? 'text-destructive placeholder:text-destructive/50' 
+                          balanceValidation.hasInsufficientBalance
+                            ? 'text-destructive placeholder:text-destructive/50'
                             : ''
                         }`}
                       />
                       <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background disabled:opacity-50"
+                        variant='outline'
+                        size='sm'
+                        className='border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background disabled:opacity-50'
                       >
                         {sellToken && (
                           <>
-                            <img 
-                              src={TOKENS[sellToken].icon} 
-                              alt="sell token logo" 
-                              className={`w-8 h-8 -ml-2 ${TOKENS[sellToken].iconClass || ''}`} 
+                            <img
+                              src={TOKENS[sellToken].icon}
+                              alt='sell token logo'
+                              className={`w-8 h-8 -ml-2 ${
+                                TOKENS[sellToken].iconClass || ''
+                              }`}
                             />
                             {sellToken}
                           </>
                         )}
                       </Button>
                     </div>
-                    
+
                     {/* USD Value Display */}
-                    <div className="flex items-center justify-between text-xs text-muted-foreground h-5">
+                    <div className='flex items-center justify-between text-xs text-muted-foreground h-5'>
                       <div>{sellUsdValue || priceFor1}</div>
-                      <div className="flex items-center gap-1">
-                        <button 
+                      <div className='flex items-center gap-1'>
+                        <button
                           onClick={handleMaxClick}
                           disabled={balance === null || balance === BigInt(0)}
                           className={`hover:text-foreground transition-colors cursor-pointer mr-1 disabled:cursor-not-allowed disabled:opacity-50 ${
-                            balanceValidation.hasInsufficientBalance 
-                              ? 'text-destructive hover:text-destructive' 
+                            balanceValidation.hasInsufficientBalance
+                              ? 'text-destructive hover:text-destructive'
                               : ''
                           }`}
                         >
@@ -917,10 +935,10 @@ function Swap() {
                         </button>
                         {balance !== null && balance > BigInt(0) && (
                           <Button
-                            variant="ghost"
-                            size="sm"
+                            variant='ghost'
+                            size='sm'
                             onClick={handleMaxClick}
-                            className="h-5 px-1 text-xs text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20"
+                            className='h-5 px-1 text-xs text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20'
                           >
                             MAX
                           </Button>
@@ -931,114 +949,131 @@ function Swap() {
                 </Card>
               </div>
 
-              <div className="flex justify-center -my-1">
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border dark:bg-black bg-white dark:text-white text-black hover:text-black dark:hover:bg-gray-500/10 hover:bg-gray-500/10 dark:hover:text-white"
+              <div className='flex justify-center -my-1'>
+                <Button
+                  variant='outline'
+                  size='icon'
+                  className='h-8 w-8 sm:h-10 sm:w-10 rounded-full border dark:bg-black bg-white dark:text-white text-black hover:text-black dark:hover:bg-gray-500/10 hover:bg-gray-500/10 dark:hover:text-white'
                   onClick={handleReplaceTokens}
-                  disabled={!sellToken || !buyToken || isCreatingNote || connecting || isSwappingTokens}
+                  disabled={!sellToken || !buyToken || isCreatingNote || connecting
+                    || isSwappingTokens}
                 >
-                  <ArrowUpDown className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <ArrowUpDown className='w-3 h-3 sm:w-4 sm:h-4' />
                 </Button>
               </div>
 
-              <div className="space-y-2">
-                <div className="text-xs sm:text-sm">Get</div>
-                <Card className="bg-gradient-to-b from-muted/10 from-10% to-muted/30 to-50% border-none">
-                  <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
-                    <div className="flex items-center justify-between gap-2">
+              <div className='space-y-2'>
+                <div className='text-xs sm:text-sm'>Get</div>
+                <Card className='bg-gradient-to-b from-muted/10 from-10% to-muted/30 to-50% border-none'>
+                  <CardContent className='p-3 sm:p-4 space-y-2 sm:space-y-3'>
+                    <div className='flex items-center justify-between gap-2'>
                       <Input
-                        type="number"
+                        type='number'
                         value={buyAmount}
                         onChange={(e) => handleBuyAmountChange(e.target.value)}
                         onFocus={handleInputFocus}
-                        placeholder="0"
-                        className="border-none text-3xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner bg-transparent"
+                        placeholder='0'
+                        className='border-none text-3xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner bg-transparent'
                       />
                       <Button
-                        variant="outline"
-                        size="sm"
+                        variant='outline'
+                        size='sm'
                         disabled
-                        className="border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background disabled:opacity-50"
-                      > 
+                        className='border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background disabled:opacity-50'
+                      >
                         {buyToken && (
                           <>
-                            <img 
-                              src={TOKENS[buyToken].icon} 
-                              alt="buy token logo" 
-                              className={`w-8 h-8 -ml-2 ${TOKENS[buyToken].iconClass || ''}`} 
+                            <img
+                              src={TOKENS[buyToken].icon}
+                              alt='buy token logo'
+                              className={`w-8 h-8 -ml-2 ${
+                                TOKENS[buyToken].iconClass || ''
+                              }`}
                             />
                             {buyToken}
                           </>
                         )}
                       </Button>
                     </div>
-                    
+
                     {/* Min Amount Out Display */}
-                    <div className="flex items-center justify-center text-xs text-muted-foreground h-5">
+                    <div className='flex items-center justify-center text-xs text-muted-foreground h-5'>
                       {buyAmount && minAmountOut && (
-                        <div className="text-amber-500">
+                        <div className='text-amber-500'>
                           Min received: {minAmountOut} {buyToken}
                         </div>
                       )}
                       {!buyAmount && buyUsdValue && (
-                        <div className="text-green-500">{buyUsdValue}</div>
+                        <div className='text-green-500'>{buyUsdValue}</div>
                       )}
                     </div>
                   </CardContent>
                 </Card>
               </div>
 
-              <div className="w-full h-12 sm:h-16 mt-4 sm:mt-6">
-                {connected ? (
-                  <Button 
-                    onClick={handleSwap}
-                    disabled={!canSwap || connecting || isCreatingNote}
-                    variant="outline"
-                    className="w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
-                  >
-                    {connecting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Connecting...
-                      </>
-                    ) : isCreatingNote ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Creating Note...
-                      </>
-                    ) : !balanceValidation.isBalanceLoaded ? (
-                      "Loading balance..."
-                    ) : balanceValidation.hasInsufficientBalance ? (
-                      `Insufficient ${sellToken} balance`
-                    ) : !canSwap ? (
-                      sellToken === buyToken ? "Select different tokens" : "Enter amount"
-                    ) : (
-                      "Swap"
-                    )}
-                  </Button>
-                ) : (
-                  <div className="w-full h-full">
-                    <WalletMultiButton 
-                      disabled={connecting}
-                      className="!w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-muted-foreground hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center !border-none !p-0"
+              <div className='w-full h-12 sm:h-16 mt-4 sm:mt-6'>
+                {connected
+                  ? (
+                    <Button
+                      onClick={handleSwap}
+                      disabled={!canSwap || connecting || isCreatingNote}
+                      variant='outline'
+                      className='w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
                     >
-                      {connecting ? "Connecting..." : "Connect Wallet"}
-                    </WalletMultiButton>
-                  </div>
-                )}
+                      {connecting
+                        ? (
+                          <>
+                            <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                            Connecting...
+                          </>
+                        )
+                        : isCreatingNote
+                        ? (
+                          <>
+                            <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                            Creating Note...
+                          </>
+                        )
+                        : !balanceValidation.isBalanceLoaded
+                        ? (
+                          'Loading balance...'
+                        )
+                        : balanceValidation.hasInsufficientBalance
+                        ? (
+                          `Insufficient ${sellToken} balance`
+                        )
+                        : !canSwap
+                        ? (
+                          sellToken === buyToken
+                            ? 'Select different tokens'
+                            : 'Enter amount'
+                        )
+                        : (
+                          'Swap'
+                        )}
+                    </Button>
+                  )
+                  : (
+                    <div className='w-full h-full'>
+                      <WalletMultiButton
+                        disabled={connecting}
+                        className='!w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-muted-foreground hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center !border-none !p-0'
+                      >
+                        {connecting ? 'Connecting...' : 'Connect Wallet'}
+                      </WalletMultiButton>
+                    </div>
+                  )}
               </div>
             </CardContent>
           </Card>
-          
+
           {/* Faucet Link */}
-          <div className="text-center">
-            <Link to="/faucet">
+          <div className='text-center'>
+            <Link to='/faucet'>
               <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors"
+                variant='ghost'
+                size='sm'
+                className='text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors'
               >
                 Thirsty for test tokens? Visit the Faucet →
               </Button>

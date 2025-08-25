@@ -3,6 +3,8 @@
  * Centralizes all environment variables with type safety and validation
  */
 
+import { AccountId } from '@demox-labs/miden-sdk';
+
 export interface PoolInfo {
   readonly decimals: number;
   readonly faucet_id: string;
@@ -70,7 +72,7 @@ function getEnvVar(key: string, fallback?: string): string {
 function getNumericEnvVar(key: string, fallback: number): number {
   const value = import.meta.env[key];
   if (value === undefined) return fallback;
-  
+
   const parsed = parseFloat(value);
   if (isNaN(parsed)) {
     throw new Error(`Invalid numeric value for ${key}: ${value}`);
@@ -81,16 +83,22 @@ function getNumericEnvVar(key: string, fallback: number): number {
 // Network Configuration
 export const NETWORK: NetworkConfig = {
   rpcEndpoint: getEnvVar('VITE_RPC_ENDPOINT', 'https://rpc.testnet.miden.io:443'),
-  txProverEndpoint: getEnvVar('VITE_TX_PROVER_ENDPOINT', 'https://tx-prover.testnet.miden.io'),
+  txProverEndpoint: getEnvVar(
+    'VITE_TX_PROVER_ENDPOINT',
+    'https://tx-prover.testnet.miden.io',
+  ),
 } as const;
 
 // Oracle Configuration
 export const ORACLE: OracleConfig = {
-  endpoint: getEnvVar('VITE_PRICE_ORACLE_ENDPOINT', 'https://antenna.nabla.fi/v1/updates/price/latest'),
+  endpoint: getEnvVar(
+    'VITE_PRICE_ORACLE_ENDPOINT',
+    'https://antenna.nabla.fi/v1/updates/price/latest',
+  ),
   cacheTtlSeconds: getNumericEnvVar('VITE_PRICE_CACHE_TTL_SECONDS', 3000),
 } as const;
 
-// API Configuration  
+// API Configuration
 export const API: ApiConfig = {
   endpoint: getEnvVar('VITE_API_ENDPOINT', 'https://api.zoroswap.com'),
 } as const;
@@ -99,6 +107,11 @@ export const API: ApiConfig = {
 export const UI: UiConfig = {
   defaultSlippage: getNumericEnvVar('VITE_DEFAULT_SLIPPAGE', 0.5),
 } as const;
+
+// UI Configuration
+export const poolAccountId: AccountId = AccountId.fromBech32(
+  getEnvVar('VITE_POOL_ID'),
+);
 
 // Token icon mapping - only includes the two supported tokens
 const TOKEN_ICONS: Record<string, { icon: string; iconClass?: string }> = {
@@ -116,17 +129,19 @@ const TOKEN_ICONS: Record<string, { icon: string; iconClass?: string }> = {
  * Build token configuration from server pool data
  * Only processes tokens that have icon configurations
  */
-export function buildTokenConfigFromPools(pools: PoolInfo[]): Record<string, TokenConfig> {
+export function buildTokenConfigFromPools(
+  pools: PoolInfo[],
+): Record<string, TokenConfig> {
   const tokens: Record<string, TokenConfig> = {};
-  
+
   for (const pool of pools) {
     const iconConfig = TOKEN_ICONS[pool.symbol];
-    
+
     if (!iconConfig) {
       console.warn(`No icon configuration for pool symbol: ${pool.symbol} - skipping`);
       continue;
     }
-    
+
     tokens[pool.symbol] = {
       symbol: pool.symbol,
       name: pool.name,
@@ -136,7 +151,7 @@ export function buildTokenConfigFromPools(pools: PoolInfo[]): Record<string, Tok
       ...iconConfig,
     };
   }
-  
+
   return tokens;
 }
 
@@ -154,16 +169,16 @@ export async function initializeTokenConfig(): Promise<void> {
   try {
     const { fetchPoolInfo } = await import('./poolService');
     const pools = await fetchPoolInfo();
-    
+
     // Filter pools to only those we have icons for
     const supportedPools = pools.filter(pool => TOKEN_ICONS[pool.symbol]);
-    
+
     if (supportedPools.length === 0) {
       throw new Error('No supported tokens found in pool info');
     }
-    
+
     TOKENS = buildTokenConfigFromPools(supportedPools);
-    
+
     console.log('Initialized supported tokens from server:', {
       total_pools: pools.length,
       supported_tokens: Object.keys(TOKENS),
@@ -189,13 +204,13 @@ export function getAssetIds(): readonly string[] {
 
 export function getSupportedAssetIds(): Record<string, string> {
   return Object.fromEntries(
-    Object.entries(TOKENS).map(([key, token]) => [token.priceId, `${token.symbol}/USD`])
+    Object.entries(TOKENS).map(([key, token]) => [token.priceId, `${token.symbol}/USD`]),
   );
 }
 
 export function getFaucets(): Record<string, string> {
   return Object.fromEntries(
-    Object.entries(TOKENS).map(([symbol, token]) => [symbol, token.faucetId])
+    Object.entries(TOKENS).map(([symbol, token]) => [symbol, token.faucetId]),
   );
 }
 
@@ -207,9 +222,14 @@ function validateConfig(): void {
   if (UI.defaultSlippage < 0 || UI.defaultSlippage > 50) {
     throw new Error(`Invalid slippage configuration: default=${UI.defaultSlippage}`);
   }
-  
+
   // Validate URLs
-  const urlFields = [NETWORK.rpcEndpoint, NETWORK.txProverEndpoint, ORACLE.endpoint, API.endpoint];
+  const urlFields = [
+    NETWORK.rpcEndpoint,
+    NETWORK.txProverEndpoint,
+    ORACLE.endpoint,
+    API.endpoint,
+  ];
   for (const url of urlFields) {
     try {
       new URL(url);
