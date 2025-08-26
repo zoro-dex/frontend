@@ -119,7 +119,7 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<SwapR
       new Felt(BigInt(0)), // aux
     );
 
-    const deadline = 0;
+    const deadline = Date.now() + 60_000; // 1 min from now
 
     // Use the AccountId for p2id tag
     const p2idTag = NoteTag.fromAccountId(userAddress).asU32();
