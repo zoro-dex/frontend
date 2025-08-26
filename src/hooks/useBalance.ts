@@ -126,7 +126,7 @@ export const useBalance = (
           } catch {}
         });
         // Retry saving
-        localStorage.setItem(`${STORAGE_KEY}-${cacheKey}`, JSON.stringify(serialized));
+        localStorage.setItem(`${STORAGE_KEY}-${cacheKey}`, JSON.stringify('whatever'));
       } catch (retryError) {
         console.warn('Failed to save cached balance after cleanup:', retryError);
       }

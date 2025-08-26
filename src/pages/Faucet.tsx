@@ -1,12 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Header } from '@/components/Header';
-import { Link } from 'react-router-dom';
+import { initializeTokenConfig, TOKENS, type TokenSymbol } from '@/lib/config';
+import { type FaucetMintResult, mintFromFaucet } from '@/lib/faucetService';
 import { useWallet } from '@demox-labs/miden-wallet-adapter';
-import { Loader2, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { mintFromFaucet, type FaucetMintResult } from '@/lib/faucetService';
-import { TOKENS, initializeTokenConfig, type TokenSymbol } from '@/lib/config';
+import { CheckCircle, Loader2, XCircle } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 interface MintStatus {
   readonly isLoading: boolean;
@@ -20,7 +20,9 @@ function Faucet(): JSX.Element {
   const { wallet, connected } = useWallet();
   const [tokensLoaded, setTokensLoaded] = useState<boolean>(false);
   const [availableTokens, setAvailableTokens] = useState<TokenSymbol[]>([]);
-  const [mintStatuses, setMintStatuses] = useState<TokenMintStatuses>({} as TokenMintStatuses);
+  const [mintStatuses, setMintStatuses] = useState<TokenMintStatuses>(
+    {} as TokenMintStatuses,
+  );
 
   // Initialize tokens and set up available tokens list
   useEffect(() => {
@@ -29,7 +31,7 @@ function Faucet(): JSX.Element {
         await initializeTokenConfig();
         const tokenSymbols = Object.keys(TOKENS) as TokenSymbol[];
         setAvailableTokens(tokenSymbols);
-        
+
         // Initialize mint statuses for each token
         const initialStatuses: TokenMintStatuses = {} as TokenMintStatuses;
         for (const symbol of tokenSymbols) {
@@ -40,7 +42,7 @@ function Faucet(): JSX.Element {
           };
         }
         setMintStatuses(initialStatuses);
-        
+
         setTokensLoaded(true);
         console.log('Available tokens for faucet:', tokenSymbols);
       } catch (error) {
@@ -54,7 +56,7 @@ function Faucet(): JSX.Element {
 
   const updateMintStatus = useCallback((
     tokenSymbol: TokenSymbol,
-    updates: Partial<MintStatus>
+    updates: Partial<MintStatus>,
   ): void => {
     setMintStatuses(prev => ({
       ...prev,
@@ -91,7 +93,7 @@ function Faucet(): JSX.Element {
 
     try {
       const result = await mintFromFaucet(accountId, faucetId);
-      
+
       updateMintStatus(tokenSymbol, {
         isLoading: false,
         lastResult: result,
@@ -107,7 +109,7 @@ function Faucet(): JSX.Element {
       }
     } catch (error) {
       console.error(`💥 Mint request failed for ${tokenSymbol}:`, error);
-      
+
       updateMintStatus(tokenSymbol, {
         isLoading: false,
         lastResult: {
@@ -120,17 +122,17 @@ function Faucet(): JSX.Element {
 
   const getStatusIcon = (status: MintStatus): React.ReactNode => {
     if (status.isLoading) {
-      return <Loader2 className="w-4 h-4 animate-spin text-blue-500" />;
+      return <Loader2 className='w-4 h-4 animate-spin text-blue-500' />;
     }
-    
+
     if (!status.lastResult) {
       return null;
     }
-    
+
     if (status.lastResult.success) {
-      return <CheckCircle className="w-4 h-4 text-green-500" />;
+      return <CheckCircle className='w-4 h-4 text-green-500' />;
     } else {
-      return <XCircle className="w-4 h-4 text-red-500" />;
+      return <XCircle className='w-4 h-4 text-red-500' />;
     }
   };
 
@@ -138,7 +140,7 @@ function Faucet(): JSX.Element {
     if (status.isLoading) {
       return `Minting ${tokenSymbol}...`;
     }
-    
+
     return `Request ${tokenSymbol}`;
   };
 
@@ -149,11 +151,11 @@ function Faucet(): JSX.Element {
   // Show loading state while tokens are being fetched
   if (!tokensLoaded) {
     return (
-      <div className="min-h-screen bg-background text-foreground flex flex-col">
+      <div className='min-h-screen bg-background text-foreground flex flex-col'>
         <Header />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="flex items-center gap-2">
-            <Loader2 className="w-5 h-5 animate-spin" />
+        <main className='flex-1 flex items-center justify-center'>
+          <div className='flex items-center gap-2'>
+            <Loader2 className='w-5 h-5 animate-spin' />
             <span>Loading faucet configuration...</span>
           </div>
         </main>
@@ -164,11 +166,11 @@ function Faucet(): JSX.Element {
   // Show error state if no tokens are available
   if (availableTokens.length === 0) {
     return (
-      <div className="min-h-screen bg-background text-foreground flex flex-col">
+      <div className='min-h-screen bg-background text-foreground flex flex-col'>
         <Header />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-4">
-            <div className="text-destructive">No faucets available</div>
+        <main className='flex-1 flex items-center justify-center'>
+          <div className='text-center space-y-4'>
+            <div className='text-destructive'>No faucets available</div>
             <Button onClick={() => window.location.reload()}>
               Retry
             </Button>
@@ -179,17 +181,16 @@ function Faucet(): JSX.Element {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className='min-h-screen bg-background text-foreground flex flex-col'>
       <Header />
-      
-      <main className="flex-1 flex items-center justify-center p-3 sm:p-4">
-        <div className="w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6">
-          
+
+      <main className='flex-1 flex items-center justify-center p-3 sm:p-4'>
+        <div className='w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6'>
           {/* Connection Status */}
           {!connected && (
-            <Card className="rounded-xl border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20">
-              <CardContent className="p-4 text-center">
-                <div className="text-amber-800 dark:text-amber-200 text-sm">
+            <Card className='rounded-xl border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20'>
+              <CardContent className='p-4 text-center'>
+                <div className='text-amber-800 dark:text-amber-200 text-sm'>
                   Connect your wallet to request test tokens
                 </div>
               </CardContent>
@@ -197,55 +198,64 @@ function Faucet(): JSX.Element {
           )}
 
           {/* Faucet Cards */}
-          <div className="space-y-4">
+          <div className='space-y-4'>
             {availableTokens.map((tokenSymbol) => {
               const token = TOKENS[tokenSymbol];
               const status = mintStatuses[tokenSymbol];
-              
+
               if (!token || !status) return null;
 
               return (
-                <Card key={tokenSymbol} className="rounded-xl hover:shadow-lg transition-all duration-200">
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="flex items-center gap-4 mb-4">
-                      <img 
-                        src={token.icon} 
-                        alt={token.name} 
+                <Card
+                  key={tokenSymbol}
+                  className='rounded-xl hover:shadow-lg transition-all duration-200'
+                >
+                  <CardContent className='p-4 sm:p-6'>
+                    <div className='flex items-center gap-4 mb-4'>
+                      <img
+                        src={token.icon}
+                        alt={token.name}
                         className={`w-10 h-10 sm:w-12 sm:h-12 ${token.iconClass || ''}`}
                       />
-                      <div className="flex-1">
-                        <h3 className="text-lg sm:text-xl font-semibold">Test {token.name}</h3>
-                        <div className="text-xs text-muted-foreground font-mono">
+                      <div className='flex-1'>
+                        <h3 className='text-lg sm:text-xl font-semibold'>
+                          Test {token.name}
+                        </h3>
+                        <div className='text-xs text-muted-foreground font-mono'>
                           {token.faucetId}
                         </div>
                       </div>
                       {getStatusIcon(status)}
                     </div>
-                    
-                    <div className="space-y-3">
+
+                    <div className='space-y-3'>
                       {/* Status Message */}
                       {status.lastResult && (
-                        <div className={`text-xs p-2 rounded-md ${
-                          status.lastResult.success 
-                            ? 'bg-green-50 text-green-800 dark:bg-green-950/20 dark:text-green-200' 
-                            : 'bg-red-50 text-red-800 dark:bg-red-950/20 dark:text-red-200'
-                        }`}>
+                        <div
+                          className={`text-xs p-2 rounded-md ${
+                            status.lastResult.success
+                              ? 'bg-green-50 text-green-800 dark:bg-green-950/20 dark:text-green-200'
+                              : 'bg-red-50 text-red-800 dark:bg-red-950/20 dark:text-red-200'
+                          }`}
+                        >
                           {status.lastResult.message}
                           {status.lastResult.transactionId && (
-                            <div className="mt-1 font-mono text-xs opacity-75">
+                            <div className='mt-1 font-mono text-xs opacity-75'>
                               TX: {status.lastResult.transactionId}
                             </div>
                           )}
                         </div>
                       )}
-                      
-                      <Button 
+
+                      <Button
                         onClick={() => requestTokens(tokenSymbol)}
                         disabled={isButtonDisabled(status)}
-                        className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        variant="ghost"
+                        className='w-full bg-blue-500 hover:bg-blue-600 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+                        variant='ghost'
                       >
-                        {status.isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                        {status.isLoading && (
+                          <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                        )}
                         {getButtonText(tokenSymbol, status)}
                       </Button>
                     </div>
@@ -256,12 +266,12 @@ function Faucet(): JSX.Element {
           </div>
 
           {/* Back to App */}
-          <div className="text-center">
-            <Link to="/">
+          <div className='text-center'>
+            <Link to='/'>
               <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors"
+                variant='ghost'
+                size='sm'
+                className='text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors'
               >
                 ← Back to Zoro AMM
               </Button>
