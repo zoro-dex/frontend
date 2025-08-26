@@ -126,24 +126,20 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<SwapR
     const p2idTag = NoteTag.fromAccountId(userAddress).asU32();
 
     // Following the pattern: [asset_id_prefix, asset_id_suffix, 0, min_amount_out]
-    const requestedAssetFelts: Felt[] = [
-      buyFaucetId.prefix(), // Felt 0: Asset ID prefix
-      buyFaucetId.suffix(), // Felt 1: Asset ID suffix
-      new Felt(BigInt(0)), // Felt 2: Always 0
-      new Felt(buyAmountBigInt), // Felt 3: Min amount out
-    ];
-
     const inputs = new NoteInputs(
       new FeltArray([
-        ...requestedAssetFelts, // Felts 0-3: requested asset word
-        new Felt(BigInt(deadline)), // deadline
-        new Felt(BigInt(p2idTag)), // p2id_tag
+        new Felt(buyAmountBigInt),
+        new Felt(BigInt(0)),
+        buyFaucetId.suffix(),
+        buyFaucetId.prefix(),
+        new Felt(BigInt(deadline)),
+        new Felt(BigInt(p2idTag)),
         new Felt(BigInt(0)),
         new Felt(BigInt(0)),
         new Felt(BigInt(0)),
         new Felt(BigInt(0)),
-        userAddress.suffix(), // creator_prefix - using AccountId directly
-        userAddress.prefix(), // creator_suffix - using AccountId directly
+        userAddress.suffix(),
+        userAddress.prefix(),
       ]),
     );
 
