@@ -1,4 +1,4 @@
-import { NETWORK, poolAccountId, TOKENS, type TokenSymbol } from '@/lib/config';
+import { poolAccountId, TOKENS, type TokenSymbol } from '@/lib/config';
 import {
   AccountId,
   Felt,
@@ -15,7 +15,6 @@ import {
   OutputNote,
   OutputNotesArray,
   TransactionRequestBuilder,
-  WebClient,
   Word,
 } from '@demox-labs/miden-sdk';
 import {
@@ -25,11 +24,11 @@ import {
   type Wallet,
 } from '@demox-labs/miden-wallet-adapter';
 import { Buffer } from 'buffer';
+import { midenClientService } from '@/lib/client';
 
 window.Buffer = Buffer;
 
 // @ts-ignore - MASM files are treated as raw text
-import { config } from 'process';
 import ZOROSWAP_SCRIPT from './ZOROSWAP.masm?raw';
 
 export interface SwapParams {
@@ -66,14 +65,11 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<SwapR
       `Token configuration not found for ${swapParams.sellToken} or ${swapParams.buyToken}`,
     );
   }
-  // Create fresh client for this operation - don't reuse clients!
-  const client = await WebClient.createClient(NETWORK.rpcEndpoint);
 
   try {
-    // ── Initial sync to ensure client is connected to blockchain ──────────────────
-    console.log('🔄 Initial sync to blockchain...');
-    await client.syncState();
-    console.log('✅ Initial sync complete');
+    // ── Use single client service ──────────────
+    const client = await midenClientService.getClient();
+    await midenClientService.ensureSynced();
 
     // Use the faucet IDs from the token configuration
     const sellFaucetId = AccountId.fromBech32(sellTokenConfig.faucetId);
@@ -149,26 +145,10 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<SwapR
     );
 
     const noteId = note.id().toString();
-    console.log('📝 Created note:', note);
-    console.log('💱 Swap details:', {
-      sellToken: swapParams.sellToken,
-      buyToken: swapParams.buyToken,
-      sellAmount: swapParams.sellAmount,
-      buyAmount: swapParams.buyAmount,
-      sellFaucetId: sellTokenConfig.faucetId,
-      buyFaucetId: buyTokenConfig.faucetId,
-      sellDecimals: sellTokenConfig.decimals,
-      buyDecimals: buyTokenConfig.decimals,
-      sellAmountBigInt: sellAmountBigInt.toString(),
-      buyAmountBigInt: buyAmountBigInt.toString(),
-      noteId,
-    });
 
     let transactionRequest = new TransactionRequestBuilder()
       .withOwnOutputNotes(new OutputNotesArray([OutputNote.full(note)]))
       .build();
-
-    console.log('📄 TransactionRequest:', transactionRequest);
 
     const tx = new CustomTransaction(
       swapParams.wallet?.adapter.accountId ?? '', // creatorID
@@ -177,31 +157,27 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<SwapR
       [],
     );
 
-    console.log('💳 Tx:', tx);
-
     // Submit transaction and get transaction ID
     const txId = await swapParams.requestTransaction({
       type: TransactionType.Custom,
       payload: tx,
     });
 
-    console.log('🚀 Transaction submitted with ID:', txId);
-
-    console.log('⏳ Syncing state after transaction submission...');
-    await client.syncState();
+    // Use client service for post-transaction sync
+    await midenClientService.ensureSynced(true); // Force sync after transaction
 
     return {
       txId,
       noteId,
     };
   } catch (error) {
-    console.error('❌ ZoroSwap note creation failed:', error);
+    console.error('ZoroSwap note creation failed:', error);
     throw error;
   }
+}
 
   // async function submitNoteToServer(serializedNote: string): Promise<void> {
   //   try {
-  //     console.log('📡 Submitting note to server...');
   //     const response = await fetch(`${API.endpoint}/orders/submit`, {
   //       method: 'POST',
   //       headers: {
@@ -219,10 +195,9 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<SwapR
   //     }
 
   //     const result = await response.json();
-  //     console.log('✅ Note submitted to server:', result);
+  //     console.log('Note submitted to server:', result);
   //   } catch (error) {
-  //     console.error('❌ Failed to submit note to server:', error);
+  //     console.error('Failed to submit note to server:', error);
   //     throw error;
   //   }
   // }
-}

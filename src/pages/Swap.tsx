@@ -11,6 +11,7 @@ import {
   type TokenSymbol,
   UI,
 } from '@/lib/config';
+import { midenClientService } from '@/lib/client';
 import { AccountId } from '@demox-labs/miden-sdk';
 import { useWallet, WalletMultiButton } from '@demox-labs/miden-wallet-adapter';
 import { ArrowUpDown, Info, Loader2, Settings, X } from 'lucide-react';
@@ -24,7 +25,6 @@ type TabType = 'Swap' | 'Limit';
 interface BalanceValidationState {
   readonly hasInsufficientBalance: boolean;
   readonly isBalanceLoaded: boolean;
-  readonly isOptimistic: boolean;
 }
 
 interface PriceFetcherProps {
@@ -62,13 +62,12 @@ const calculateMinAmountOut = (buyAmount: string, slippagePercent: number): stri
 };
 
 /**
- * Enhanced balance validation with optimistic support
+ * Simple balance validation - no optimistic complexity
  */
 const getBalanceValidation = (
   sellAmount: string,
   balance: bigint | null,
   tokenSymbol: TokenSymbol,
-  isOptimistic: boolean = false,
 ): BalanceValidationState => {
   const sellAmountNum = parseFloat(sellAmount);
 
@@ -77,16 +76,14 @@ const getBalanceValidation = (
     return {
       hasInsufficientBalance: false,
       isBalanceLoaded: balance !== null,
-      isOptimistic,
     };
   }
 
   // If balance not loaded yet, assume it's sufficient (let user try)
   if (balance === null) {
     return {
-      hasInsufficientBalance: false, // Allow swap attempt
+      hasInsufficientBalance: false,
       isBalanceLoaded: false,
-      isOptimistic,
     };
   }
 
@@ -96,7 +93,6 @@ const getBalanceValidation = (
     return {
       hasInsufficientBalance: false,
       isBalanceLoaded: false,
-      isOptimistic,
     };
   }
 
@@ -107,7 +103,6 @@ const getBalanceValidation = (
   return {
     hasInsufficientBalance: sellAmountBigInt > balance,
     isBalanceLoaded: true,
-    isOptimistic,
   };
 };
 
@@ -301,7 +296,7 @@ const calculateUsdValue = (amount: string, priceUsd: number): string => {
 };
 
 /**
- * Custom hook for auto-refetching data every 10 seconds
+ * Simple auto-refetch hook - no optimistic complexity
  */
 const useAutoRefetch = (
   refreshCallback: () => Promise<void>,
@@ -416,17 +411,16 @@ function Swap() {
       : undefined,
   }), [stableUserAccountId, buyToken]);
 
-  // Sell token balance hook
+  // Simple balance hooks - no optimistic updates
   const {
     balance: sellBalance,
-    isOptimistic: sellIsOptimistic,
+    isLoading: sellBalanceLoading,
     refreshBalance: refreshSellBalance,
-    applyOptimisticUpdate: applySellOptimisticUpdate,
   } = useBalance(sellBalanceParams);
 
-  // Buy token balance hook (read-only)
   const {
     balance: buyBalance,
+    isLoading: buyBalanceLoading,
     refreshBalance: refreshBuyBalance,
   } = useBalance(buyBalanceParams);
 
@@ -493,32 +487,33 @@ function Swap() {
     pricesRef.current = prices;
   }, [prices]);
 
-  // AUTO-REFETCH: Prices and Balance every 10 seconds (background sync)
+  // Simple auto-refetch: prices and balances together every 10 seconds
   const autoRefetchCallback = useCallback(async () => {
     // Only refetch if we have tokens loaded and are connected
     if (!tokensLoaded || !connected || assetIds.length === 0) {
       return;
     }
 
-    // Background sync - don't block UI, just update data silently
-    await Promise.all([
+    console.log('🔄 Auto-refreshing prices and balances...');
+
+    // Refresh prices and ALL balances together
+    await Promise.allSettled([
+      // Refresh prices
       refreshPrices(assetIds, true).catch(err =>
         console.warn('Background price refresh failed:', err)
       ),
-      refreshSellBalance().catch(err =>
-        console.warn('Background sell balance refresh failed:', err)
-      ),
-      refreshBuyBalance().catch(err =>
-        console.warn('Background buy balance refresh failed:', err)
+      // Refresh all balances in one go
+      midenClientService.refreshAllBalances().catch(err =>
+        console.warn('Background balance refresh failed:', err)
       ),
     ]);
+
+    console.log('✅ Auto-refresh completed');
   }, [
     tokensLoaded,
     connected,
     assetIds,
     refreshPrices,
-    refreshSellBalance,
-    refreshBuyBalance,
   ]);
 
   // Enable auto-refetch when tokens are loaded and wallet is connected
@@ -530,17 +525,16 @@ function Swap() {
     autoRefetchEnabled,
   );
 
-  // Enhanced balance validation with optimistic support
+  // Simple balance validation - no optimistic complexity
   const balanceValidation = useMemo(() => {
     if (!sellToken) {
       return {
         hasInsufficientBalance: false,
         isBalanceLoaded: false,
-        isOptimistic: false,
       };
     }
-    return getBalanceValidation(sellAmount, sellBalance, sellToken, sellIsOptimistic);
-  }, [sellAmount, sellBalance, sellToken, sellIsOptimistic]);
+    return getBalanceValidation(sellAmount, sellBalance, sellToken);
+  }, [sellAmount, sellBalance, sellToken]);
 
   const formattedSellBalance = useMemo(() => {
     if (!sellToken || sellBalance === null) return '0';
@@ -646,8 +640,13 @@ function Swap() {
     return buyPrice ? calculateUsdValue('1', buyPrice.value) : '';
   }, [tokenData.buyPrice]);
 
-  // Enhanced canSwap calculation - doesn't block on balance loading
+  // Simple canSwap calculation - accounts for loading states
   const canSwap: boolean = useMemo(() => {
+    // Don't allow swap while balances are loading
+    if (sellBalanceLoading || buyBalanceLoading || isSwappingTokens) {
+      return false;
+    }
+
     // Basic validation first
     const hasValidAmounts = Boolean(
       sellAmount
@@ -682,6 +681,9 @@ function Swap() {
     tokensLoaded,
     balanceValidation.hasInsufficientBalance,
     balanceValidation.isBalanceLoaded,
+    sellBalanceLoading,
+    buyBalanceLoading,
+    isSwappingTokens,
   ]);
 
   // Debounced input handlers - prevent immediate re-renders
@@ -751,28 +753,50 @@ function Swap() {
   const handleReplaceTokens = useCallback((): void => {
     if (!sellToken || !buyToken) return;
 
+    console.log('🔄 Swapping tokens:', { 
+      from: `${sellToken} → ${buyToken}`, 
+      to: `${buyToken} → ${sellToken}` 
+    });
+
     setIsSwappingTokens(true);
 
+    // Store the swapped values
     const newSellToken = buyToken;
     const newBuyToken = sellToken;
     const newSellAmount = buyAmount;
     const newBuyAmount = sellAmount;
     const newLastEditedField = lastEditedField === 'sell' ? 'buy' : 'sell';
 
+    // Update all states atomically
     setSellToken(newSellToken);
     setBuyToken(newBuyToken);
     setSellAmount(newSellAmount);
     setBuyAmount(newBuyAmount);
     setLastEditedField(newLastEditedField);
 
-    setTimeout(() => {
-      setIsSwappingTokens(false);
-      if (sellInputRef.current) {
-        sellInputRef.current.focus();
+    // Force refresh balances after token swap to ensure immediate update
+    setTimeout(async () => {
+      try {
+        // Force refresh all balances to ensure new token balances load immediately
+        await midenClientService.refreshAllBalances();
+        console.log('✅ Balances refreshed after token swap');
+      } catch (error) {
+        console.error('❌ Failed to refresh balances after token swap:', error);
+      } finally {
+        setIsSwappingTokens(false);
+        if (sellInputRef.current) {
+          sellInputRef.current.focus();
+        }
       }
-    }, 0);
+      
+      console.log('✅ Token swap completed:', { 
+        newSell: newSellToken, 
+        newBuy: newBuyToken 
+      });
+    }, 100); // Slightly longer timeout to ensure React updates
   }, [buyToken, sellToken, buyAmount, sellAmount, lastEditedField]);
 
+  // Simple swap handler - no optimistic updates
   const handleSwap = useCallback(async (): Promise<void> => {
     if (!connected || !stableUserAccountId || !sellToken || !buyToken) {
       return;
@@ -810,19 +834,12 @@ function Swap() {
       userAccountId: stableUserAccountId,
     });
 
-    // Apply optimistic update immediately for better UX
-    if (sellToken && TOKENS[sellToken]) {
-      const sellAmountBigInt = BigInt(
-        Math.floor(sellAmountNum * Math.pow(10, TOKENS[sellToken].decimals)),
-      );
-      applySellOptimisticUpdate(-sellAmountBigInt); // Subtract the amount being swapped
-    }
-
-    // Background refresh to ensure latest state
+    // Refresh data before swap to ensure we have latest state
     await Promise.all([
       refreshPrices(assetIds, true),
-      refreshSellBalance(),
+      midenClientService.refreshAllBalances(),
     ]);
+
     setIsCreatingNote(true);
 
     try {
@@ -843,18 +860,21 @@ function Swap() {
         noteId: result.noteId,
       });
 
-      // Clear form after successful swap
+      // Clear form and refresh data after successful swap
       setSellAmount('');
       setBuyAmount('');
+      
+      // Refresh balances after swap - no optimistic updates needed
+      setTimeout(() => {
+        Promise.all([
+          refreshSellBalance(),
+          refreshBuyBalance(),
+          midenClientService.refreshAllBalances()
+        ]);
+      }, 3000); // Give blockchain time to process
+
     } catch (error) {
       console.error('💥 Swap note creation failed:', error);
-      // Revert optimistic update on failure
-      if (sellToken && TOKENS[sellToken]) {
-        const sellAmountBigInt = BigInt(
-          Math.floor(sellAmountNum * Math.pow(10, TOKENS[sellToken].decimals)),
-        );
-        applySellOptimisticUpdate(sellAmountBigInt); // Add back the amount
-      }
     } finally {
       setIsCreatingNote(false);
     }
@@ -870,8 +890,8 @@ function Swap() {
     requestTransaction,
     refreshPrices,
     assetIds,
-    applySellOptimisticUpdate,
     refreshSellBalance,
+    refreshBuyBalance,
   ]);
 
   const handleTabChange = useCallback((tab: TabType) => {
@@ -1020,25 +1040,21 @@ function Swap() {
                       </Button>
                     </div>
 
-                    {/* Enhanced USD Value Display with optimistic indicators */}
+                    {/* Simple USD value and balance display */}
                     <div className='flex items-center justify-between text-xs text-muted-foreground h-5'>
                       <div>{sellUsdValue || priceFor1}</div>
                       <div className='flex items-center gap-1'>
                         <button
                           onClick={handleMaxClick}
                           disabled={sellBalance === null || sellBalance === BigInt(0)}
-                          className={`hover:text-foreground transition-colors cursor-pointer mr-1 dark:text-green-100 dark:hover:text-green-200 ${
+                          className={`hover:text-foreground transition-colors cursor-pointer mr-1 ${
                             balanceValidation.isBalanceLoaded
                               && balanceValidation.hasInsufficientBalance
                               ? 'text-orange-600 hover:text-destructive'
-                              : ''
-                          }`}
+                              : 'dark:text-green-100 dark:hover:text-green-200'
+                          } ${sellBalanceLoading ? 'animate-pulse' : ''}`}
                         >
-                          {/* Enhanced balance display with optimistic indicators */}
-                          {balanceValidation.isBalanceLoaded
-                            && balanceValidation.hasInsufficientBalance}
-                          {!balanceValidation.isBalanceLoaded && sellAmount && '⏳ '}
-                          {balanceValidation.isOptimistic && '✨ '}
+                          {sellBalanceLoading && '⏳ '}
                           {formattedSellBalance || 'Loading...'} {sellToken}
                         </button>
                       </div>
@@ -1098,9 +1114,10 @@ function Swap() {
                       <div>
                         {buyUsdValue || priceFor1Buy}
                       </div>
-                      {/* Only show buy token balance if it's greater than 0 */}
+                      {/* Show buy token balance if available */}
                       {buyBalance !== null && buyBalance > BigInt(0) && (
-                        <div>
+                        <div className={buyBalanceLoading ? 'animate-pulse' : ''}>
+                          {buyBalanceLoading && '⏳ '}
                           {formattedBuyBalance} {buyToken}
                         </div>
                       )}
@@ -1143,13 +1160,15 @@ function Swap() {
                             ? 'Select different tokens'
                             : 'Enter amount'
                         )
+                        : sellBalanceLoading || buyBalanceLoading
+                        ? (
+                          <>
+                            <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                            Loading balances...
+                          </>
+                        )
                         : (
-                          // Enhanced button text with optimistic indicators
-                          !balanceValidation.isBalanceLoaded && sellAmount
-                            ? `Swap (balance loading...)`
-                            : balanceValidation.isOptimistic
-                            ? `Swap ✨`
-                            : 'Swap'
+                          'Swap'
                         )}
                     </Button>
                   )
