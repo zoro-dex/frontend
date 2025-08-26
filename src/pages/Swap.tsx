@@ -1026,15 +1026,18 @@ function Swap() {
                           onClick={handleMaxClick}
                           disabled={sellBalance === null || sellBalance === BigInt(0)}
                           className={`hover:text-foreground transition-colors cursor-pointer mr-1 ${
-                            balanceValidation.isBalanceLoaded
-                              && balanceValidation.hasInsufficientBalance
-                              ? 'text-orange-600 hover:text-destructive'
-                              : 'dark:text-green-100 dark:hover:text-green-200'
-                          } ${sellBalanceLoading ? 'animate-pulse' : ''}`}
-                        >
-                          {sellBalanceLoading && '⏳ '}
-                          {formattedSellBalance || 'Loading...'} {sellToken}
-                        </button>
+                            sellBalanceLoading
+                              ? 'animate-pulse text-yellow-100'
+                              :
+                                balanceValidation.isBalanceLoaded
+                                && balanceValidation.hasInsufficientBalance
+                                ? 'text-orange-600 hover:text-destructive'
+                                : 'dark:text-green-100 dark:hover:text-green-200'
+                            } ${sellBalanceLoading ? 'animate-pulse' : ''}`}
+                          >
+                            {sellBalanceLoading}
+                            {formattedSellBalance || 'Loading...'} {sellToken}
+                          </button>
                       </div>
                     </div>
                   </CardContent>
