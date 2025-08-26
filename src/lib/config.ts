@@ -204,7 +204,7 @@ export function getAssetIds(): readonly string[] {
 
 export function getSupportedAssetIds(): Record<string, string> {
   return Object.fromEntries(
-    Object.entries(TOKENS).map(([key, token]) => [token.priceId, `${token.symbol}/USD`]),
+    Object.entries(TOKENS).map(([_key, token]) => [token.priceId, `${token.symbol}/USD`]),
   );
 }
 

@@ -1,6 +1,6 @@
 import { type AccountId } from '@demox-labs/miden-sdk';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useWalletEventTracker } from '@/hooks/useWalletEvents';
+import { useWalletEventTracker } from './useWalletEvents';
 import { midenClientService } from '@/lib/client';
 
 interface BalanceParams {
@@ -33,25 +33,47 @@ export const useBalance = (
     if (!accountId || !faucetId) {
       setBalance(null);
       setLastUpdated(0);
+      setIsLoading(false);
       return;
     }
+
+    console.log('🔄 Refreshing balance for:', {
+      account: accountId.toBech32(),
+      faucet: faucetId.toBech32()
+    });
 
     setIsLoading(true);
     
     try {
-      const result = await midenClientService.getBalance(accountId, faucetId, false);
+      // Add timeout to prevent infinite loading
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Balance fetch timeout')), 15000); // 15 second timeout
+      });
+      
+      const balancePromise = midenClientService.getBalance(accountId, faucetId, false);
+      
+      // Race between balance fetch and timeout
+      const result = await Promise.race([balancePromise, timeoutPromise]);
+      
       setBalance(result.balance);
       setLastUpdated(result.lastUpdated);
       
-      console.log('🔄 Balance refreshed:', {
+      console.log('✅ Balance refresh completed:', {
         account: accountId.toBech32(),
         faucet: faucetId.toBech32(), 
         balance: result.balance.toString(),
       });
       
     } catch (error) {
-      console.error('❌ Failed to refresh balance:', error);
-      // Don't clear existing balance on error - keep showing last known value
+      console.error('❌ Failed to refresh balance:', {
+        account: accountId.toBech32(),
+        faucet: faucetId.toBech32(),
+        error: error instanceof Error ? error.message : error
+      });
+      
+      // Set balance to 0 instead of null so UI shows "0 TOKEN" instead of "Loading..."
+      setBalance(BigInt(0));
+      setLastUpdated(Date.now());
     } finally {
       setIsLoading(false);
     }
@@ -132,20 +154,34 @@ export const useBalance = (
       try {
         console.log('📥 Loading initial balance for:', {
           account: accountId.toBech32(),
-          faucet: faucetId.toBech32()
+          faucet: faucetId.toBech32(),
+          timestamp: new Date().toISOString()
         });
         
-        const result = await midenClientService.getBalance(accountId, faucetId, true);
+        // Add timeout here too
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Initial balance load timeout')), 15000);
+        });
+        
+        const balancePromise = midenClientService.getBalance(accountId, faucetId, true);
+        const result = await Promise.race([balancePromise, timeoutPromise]);
+        
         setBalance(result.balance);
         setLastUpdated(result.lastUpdated);
         
         console.log('✅ Initial balance loaded:', {
           account: accountId.toBech32(),
           faucet: faucetId.toBech32(),
-          balance: result.balance.toString()
+          balance: result.balance.toString(),
+          timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('❌ Failed to load initial balance:', error);
+        console.error('❌ Failed to load initial balance:', {
+          account: accountId.toBech32(),
+          faucet: faucetId.toBech32(),
+          error: error instanceof Error ? error.message : error,
+          timestamp: new Date().toISOString()
+        });
         setBalance(BigInt(0)); // Set to 0 instead of null to show "no balance"
         setLastUpdated(0);
       } finally {
