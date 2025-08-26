@@ -209,14 +209,14 @@ function SwapSettings({ slippage, onSlippageChange }: SwapSettingsProps) {
                 
                 {/* Conditional Warnings */}
                 {slippage > 5 && (
-                  <div className="text-xs text-destructive text-center">
-                    ⚠️ High slippage risk
+                  <div className="text-xs text-orange-600 text-center">
+                    High slippage risk
                   </div>
                 )}
                 
                 {slippage < 0.1 && slippage > 0 && (
                   <div className="text-xs text-amber-500 text-center">
-                    ⚡ May fail due to low slippage
+                    May fail due to low slippage
                   </div>
                 )}
               </div>
@@ -313,7 +313,7 @@ const useAutoRefetch = (
     try {
       isRefetching.current = true;
       await refreshCallback();
-      console.log('🔄 Auto-refetch completed:', new Date().toLocaleTimeString());
+      console.log('🔄 Auto-refetch completed:', new Date().toLocaleTimeString());  
     } catch (error) {
       console.error('❌ Auto-refetch failed:', error);
     } finally {
@@ -396,18 +396,31 @@ function Swap() {
     return wallet?.adapter?.accountId;
   }, [wallet?.adapter?.accountId]);
 
-  // Use optimistic balance hook instead of regular balance hook
-  const balanceParams = useMemo(() => ({
+  // Sell token balance parameters
+  const sellBalanceParams = useMemo(() => ({
     accountId: stableUserAccountId ? AccountId.fromBech32(stableUserAccountId) : null,
     faucetId: sellToken && TOKENS[sellToken] ? AccountId.fromBech32(TOKENS[sellToken].faucetId) : undefined,
   }), [stableUserAccountId, sellToken]);
 
+  // Buy token balance parameters
+  const buyBalanceParams = useMemo(() => ({
+    accountId: stableUserAccountId ? AccountId.fromBech32(stableUserAccountId) : null,
+    faucetId: buyToken && TOKENS[buyToken] ? AccountId.fromBech32(TOKENS[buyToken].faucetId) : undefined,
+  }), [stableUserAccountId, buyToken]);
+
+  // Sell token balance hook
   const { 
-    balance, 
-    isOptimistic, 
-    refreshBalance, 
-    applyOptimisticUpdate 
-  } = useBalance(balanceParams);
+    balance: sellBalance, 
+    isOptimistic: sellIsOptimistic, 
+    refreshBalance: refreshSellBalance, 
+    applyOptimisticUpdate: applySellOptimisticUpdate 
+  } = useBalance(sellBalanceParams);
+
+  // Buy token balance hook (read-only)
+  const { 
+    balance: buyBalance, 
+    refreshBalance: refreshBuyBalance
+  } = useBalance(buyBalanceParams);
 
   // Initialize tokens on mount ONLY
   useEffect(() => {
@@ -484,11 +497,14 @@ function Swap() {
       refreshPrices(assetIds, true).catch(err => 
         console.warn('Background price refresh failed:', err)
       ),
-      refreshBalance().catch(err => 
-        console.warn('Background balance refresh failed:', err)
+      refreshSellBalance().catch(err => 
+        console.warn('Background sell balance refresh failed:', err)
+      ),
+      refreshBuyBalance().catch(err => 
+        console.warn('Background buy balance refresh failed:', err)
       )
     ]);
-  }, [tokensLoaded, connected, assetIds, refreshPrices, refreshBalance]);
+  }, [tokensLoaded, connected, assetIds, refreshPrices, refreshSellBalance, refreshBuyBalance]);
 
   // Enable auto-refetch when tokens are loaded and wallet is connected
   const autoRefetchEnabled = tokensLoaded && connected && assetIds.length > 0;
@@ -506,13 +522,18 @@ function Swap() {
       isBalanceLoaded: false, 
       isOptimistic: false 
     };
-    return getBalanceValidation(sellAmount, balance, sellToken, isOptimistic);
-  }, [sellAmount, balance, sellToken, isOptimistic]);
+    return getBalanceValidation(sellAmount, sellBalance, sellToken, sellIsOptimistic);
+  }, [sellAmount, sellBalance, sellToken, sellIsOptimistic]);
 
-  const formattedBalance = useMemo(() => {
-    if (!sellToken || balance === null) return "0";
-    return formatBalance(balance, sellToken);
-  }, [balance, sellToken]);
+  const formattedSellBalance = useMemo(() => {
+    if (!sellToken || sellBalance === null) return "0";
+    return formatBalance(sellBalance, sellToken);
+  }, [sellBalance, sellToken]);
+
+  const formattedBuyBalance = useMemo(() => {
+    if (!buyToken || buyBalance === null) return "0";
+    return formatBalance(buyBalance, buyToken);
+  }, [buyBalance, buyToken]);
 
   // Stabilized price calculation logic with empty deps
   const calculateAndSetPrice = useCallback((
@@ -593,6 +614,11 @@ function Swap() {
     const { sellPrice } = tokenData;
     return sellPrice ? calculateUsdValue("1", sellPrice.value) : "";
   }, [tokenData.sellPrice]);
+
+  const priceFor1Buy = useMemo(() => {
+    const { buyPrice } = tokenData;
+    return buyPrice ? calculateUsdValue("1", buyPrice.value) : "";
+  }, [tokenData.buyPrice]);
 
   const minAmountOut = useMemo(() => {
     return calculateMinAmountOut(buyAmount, slippage);
@@ -691,14 +717,14 @@ function Swap() {
   }, [fetchPrices]);
 
   const handleMaxClick = useCallback((): void => {
-    if (balance !== null && balance > BigInt(0) && sellToken) {
-      const maxAmount = balanceToDecimalString(balance, sellToken);
+    if (sellBalance !== null && sellBalance > BigInt(0) && sellToken) {
+      const maxAmount = balanceToDecimalString(sellBalance, sellToken);
       handleSellAmountChange(maxAmount);
       if (sellInputRef.current) {
         sellInputRef.current.focus();
       }
     }
-  }, [balance, sellToken, handleSellAmountChange]);
+  }, [sellBalance, sellToken, handleSellAmountChange]);
 
   const handleReplaceTokens = useCallback((): void => {
     if (!sellToken || !buyToken) return;
@@ -757,13 +783,13 @@ function Swap() {
     // Apply optimistic update immediately for better UX
     if (sellToken && TOKENS[sellToken]) {
       const sellAmountBigInt = BigInt(Math.floor(sellAmountNum * Math.pow(10, TOKENS[sellToken].decimals)));
-      applyOptimisticUpdate(-sellAmountBigInt); // Subtract the amount being swapped
+      applySellOptimisticUpdate(-sellAmountBigInt); // Subtract the amount being swapped
     }
     
     // Background refresh to ensure latest state
     await Promise.all([
       refreshPrices(assetIds, true),
-      refreshBalance()
+      refreshSellBalance()
     ]);
     setIsCreatingNote(true);
     
@@ -795,7 +821,7 @@ function Swap() {
       // Revert optimistic update on failure
       if (sellToken && TOKENS[sellToken]) {
         const sellAmountBigInt = BigInt(Math.floor(sellAmountNum * Math.pow(10, TOKENS[sellToken].decimals)));
-        applyOptimisticUpdate(sellAmountBigInt); // Add back the amount
+        applySellOptimisticUpdate(sellAmountBigInt); // Add back the amount
       }
     } finally {
       setIsCreatingNote(false);
@@ -812,8 +838,8 @@ function Swap() {
     requestTransaction, 
     refreshPrices, 
     assetIds,
-    applyOptimisticUpdate,
-    refreshBalance
+    applySellOptimisticUpdate,
+    refreshSellBalance
   ]);
 
   const handleTabChange = useCallback((tab: TabType) => {
@@ -875,7 +901,7 @@ function Swap() {
         <Header />
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-4">
-            <div className="text-destructive">Failed to load token configuration</div>
+            <div className="text-orange-600">Failed to load token configuration</div>
             <Button onClick={() => window.location.reload()}>
               Retry
             </Button>
@@ -937,7 +963,7 @@ function Swap() {
                         placeholder="0"
                         className={`border-none text-3xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner ${
                           balanceValidation.isBalanceLoaded && balanceValidation.hasInsufficientBalance 
-                            ? 'text-destructive placeholder:text-destructive/50' 
+                            ? 'text-orange-600 placeholder:text-destructive/50' 
                             : ''
                         }`}
                       />
@@ -965,20 +991,20 @@ function Swap() {
                       <div className="flex items-center gap-1">
                         <button 
                           onClick={handleMaxClick}
-                          disabled={balance === null || balance === BigInt(0)}
+                          disabled={sellBalance === null || sellBalance === BigInt(0)}
                           className={`hover:text-foreground transition-colors cursor-pointer mr-1 disabled:cursor-not-allowed disabled:opacity-50 ${
                             balanceValidation.isBalanceLoaded && balanceValidation.hasInsufficientBalance 
-                              ? 'text-destructive hover:text-destructive' 
+                              ? 'text-orange-600 hover:text-destructive' 
                               : ''
                           }`}
                         >
                           {/* Enhanced balance display with optimistic indicators */}
-                          {balanceValidation.isBalanceLoaded && balanceValidation.hasInsufficientBalance && '⚠️ '}
+                          {balanceValidation.isBalanceLoaded && balanceValidation.hasInsufficientBalance}
                           {!balanceValidation.isBalanceLoaded && sellAmount && '⏳ '}
                           {balanceValidation.isOptimistic && '✨ '}
-                          {formattedBalance || 'Loading...'} {sellToken}
+                          {formattedSellBalance || 'Loading...'} {sellToken}
                         </button>
-                        {balance !== null && balance > BigInt(0) && (
+                        {sellBalance !== null && sellBalance > BigInt(0) && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -1038,15 +1064,16 @@ function Swap() {
                       </Button>
                     </div>
                     
-                    {/* Min Amount Out Display */}
-                    <div className="flex items-center justify-center text-xs text-muted-foreground h-5">
-                      {buyAmount && minAmountOut && (
-                        <div className="text-amber-500">
-                          Min received: {minAmountOut} {buyToken}
+                    {/* Display buy token balance */}
+                    <div className="flex items-center justify-between text-xs text-muted-foreground h-5">
+                      <div>
+                        {buyUsdValue || priceFor1Buy}
+                      </div>
+                      {/* Only show buy token balance if it's greater than 0 */}
+                      {buyBalance !== null && buyBalance > BigInt(0) && (
+                        <div>
+                          {formattedBuyBalance} {buyToken}
                         </div>
-                      )}
-                      {!buyAmount && buyUsdValue && (
-                        <div className="text-green-500">{buyUsdValue}</div>
                       )}
                     </div>
                   </CardContent>
