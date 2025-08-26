@@ -91,9 +91,6 @@ const fetchNablaAntennaPrices = async (
           publish_time: feed.price.publish_time,
         };
         
-        // Log price updates to console for monitoring
-        console.log(`${assetName}: ${priceData.value.toFixed(2)}`);
-        
         return {
           ...allFeeds,
           [feed.id]: priceData,

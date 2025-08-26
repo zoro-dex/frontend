@@ -42,8 +42,6 @@ export const useWalletEventTracker = (handlers: WalletEventHandlers = {}) => {
 
     pendingTransactionsRef.current.set(txId, status);
     handlers.onTransactionStatusChange?.(status);
-
-    console.log('🔄 Transaction started:', { txId, noteId, timestamp: new Date().toISOString() });  
   }, [handlers]);
 
   // Set up wallet event listeners
@@ -53,24 +51,19 @@ export const useWalletEventTracker = (handlers: WalletEventHandlers = {}) => {
       return;
     }
 
-    console.log('🔌 Setting up wallet event listeners...');
-
     // Ready state change listener
     const handleReadyStateChange = (state: string) => {
-      console.log('📡 Wallet ready state changed:', state);
       handlers.onReadyStateChange?.(state);
     };
 
     // Connection listener
     const handleConnect = () => {
       const accountId = wallet.adapter.accountId;
-      console.log('🔗 Wallet connected:', accountId);
       handlers.onConnect?.(accountId || 'unknown');
     };
 
     // Disconnection listener
     const handleDisconnect = () => {
-      console.log('🔌 Wallet disconnected');
       // Clear pending transactions on disconnect
       pendingTransactionsRef.current.clear();
       handlers.onDisconnect?.();
@@ -78,7 +71,6 @@ export const useWalletEventTracker = (handlers: WalletEventHandlers = {}) => {
 
     // Error listener
     const handleError = (error: Error) => {
-      console.error('❌ Wallet error:', error);
       handlers.onError?.(error);
     };
 
@@ -109,9 +101,8 @@ export const useWalletEventTracker = (handlers: WalletEventHandlers = {}) => {
         removeErrorListener,
       ];
 
-      console.log('✅ Wallet event listeners registered');
     } catch (error) {
-      console.error('Failed to register wallet listeners:', error);
+      // Silent fail - event listeners are best effort
     }
 
     return cleanup;

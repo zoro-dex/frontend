@@ -138,7 +138,6 @@ export function buildTokenConfigFromPools(
     const iconConfig = TOKEN_ICONS[pool.symbol];
 
     if (!iconConfig) {
-      console.warn(`No icon configuration for pool symbol: ${pool.symbol} - skipping`);
       continue;
     }
 
@@ -179,13 +178,7 @@ export async function initializeTokenConfig(): Promise<void> {
 
     TOKENS = buildTokenConfigFromPools(supportedPools);
 
-    console.log('Initialized supported tokens from server:', {
-      total_pools: pools.length,
-      supported_tokens: Object.keys(TOKENS),
-      token_details: TOKENS,
-    });
   } catch (error) {
-    console.error('Failed to load tokens from server:', error);
     throw error; // Don't use fallback - fail fast if server is unavailable
   }
 }

@@ -35,8 +35,6 @@ export async function mintFromFaucet(
   };
 
   try {
-    console.log('🚰 Requesting mint:', request);
-    
     const response = await fetch('https://api.zoroswap.com/faucets/mint', {
       method: 'POST',
       headers: {
@@ -66,8 +64,6 @@ export async function mintFromFaucet(
     };
 
   } catch (error) {
-    console.error('❌ Faucet mint failed:', error);
-    
     if (error instanceof Error) {
       return {
         success: false,

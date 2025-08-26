@@ -37,11 +37,6 @@ export const useBalance = (
       return;
     }
 
-    console.log('🔄 Refreshing balance for:', {
-      account: accountId.toBech32(),
-      faucet: faucetId.toBech32()
-    });
-
     setIsLoading(true);
     
     try {
@@ -58,19 +53,7 @@ export const useBalance = (
       setBalance(result.balance);
       setLastUpdated(result.lastUpdated);
       
-      console.log('✅ Balance refresh completed:', {
-        account: accountId.toBech32(),
-        faucet: faucetId.toBech32(), 
-        balance: result.balance.toString(),
-      });
-      
     } catch (error) {
-      console.error('❌ Failed to refresh balance:', {
-        account: accountId.toBech32(),
-        faucet: faucetId.toBech32(),
-        error: error instanceof Error ? error.message : error
-      });
-      
       // Set balance to 0 instead of null so UI shows "0 TOKEN" instead of "Loading..."
       setBalance(BigInt(0));
       setLastUpdated(Date.now());
@@ -82,18 +65,15 @@ export const useBalance = (
   // Memoized wallet event handlers
   const walletEventHandlers = useMemo(() => ({
     onConnect: () => {
-      console.log('Wallet connected - refreshing balance');
       refreshBalance();
     },
     onDisconnect: () => {
-      console.log('Wallet disconnected - clearing balances');
       midenClientService.clearBalanceCaches();
       setBalance(null);
       setLastUpdated(0);
     },
     onTransactionStatusChange: (status: any) => {
       if (status.status === 'confirmed' || status.status === 'ready_to_claim') {
-        console.log('Transaction confirmed - refreshing all balances');
         // Refresh this specific balance and all others
         setTimeout(() => {
           Promise.all([
@@ -105,7 +85,6 @@ export const useBalance = (
     },
     onReadyStateChange: (state: string) => {
       if (state === 'Connected') {
-        console.log('Wallet ready - refreshing balance');
         refreshBalance();
       }
     },
@@ -128,21 +107,11 @@ export const useBalance = (
     setLastUpdated(0);
     setIsLoading(true);
 
-    console.log('🔄 Setting up balance subscription for:', {
-      account: accountId.toBech32(),
-      faucet: faucetId.toBech32()
-    });
-
     // Subscribe to real-time updates from service
     const unsubscribe = midenClientService.subscribeToBalanceUpdates(
       accountId,
       faucetId,
       (newBalance, newLastUpdated) => {
-        console.log('📊 Balance update received:', {
-          account: accountId.toBech32(),
-          faucet: faucetId.toBech32(),
-          balance: newBalance.toString()
-        });
         setBalance(newBalance);
         setLastUpdated(newLastUpdated);
         setIsLoading(false);
@@ -152,12 +121,6 @@ export const useBalance = (
     // Load initial balance immediately
     const loadInitialBalance = async () => {
       try {
-        console.log('📥 Loading initial balance for:', {
-          account: accountId.toBech32(),
-          faucet: faucetId.toBech32(),
-          timestamp: new Date().toISOString()
-        });
-        
         // Add timeout here too
         const timeoutPromise = new Promise<never>((_, reject) => {
           setTimeout(() => reject(new Error('Initial balance load timeout')), 15000);
@@ -169,19 +132,7 @@ export const useBalance = (
         setBalance(result.balance);
         setLastUpdated(result.lastUpdated);
         
-        console.log('✅ Initial balance loaded:', {
-          account: accountId.toBech32(),
-          faucet: faucetId.toBech32(),
-          balance: result.balance.toString(),
-          timestamp: new Date().toISOString()
-        });
       } catch (error) {
-        console.error('❌ Failed to load initial balance:', {
-          account: accountId.toBech32(),
-          faucet: faucetId.toBech32(),
-          error: error instanceof Error ? error.message : error,
-          timestamp: new Date().toISOString()
-        });
         setBalance(BigInt(0)); // Set to 0 instead of null to show "no balance"
         setLastUpdated(0);
       } finally {
@@ -194,10 +145,6 @@ export const useBalance = (
 
     // Cleanup subscription when accountId or faucetId changes
     return () => {
-      console.log('🧹 Cleaning up balance subscription for:', {
-        account: accountId.toBech32(),
-        faucet: faucetId.toBech32()
-      });
       unsubscribe();
     };
   }, [accountId?.toBech32(), faucetId?.toBech32()]); // Use string values to prevent object reference issues

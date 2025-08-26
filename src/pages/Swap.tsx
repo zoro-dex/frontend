@@ -312,9 +312,8 @@ const useAutoRefetch = (
     try {
       isRefetching.current = true;
       await refreshCallback();
-      console.log('🔄 Auto-refetch completed:', new Date().toLocaleTimeString());
     } catch (error) {
-      console.error('❌ Auto-refetch failed:', error);
+      // Silent error handling
     } finally {
       isRefetching.current = false;
     }
@@ -333,8 +332,6 @@ const useAutoRefetch = (
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
     }
-
-    console.log('⏰ Starting auto-refetch every 10 seconds');
 
     // Set up new interval
     intervalRef.current = setInterval(() => {
@@ -441,9 +438,7 @@ function Swap() {
         }
 
         setTokensLoaded(true);
-        console.log('Tokens loaded:', tokenSymbols);
       } catch (error) {
-        console.error('Failed to initialize tokens:', error);
         setTokensLoaded(true); // Still set to true to show error state
       }
     };
@@ -494,21 +489,17 @@ function Swap() {
       return;
     }
 
-    console.log('🔄 Auto-refreshing prices and balances...');
-
     // Refresh prices and ALL balances together
     await Promise.allSettled([
       // Refresh prices
-      refreshPrices(assetIds, true).catch(err =>
-        console.warn('Background price refresh failed:', err)
-      ),
+      refreshPrices(assetIds, true).catch(err => {
+        // Silent error handling
+      }),
       // Refresh all balances in one go
-      midenClientService.refreshAllBalances().catch(err =>
-        console.warn('Background balance refresh failed:', err)
-      ),
+      midenClientService.refreshAllBalances().catch(err => {
+        // Silent error handling
+      }),
     ]);
-
-    console.log('✅ Auto-refresh completed');
   }, [
     tokensLoaded,
     connected,
@@ -753,11 +744,6 @@ function Swap() {
   const handleReplaceTokens = useCallback((): void => {
     if (!sellToken || !buyToken) return;
 
-    console.log('🔄 Swapping tokens:', { 
-      from: `${sellToken} → ${buyToken}`, 
-      to: `${buyToken} → ${sellToken}` 
-    });
-
     setIsSwappingTokens(true);
 
     // Store the swapped values
@@ -779,20 +765,14 @@ function Swap() {
       try {
         // Force refresh all balances to ensure new token balances load immediately
         await midenClientService.refreshAllBalances();
-        console.log('✅ Balances refreshed after token swap');
       } catch (error) {
-        console.error('❌ Failed to refresh balances after token swap:', error);
+        // Silent error handling
       } finally {
         setIsSwappingTokens(false);
         if (sellInputRef.current) {
           sellInputRef.current.focus();
         }
       }
-      
-      console.log('✅ Token swap completed:', { 
-        newSell: newSellToken, 
-        newBuy: newBuyToken 
-      });
     }, 100); // Slightly longer timeout to ensure React updates
   }, [buyToken, sellToken, buyAmount, sellAmount, lastEditedField]);
 
@@ -809,12 +789,6 @@ function Swap() {
       isNaN(sellAmountNum) || isNaN(buyAmountNum) || sellAmountNum <= 0
       || buyAmountNum <= 0
     ) {
-      console.error('Invalid amounts for swap:', {
-        sellAmount,
-        buyAmount,
-        sellAmountNum,
-        buyAmountNum,
-      });
       return;
     }
 
@@ -823,16 +797,6 @@ function Swap() {
     }
 
     const minAmountOutValue = calculateMinAmountOut(buyAmount, slippage);
-
-    console.log('🚀 Creating Zoro swap note with:', {
-      sellAmount,
-      buyAmount,
-      minAmountOut: minAmountOutValue,
-      sellToken,
-      buyToken,
-      slippage,
-      userAccountId: stableUserAccountId,
-    });
 
     // Refresh data before swap to ensure we have latest state
     await Promise.all([
@@ -855,11 +819,6 @@ function Swap() {
 
       const result = await compileZoroSwapNote(swapParams);
 
-      console.log('🎉 Swap note created successfully:', {
-        txId: result.txId,
-        noteId: result.noteId,
-      });
-
       // Clear form and refresh data after successful swap
       setSellAmount('');
       setBuyAmount('');
@@ -874,7 +833,7 @@ function Swap() {
       }, 3000); // Give blockchain time to process
 
     } catch (error) {
-      console.error('💥 Swap note creation failed:', error);
+      // Silent error handling
     } finally {
       setIsCreatingNote(false);
     }

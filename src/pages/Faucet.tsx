@@ -44,9 +44,7 @@ function Faucet(): JSX.Element {
         setMintStatuses(initialStatuses);
 
         setTokensLoaded(true);
-        console.log('Available tokens for faucet:', tokenSymbols);
       } catch (error) {
-        console.error('Failed to initialize tokens:', error);
         setTokensLoaded(true); // Still set to true to show error state
       }
     };
@@ -69,21 +67,16 @@ function Faucet(): JSX.Element {
 
   const requestTokens = useCallback(async (tokenSymbol: TokenSymbol): Promise<void> => {
     if (!connected || !wallet?.adapter?.accountId) {
-      console.error('Wallet not connected');
       return;
     }
 
     const token = TOKENS[tokenSymbol];
     if (!token) {
-      console.error(`Token configuration not found for ${tokenSymbol}`);
       return;
     }
 
     const accountId = wallet.adapter.accountId;
     const faucetId = token.faucetId;
-
-    console.log(`🚰 Requesting ${tokenSymbol} for account: ${accountId}`);
-    console.log(`🏭 Using faucet: ${faucetId}`);
 
     // Set loading state
     updateMintStatus(tokenSymbol, {
@@ -99,17 +92,7 @@ function Faucet(): JSX.Element {
         lastResult: result,
       });
 
-      if (result.success) {
-        console.log(`✅ Successfully minted ${tokenSymbol}:`, result.message);
-        if (result.transactionId) {
-          console.log(`📋 Transaction ID: ${result.transactionId}`);
-        }
-      } else {
-        console.error(`❌ Failed to mint ${tokenSymbol}:`, result.message);
-      }
     } catch (error) {
-      console.error(`💥 Mint request failed for ${tokenSymbol}:`, error);
-
       updateMintStatus(tokenSymbol, {
         isLoading: false,
         lastResult: {
@@ -215,7 +198,9 @@ function Faucet(): JSX.Element {
                       <img
                         src={token.icon}
                         alt={token.name}
-                        className={`w-10 h-10 sm:w-12 sm:h-12 ${token.iconClass || ''}`}
+                        className={`w-10 h-10 sm:w-12 sm:h-12 ${
+                          token.iconClass || ''
+                        }`}
                       />
                       <div className='flex-1'>
                         <h3 className='text-lg sm:text-xl font-semibold'>

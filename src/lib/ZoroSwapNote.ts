@@ -171,33 +171,6 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<SwapR
       noteId,
     };
   } catch (error) {
-    console.error('ZoroSwap note creation failed:', error);
     throw error;
   }
 }
-
-  // async function submitNoteToServer(serializedNote: string): Promise<void> {
-  //   try {
-  //     const response = await fetch(`${API.endpoint}/orders/submit`, {
-  //       method: 'POST',
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //       },
-  //       body: JSON.stringify({
-  //         note_data: serializedNote,
-  //       }),
-  //     });
-
-  //     if (!response.ok) {
-  //       throw new Error(
-  //         `Server responded with ${response.status}: ${response.statusText}`,
-  //       );
-  //     }
-
-  //     const result = await response.json();
-  //     console.log('Note submitted to server:', result);
-  //   } catch (error) {
-  //     console.error('Failed to submit note to server:', error);
-  //     throw error;
-  //   }
-  // }

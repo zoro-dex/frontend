@@ -71,8 +71,6 @@ class MidenClientService {
    */
   private async initializeClient(): Promise<WebClient> {
     try {
-      console.log('🔄 Initializing Miden WebClient...');
-      
       const client = await WebClient.createClient(NETWORK.rpcEndpoint);
       await client.syncState();
       
@@ -82,11 +80,9 @@ class MidenClientService {
         lastSyncTime: Date.now(),
       };
       
-      console.log('✅ Miden WebClient initialized and synced');
       return client;
       
     } catch (error) {
-      console.error('❌ Failed to initialize Miden WebClient:', error);
       this.clientState = null;
       throw error;
     }
@@ -129,7 +125,6 @@ class MidenClientService {
     if (!this.clientState) return;
     
     try {
-      console.log('🔄 Syncing Miden client state...');
       await this.clientState.client.syncState();
       
       this.clientState = {
@@ -137,10 +132,7 @@ class MidenClientService {
         lastSyncTime: Date.now(),
       };
       
-      console.log('✅ Miden client sync complete');
     } catch (error) {
-      console.error('❌ Miden client sync failed:', error);
-      
       this.clientState = {
         ...this.clientState,
         isConnected: false,
@@ -178,8 +170,6 @@ class MidenClientService {
     }
     
     // Account doesn't exist locally - import it
-    console.log('📥 Importing account:', accountId.toBech32());
-    
     try {
       await client.importAccountById(accountId);
     } catch (importError) {
@@ -219,11 +209,6 @@ class MidenClientService {
       return BigInt(balance ?? 0);
       
     } catch (error) {
-      console.error('Failed to fetch balance:', {
-        accountId: accountId.toBech32(),
-        faucetId: faucetId.toBech32(),
-        error,
-      });
       throw error;
     }
   }
@@ -303,8 +288,6 @@ class MidenClientService {
   ): () => void {
     const cacheKey = this.getCacheKey(accountId, faucetId);
     
-    console.log('📡 New balance subscription for:', cacheKey);
-    
     if (!this.balanceUpdateCallbacks.has(cacheKey)) {
       this.balanceUpdateCallbacks.set(cacheKey, new Set());
     }
@@ -313,7 +296,6 @@ class MidenClientService {
     
     // Return unsubscribe function
     return () => {
-      console.log('🧹 Unsubscribing balance updates for:', cacheKey);
       const callbacks = this.balanceUpdateCallbacks.get(cacheKey);
       if (callbacks) {
         callbacks.delete(callback);
@@ -321,7 +303,6 @@ class MidenClientService {
           this.balanceUpdateCallbacks.delete(cacheKey);
           // Also clear the cache entry if no one is listening
           this.balanceCache.delete(cacheKey);
-          console.log('🗑️ Cleared unused balance cache for:', cacheKey);
         }
       }
     };
@@ -341,7 +322,7 @@ class MidenClientService {
         try {
           callback(balance, lastUpdated);
         } catch (error) {
-          console.error('Balance update callback failed:', error);
+          // Silent callback failures - don't break the system
         }
       });
     }
@@ -358,8 +339,6 @@ class MidenClientService {
    * Refresh all cached balances (useful after transactions or token swaps)
    */
   async refreshAllBalances(): Promise<void> {
-    console.log('🔄 Refreshing all cached balances...');
-    
     const refreshPromises: Promise<void>[] = [];
     
     // Create a copy of current cache keys to avoid concurrent modification
@@ -374,20 +353,19 @@ class MidenClientService {
         // Force refresh each balance
         const refreshPromise = this.getBalance(accountId, faucetId, false)
           .then(() => {
-            console.log('✅ Refreshed balance for:', cacheKey);
+            // Silent success
           })
           .catch(error => {
-            console.warn('❌ Failed to refresh balance for:', cacheKey, error);
+            // Silent error handling
           });
           
         refreshPromises.push(refreshPromise);
       } catch (error) {
-        console.warn('Failed to parse cache key for refresh:', cacheKey, error);
+        // Silent error handling for malformed cache keys
       }
     }
     
     await Promise.allSettled(refreshPromises);
-    console.log('🔄 Completed refreshing all cached balances');
   }
   
   /**
