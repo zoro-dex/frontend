@@ -163,6 +163,11 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<SwapR
       payload: tx,
     });
 
+    console.log('🎉 Swap note created successfully:', {
+      txId: txId,
+      noteId: noteId,
+    });
+
     // Use client service for post-transaction sync
     await midenClientService.ensureSynced(true); // Force sync after transaction
 

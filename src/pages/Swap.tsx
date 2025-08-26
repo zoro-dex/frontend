@@ -370,6 +370,7 @@ function Swap() {
   const [isCreatingNote, setIsCreatingNote] = useState<boolean>(false);
   const [lastEditedField, setLastEditedField] = useState<'sell' | 'buy'>('sell');
   const [isSwappingTokens, setIsSwappingTokens] = useState<boolean>(false);
+  const [isFetchingQuote, setIsFetchingQuote] = useState<boolean>(false);
 
   // Settings state (uses config default)
   const [slippage, setSlippage] = useState<number>(UI.defaultSlippage);
@@ -553,18 +554,25 @@ function Swap() {
       !currentPrices || !currentTokensLoaded || !currentSellToken || !currentBuyToken
       || currentIsSwapping
     ) {
+      setIsFetchingQuote(false);
       return;
     }
 
     const sellTokenData = TOKENS[currentSellToken];
     const buyTokenData = TOKENS[currentBuyToken];
 
-    if (!sellTokenData || !buyTokenData) return;
+    if (!sellTokenData || !buyTokenData) {
+      setIsFetchingQuote(false);
+      return;
+    }
 
     const sellPrice = currentPrices[sellTokenData.priceId];
     const buyPrice = currentPrices[buyTokenData.priceId];
 
-    if (!sellPrice || !buyPrice || sellPrice.value <= 0 || buyPrice.value <= 0) return;
+    if (!sellPrice || !buyPrice || sellPrice.value <= 0 || buyPrice.value <= 0) {
+      setIsFetchingQuote(false);
+      return;
+    }
 
     if (field === 'sell' && sellAmt) {
       const sellAmountNum = parseFloat(sellAmt);
@@ -586,6 +594,8 @@ function Swap() {
         setSellAmount(sellAmountCalculated.toFixed(8));
       }
     }
+    
+    setIsFetchingQuote(false);
   }, [slippage]); // Add slippage dependency
 
   // STABLE token data that doesn't depend on input amounts
@@ -633,8 +643,8 @@ function Swap() {
 
   // Simple canSwap calculation - accounts for loading states
   const canSwap: boolean = useMemo(() => {
-    // Don't allow swap while balances are loading
-    if (sellBalanceLoading || buyBalanceLoading || isSwappingTokens) {
+    // Don't allow swap while balances are loading or fetching quote
+    if (sellBalanceLoading || buyBalanceLoading || isSwappingTokens || isFetchingQuote) {
       return false;
     }
 
@@ -675,6 +685,7 @@ function Swap() {
     sellBalanceLoading,
     buyBalanceLoading,
     isSwappingTokens,
+    isFetchingQuote,
   ]);
 
   // Debounced input handlers - prevent immediate re-renders
@@ -685,6 +696,7 @@ function Swap() {
     setLastEditedField('sell');
     if (!value) {
       setBuyAmount('');
+      setIsFetchingQuote(false);
       return;
     }
 
@@ -692,6 +704,9 @@ function Swap() {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
+
+    // Start fetching state
+    setIsFetchingQuote(true);
 
     // Set new timeout for price calculation
     debounceRef.current = setTimeout(() => {
@@ -704,6 +719,7 @@ function Swap() {
     setLastEditedField('buy');
     if (!value) {
       setSellAmount('');
+      setIsFetchingQuote(false);
       return;
     }
 
@@ -711,6 +727,9 @@ function Swap() {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
+
+    // Start fetching state
+    setIsFetchingQuote(true);
 
     // Set new timeout for price calculation
     debounceRef.current = setTimeout(() => {
@@ -1106,6 +1125,12 @@ function Swap() {
                           <>
                             <Loader2 className='w-4 h-4 mr-2 animate-spin' />
                             Creating Note...
+                          </>
+                        )
+                        : isFetchingQuote
+                        ? (
+                          <>
+                            <Loader2 className='w-4 h-4 mr-2 animate-spin' />
                           </>
                         )
                         : balanceValidation.isBalanceLoaded
