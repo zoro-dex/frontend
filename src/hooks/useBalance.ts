@@ -1,6 +1,6 @@
-import { type AccountId, WebClient } from '@demox-labs/miden-sdk';
-import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { NETWORK } from '@/lib/config';
+import { type AccountId, WebClient } from '@demox-labs/miden-sdk';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWalletEventTracker } from './useWalletEvents';
 
 interface OptimisticBalanceParams {
@@ -40,17 +40,17 @@ const STORAGE_KEY = 'zoro_balance_cache';
  * Provides immediate UI updates while syncing with blockchain in background
  */
 export const useBalance = (
-  { accountId, faucetId }: OptimisticBalanceParams
+  { accountId, faucetId }: OptimisticBalanceParams,
 ): OptimisticBalanceState => {
   const [balance, setBalance] = useState<bigint | null>(null);
   const [isOptimistic, setIsOptimistic] = useState<boolean>(false);
   const [lastUpdated, setLastUpdated] = useState<number>(0);
-  
+
   // Refs for managing optimistic updates
   const optimisticTimerRef = useRef<NodeJS.Timeout>();
   const baseBalanceRef = useRef<bigint | null>(null);
   const isFetchingRef = useRef<boolean>(false);
-  
+
   // Create stable cache key
   const cacheKey = useMemo(() => {
     if (!accountId || !faucetId) return null;
@@ -62,24 +62,24 @@ export const useBalance = (
    */
   const loadCachedBalance = useCallback((): CachedBalance | null => {
     if (!cacheKey) return null;
-    
+
     try {
       const cached = localStorage.getItem(`${STORAGE_KEY}-${cacheKey}`);
       if (!cached) return null;
-      
+
       const parsed: SerializedCachedBalance = JSON.parse(cached);
-      
+
       // Check if cache is still valid
       const now = Date.now();
       if (now - parsed.timestamp > BALANCE_CACHE_TTL) {
         localStorage.removeItem(`${STORAGE_KEY}-${cacheKey}`);
         return null;
       }
-      
+
       // Convert balance string back to BigInt
       return {
         ...parsed,
-        balance: BigInt(parsed.balance)
+        balance: BigInt(parsed.balance),
       };
     } catch (error) {
       console.warn('Failed to load cached balance:', error);
@@ -98,7 +98,7 @@ export const useBalance = (
    */
   const saveCachedBalance = useCallback((balance: bigint): void => {
     if (!cacheKey || !accountId || !faucetId) return;
-    
+
     try {
       const serialized: SerializedCachedBalance = {
         balance: balance.toString(), // Convert BigInt to string
@@ -106,7 +106,7 @@ export const useBalance = (
         accountId: accountId.toBech32(),
         faucetId: faucetId.toBech32(),
       };
-      
+
       localStorage.setItem(`${STORAGE_KEY}-${cacheKey}`, JSON.stringify(serialized));
     } catch (error) {
       console.warn('Failed to save cached balance:', error);
@@ -136,70 +136,73 @@ export const useBalance = (
   /**
    * Fetch balance from blockchain
    */
-  const fetchBalance = useCallback(async (useCache: boolean = true): Promise<bigint | null> => {
-    // Early return if no accountId or faucetId
-    if (!accountId || !faucetId) {
-      return null;
-    }
-
-    // Prevent concurrent fetches
-    if (isFetchingRef.current) {
-      console.log('Balance fetch already in progress, skipping...');
-      return balance;
-    }
-
-    // Try cache first if requested
-    if (useCache) {
-      const cached = loadCachedBalance();
-      if (cached) {
-        console.log('Using cached balance:', cached.balance.toString());
-        return cached.balance;
+  const fetchBalance = useCallback(
+    async (useCache: boolean = true): Promise<bigint | null> => {
+      // Early return if no accountId or faucetId
+      if (!accountId || !faucetId) {
+        return null;
       }
-    }
 
-    try {
-      isFetchingRef.current = true;
-      
-      const client = await WebClient.createClient(NETWORK.rpcEndpoint);
-      await client.syncState();
-      
-      let acc = await client.getAccount(accountId);
-      if (acc == null) {
-        await client.importAccountById(accountId);
-        console.log('imported new account', accountId.toBech32(), 'to client');
-        acc = await client.getAccount(accountId);
+      // Prevent concurrent fetches
+      if (isFetchingRef.current) {
+        console.log('Balance fetch already in progress, skipping...');
+        return balance;
       }
-      
-      const fetchedBalance = acc?.vault().getBalance(faucetId);
-      const balanceBigInt = BigInt(fetchedBalance ?? 0);
-      
-      // Save to cache
-      saveCachedBalance(balanceBigInt);
-      
-      console.log('Fetched fresh balance:', balanceBigInt.toString());
-      return balanceBigInt;
-    } catch (error) {
-      console.error('Error fetching balance:', error);
-      
-      // Return cached balance as fallback
-      const cached = loadCachedBalance();
-      return cached ? cached.balance : null;
-    } finally {
-      isFetchingRef.current = false;
-    }
-  }, [accountId, faucetId, balance, loadCachedBalance, saveCachedBalance]);
+
+      // Try cache first if requested
+      if (useCache) {
+        const cached = loadCachedBalance();
+        if (cached) {
+          console.log('Using cached balance:', cached.balance.toString());
+          return cached.balance;
+        }
+      }
+
+      try {
+        isFetchingRef.current = true;
+
+        const client = await WebClient.createClient(NETWORK.rpcEndpoint);
+        await client.syncState();
+
+        let acc = await client.getAccount(accountId);
+        if (acc == null) {
+          await client.importAccountById(accountId);
+          console.log('imported new account', accountId.toBech32(), 'to client');
+          acc = await client.getAccount(accountId);
+        }
+
+        const fetchedBalance = acc?.vault().getBalance(faucetId);
+        const balanceBigInt = BigInt(fetchedBalance ?? 0);
+
+        // Save to cache
+        saveCachedBalance(balanceBigInt);
+
+        console.log('Fetched fresh balance:', balanceBigInt.toString());
+        return balanceBigInt;
+      } catch (error) {
+        console.error('Error fetching balance:', error);
+
+        // Return cached balance as fallback
+        const cached = loadCachedBalance();
+        return cached ? cached.balance : null;
+      } finally {
+        isFetchingRef.current = false;
+      }
+    },
+    [accountId, faucetId, balance, loadCachedBalance, saveCachedBalance],
+  );
 
   /**
    * Refresh balance with optimistic state management
    */
   const refreshBalance = useCallback(async (): Promise<void> => {
     const freshBalance = await fetchBalance(false); // Force fresh fetch
-    
+
     if (freshBalance !== null) {
       baseBalanceRef.current = freshBalance;
       setBalance(freshBalance);
       setLastUpdated(Date.now());
-      
+
       // Clear optimistic state if we got fresh data
       if (isOptimistic) {
         setIsOptimistic(false);
@@ -217,28 +220,28 @@ export const useBalance = (
   const applyOptimisticUpdate = useCallback((delta: bigint): void => {
     const currentBase = baseBalanceRef.current ?? balance ?? BigInt(0);
     const newOptimisticBalance = currentBase + delta;
-    
+
     // Don't allow negative balances
     if (newOptimisticBalance < BigInt(0)) {
       console.warn('Optimistic update would result in negative balance, ignoring');
       return;
     }
-    
+
     console.log('Applying optimistic update:', {
       current: currentBase.toString(),
       delta: delta.toString(),
-      new: newOptimisticBalance.toString()
+      new: newOptimisticBalance.toString(),
     });
-    
+
     setBalance(newOptimisticBalance);
     setIsOptimistic(true);
     setLastUpdated(Date.now());
-    
+
     // Clear existing timer
     if (optimisticTimerRef.current) {
       clearTimeout(optimisticTimerRef.current);
     }
-    
+
     // Set timer to revert optimistic update and refresh
     optimisticTimerRef.current = setTimeout(() => {
       console.log('Optimistic update timeout, refreshing balance...');
@@ -271,7 +274,7 @@ export const useBalance = (
         console.log('Wallet ready state changed to Connected - refreshing balance');
         refreshBalance();
       }
-    }
+    },
   }), [refreshBalance]);
 
   // Set up wallet event tracking
@@ -294,7 +297,10 @@ export const useBalance = (
         setBalance(cached.balance);
         baseBalanceRef.current = cached.balance;
         setLastUpdated(cached.timestamp);
-        console.log('Loaded cached balance for immediate display:', cached.balance.toString());
+        console.log(
+          'Loaded cached balance for immediate display:',
+          cached.balance.toString(),
+        );
       }
 
       // Then fetch fresh data in background
