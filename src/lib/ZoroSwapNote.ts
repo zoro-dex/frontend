@@ -108,7 +108,6 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<SwapR
     // Note should only contain the offered asset
     const noteAssets = new NoteAssets([offeredAsset]);
     const noteTag = NoteTag.fromAccountId(poolAccountId);
-    console.log(poolAccountId.toBech32());
 
     const userAddress = AccountId.fromBech32(swapParams.userAccountId);
 

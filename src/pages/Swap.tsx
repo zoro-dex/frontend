@@ -22,18 +22,19 @@ import { compileZoroSwapNote, type SwapParams } from '../lib/ZoroSwapNote.ts';
 type TabType = 'Swap' | 'Limit';
 
 interface BalanceValidationState {
-  hasInsufficientBalance: boolean;
-  isBalanceLoaded: boolean;
+  readonly hasInsufficientBalance: boolean;
+  readonly isBalanceLoaded: boolean;
+  readonly isOptimistic: boolean;
 }
 
 interface PriceFetcherProps {
-  shouldFetch: boolean;
-  assetIds: readonly string[];
+  readonly shouldFetch: boolean;
+  readonly assetIds: readonly string[];
 }
 
 interface SwapSettingsProps {
-  slippage: number;
-  onSlippageChange: (slippage: number) => void;
+  readonly slippage: number;
+  readonly onSlippageChange: (slippage: number) => void;
 }
 
 const PriceFetcher: React.FC<PriceFetcherProps> = ({ shouldFetch, assetIds }) => {
@@ -61,27 +62,42 @@ const calculateMinAmountOut = (buyAmount: string, slippagePercent: number): stri
 };
 
 /**
- * Calculate balance validation with proper decimal precision
+ * Enhanced balance validation with optimistic support
  */
 const getBalanceValidation = (
   sellAmount: string,
   balance: bigint | null,
   tokenSymbol: TokenSymbol,
+  isOptimistic: boolean = false,
 ): BalanceValidationState => {
   const sellAmountNum = parseFloat(sellAmount);
 
-  // If no amount entered or balance not loaded yet
-  if (!sellAmount || isNaN(sellAmountNum) || sellAmountNum <= 0 || balance === null) {
+  // If no amount entered, no validation needed
+  if (!sellAmount || isNaN(sellAmountNum) || sellAmountNum <= 0) {
     return {
       hasInsufficientBalance: false,
       isBalanceLoaded: balance !== null,
+      isOptimistic,
+    };
+  }
+
+  // If balance not loaded yet, assume it's sufficient (let user try)
+  if (balance === null) {
+    return {
+      hasInsufficientBalance: false, // Allow swap attempt
+      isBalanceLoaded: false,
+      isOptimistic,
     };
   }
 
   // Convert sellAmount to BigInt using token-specific decimals
   const token = TOKENS[tokenSymbol];
   if (!token) {
-    return { hasInsufficientBalance: false, isBalanceLoaded: false };
+    return {
+      hasInsufficientBalance: false,
+      isBalanceLoaded: false,
+      isOptimistic,
+    };
   }
 
   const sellAmountBigInt = BigInt(
@@ -91,6 +107,7 @@ const getBalanceValidation = (
   return {
     hasInsufficientBalance: sellAmountBigInt > balance,
     isBalanceLoaded: true,
+    isOptimistic,
   };
 };
 
@@ -196,14 +213,14 @@ function SwapSettings({ slippage, onSlippageChange }: SwapSettingsProps) {
 
                 {/* Conditional Warnings */}
                 {slippage > 5 && (
-                  <div className='text-xs text-destructive text-center'>
-                    ⚠️ High slippage risk
+                  <div className='text-xs text-orange-600 text-center'>
+                    High slippage risk
                   </div>
                 )}
 
                 {slippage < 0.1 && slippage > 0 && (
                   <div className='text-xs text-amber-500 text-center'>
-                    ⚡ May fail due to low slippage
+                    May fail due to low slippage
                   </div>
                 )}
               </div>
@@ -383,6 +400,36 @@ function Swap() {
     return wallet?.adapter?.accountId;
   }, [wallet?.adapter?.accountId]);
 
+  // Sell token balance parameters
+  const sellBalanceParams = useMemo(() => ({
+    accountId: stableUserAccountId ? AccountId.fromBech32(stableUserAccountId) : null,
+    faucetId: sellToken && TOKENS[sellToken]
+      ? AccountId.fromBech32(TOKENS[sellToken].faucetId)
+      : undefined,
+  }), [stableUserAccountId, sellToken]);
+
+  // Buy token balance parameters
+  const buyBalanceParams = useMemo(() => ({
+    accountId: stableUserAccountId ? AccountId.fromBech32(stableUserAccountId) : null,
+    faucetId: buyToken && TOKENS[buyToken]
+      ? AccountId.fromBech32(TOKENS[buyToken].faucetId)
+      : undefined,
+  }), [stableUserAccountId, buyToken]);
+
+  // Sell token balance hook
+  const {
+    balance: sellBalance,
+    isOptimistic: sellIsOptimistic,
+    refreshBalance: refreshSellBalance,
+    applyOptimisticUpdate: applySellOptimisticUpdate,
+  } = useBalance(sellBalanceParams);
+
+  // Buy token balance hook (read-only)
+  const {
+    balance: buyBalance,
+    refreshBalance: refreshBuyBalance,
+  } = useBalance(buyBalanceParams);
+
   // Initialize tokens on mount ONLY
   useEffect(() => {
     const loadTokens = async (): Promise<void> => {
@@ -446,29 +493,33 @@ function Swap() {
     pricesRef.current = prices;
   }, [prices]);
 
-  // STABLE balance hook params - prevent useBalance from re-running on input changes
-  const balanceParams = useMemo(() => ({
-    accountId: stableUserAccountId ? AccountId.fromBech32(stableUserAccountId) : null,
-    faucetId: sellToken && TOKENS[sellToken]
-      ? AccountId.fromBech32(TOKENS[sellToken].faucetId)
-      : undefined,
-  }), [stableUserAccountId, sellToken]); // Only depends on accountId and sellToken
-
-  const { balance, refreshBalance } = useBalance(balanceParams);
-
-  // AUTO-REFETCH: Prices and Balance every 10 seconds
+  // AUTO-REFETCH: Prices and Balance every 10 seconds (background sync)
   const autoRefetchCallback = useCallback(async () => {
     // Only refetch if we have tokens loaded and are connected
     if (!tokensLoaded || !connected || assetIds.length === 0) {
       return;
     }
 
-    // Refresh prices and balance together
+    // Background sync - don't block UI, just update data silently
     await Promise.all([
-      refreshPrices(assetIds, true), // Force refresh
-      refreshBalance(),
+      refreshPrices(assetIds, true).catch(err =>
+        console.warn('Background price refresh failed:', err)
+      ),
+      refreshSellBalance().catch(err =>
+        console.warn('Background sell balance refresh failed:', err)
+      ),
+      refreshBuyBalance().catch(err =>
+        console.warn('Background buy balance refresh failed:', err)
+      ),
     ]);
-  }, [tokensLoaded, connected, assetIds, refreshPrices, refreshBalance]);
+  }, [
+    tokensLoaded,
+    connected,
+    assetIds,
+    refreshPrices,
+    refreshSellBalance,
+    refreshBuyBalance,
+  ]);
 
   // Enable auto-refetch when tokens are loaded and wallet is connected
   const autoRefetchEnabled = tokensLoaded && connected && assetIds.length > 0;
@@ -479,18 +530,28 @@ function Swap() {
     autoRefetchEnabled,
   );
 
-  // Memoized balance validation - only changes when sellAmount or balance changes
+  // Enhanced balance validation with optimistic support
   const balanceValidation = useMemo(() => {
-    if (!sellToken) return { hasInsufficientBalance: false, isBalanceLoaded: false };
-    return getBalanceValidation(sellAmount, balance, sellToken);
-  }, [sellAmount, balance, sellToken]);
+    if (!sellToken) {
+      return {
+        hasInsufficientBalance: false,
+        isBalanceLoaded: false,
+        isOptimistic: false,
+      };
+    }
+    return getBalanceValidation(sellAmount, sellBalance, sellToken, sellIsOptimistic);
+  }, [sellAmount, sellBalance, sellToken, sellIsOptimistic]);
 
-  const formattedBalance = useMemo(() => {
-    if (!sellToken || balance === null) return '0';
-    return formatBalance(balance, sellToken);
-  }, [balance, sellToken]);
+  const formattedSellBalance = useMemo(() => {
+    if (!sellToken || sellBalance === null) return '0';
+    return formatBalance(sellBalance, sellToken);
+  }, [sellBalance, sellToken]);
 
-  // Stabilized price calculation logic with empty deps
+  const formattedBuyBalance = useMemo(() => {
+    if (!buyToken || buyBalance === null) return '0';
+    return formatBalance(buyBalance, buyToken);
+  }, [buyBalance, buyToken]);
+
   const calculateAndSetPrice = useCallback((
     sellAmt: string,
     buyAmt: string,
@@ -523,17 +584,24 @@ function Swap() {
     if (field === 'sell' && sellAmt) {
       const sellAmountNum = parseFloat(sellAmt);
       if (!isNaN(sellAmountNum) && sellAmountNum > 0) {
-        const buyAmountCalculated = (sellAmountNum * sellPrice.value) / buyPrice.value;
-        setBuyAmount(buyAmountCalculated.toFixed(8));
+        // Calculate expected buy amount
+        const expectedBuyAmount = (sellAmountNum * sellPrice.value) / buyPrice.value;
+        // Apply slippage to show minimum guaranteed amount
+        const minAmountOut = expectedBuyAmount * (1 - slippage / 100);
+        setBuyAmount(minAmountOut.toFixed(8));
       }
     } else if (field === 'buy' && buyAmt) {
       const buyAmountNum = parseFloat(buyAmt);
       if (!isNaN(buyAmountNum) && buyAmountNum > 0) {
-        const sellAmountCalculated = (buyAmountNum * buyPrice.value) / sellPrice.value;
+        // User entered min amount they want, calculate required sell amount
+        // Reverse calculate: if they want this minimum, what's the expected amount?
+        const expectedBuyAmount = buyAmountNum / (1 - slippage / 100);
+        const sellAmountCalculated = (expectedBuyAmount * buyPrice.value)
+          / sellPrice.value;
         setSellAmount(sellAmountCalculated.toFixed(8));
       }
     }
-  }, []); // Empty dependency array since we use refs
+  }, [slippage]); // Add slippage dependency
 
   // STABLE token data that doesn't depend on input amounts
   const tokenData = useMemo(() => {
@@ -573,27 +641,38 @@ function Swap() {
     return sellPrice ? calculateUsdValue('1', sellPrice.value) : '';
   }, [tokenData.sellPrice]);
 
-  const minAmountOut = useMemo(() => {
-    return calculateMinAmountOut(buyAmount, slippage);
-  }, [buyAmount, slippage]);
+  const priceFor1Buy = useMemo(() => {
+    const { buyPrice } = tokenData;
+    return buyPrice ? calculateUsdValue('1', buyPrice.value) : '';
+  }, [tokenData.buyPrice]);
 
-  // Memoized canSwap calculation
-  const canSwap: boolean = useMemo(() =>
-    Boolean(
+  // Enhanced canSwap calculation - doesn't block on balance loading
+  const canSwap: boolean = useMemo(() => {
+    // Basic validation first
+    const hasValidAmounts = Boolean(
       sellAmount
         && buyAmount
         && !isNaN(parseFloat(sellAmount))
         && !isNaN(parseFloat(buyAmount))
         && parseFloat(sellAmount) > 0
-        && parseFloat(buyAmount) > 0
-        && tokenData.sellPrice
+        && parseFloat(buyAmount) > 0,
+    );
+
+    const hasValidTokens = Boolean(
+      tokenData.sellPrice
         && tokenData.buyPrice
         && sellToken !== buyToken
         && sellToken
         && buyToken
-        && tokensLoaded
-        && !balanceValidation.hasInsufficientBalance,
-    ), [
+        && tokensLoaded,
+    );
+
+    // Only check insufficient balance if balance is actually loaded
+    const hasValidBalance = !balanceValidation.isBalanceLoaded
+      || !balanceValidation.hasInsufficientBalance;
+
+    return hasValidAmounts && hasValidTokens && hasValidBalance;
+  }, [
     sellAmount,
     buyAmount,
     tokenData.sellPrice,
@@ -602,6 +681,7 @@ function Swap() {
     buyToken,
     tokensLoaded,
     balanceValidation.hasInsufficientBalance,
+    balanceValidation.isBalanceLoaded,
   ]);
 
   // Debounced input handlers - prevent immediate re-renders
@@ -659,14 +739,14 @@ function Swap() {
   }, [fetchPrices]);
 
   const handleMaxClick = useCallback((): void => {
-    if (balance !== null && balance > BigInt(0) && sellToken) {
-      const maxAmount = balanceToDecimalString(balance, sellToken);
+    if (sellBalance !== null && sellBalance > BigInt(0) && sellToken) {
+      const maxAmount = balanceToDecimalString(sellBalance, sellToken);
       handleSellAmountChange(maxAmount);
       if (sellInputRef.current) {
         sellInputRef.current.focus();
       }
     }
-  }, [balance, sellToken, handleSellAmountChange]);
+  }, [sellBalance, sellToken, handleSellAmountChange]);
 
   const handleReplaceTokens = useCallback((): void => {
     if (!sellToken || !buyToken) return;
@@ -730,9 +810,18 @@ function Swap() {
       userAccountId: stableUserAccountId,
     });
 
+    // Apply optimistic update immediately for better UX
+    if (sellToken && TOKENS[sellToken]) {
+      const sellAmountBigInt = BigInt(
+        Math.floor(sellAmountNum * Math.pow(10, TOKENS[sellToken].decimals)),
+      );
+      applySellOptimisticUpdate(-sellAmountBigInt); // Subtract the amount being swapped
+    }
+
+    // Background refresh to ensure latest state
     await Promise.all([
       refreshPrices(assetIds, true),
-      refreshBalance(),
+      refreshSellBalance(),
     ]);
     setIsCreatingNote(true);
 
@@ -753,8 +842,19 @@ function Swap() {
         txId: result.txId,
         noteId: result.noteId,
       });
+
+      // Clear form after successful swap
+      setSellAmount('');
+      setBuyAmount('');
     } catch (error) {
       console.error('💥 Swap note creation failed:', error);
+      // Revert optimistic update on failure
+      if (sellToken && TOKENS[sellToken]) {
+        const sellAmountBigInt = BigInt(
+          Math.floor(sellAmountNum * Math.pow(10, TOKENS[sellToken].decimals)),
+        );
+        applySellOptimisticUpdate(sellAmountBigInt); // Add back the amount
+      }
     } finally {
       setIsCreatingNote(false);
     }
@@ -770,6 +870,8 @@ function Swap() {
     requestTransaction,
     refreshPrices,
     assetIds,
+    applySellOptimisticUpdate,
+    refreshSellBalance,
   ]);
 
   const handleTabChange = useCallback((tab: TabType) => {
@@ -831,7 +933,7 @@ function Swap() {
         <Header />
         <main className='flex-1 flex items-center justify-center'>
           <div className='text-center space-y-4'>
-            <div className='text-destructive'>Failed to load token configuration</div>
+            <div className='text-orange-600'>Failed to load token configuration</div>
             <Button onClick={() => window.location.reload()}>
               Retry
             </Button>
@@ -892,15 +994,16 @@ function Swap() {
                         onFocus={handleInputFocus}
                         placeholder='0'
                         className={`border-none text-3xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner ${
-                          balanceValidation.hasInsufficientBalance
-                            ? 'text-destructive placeholder:text-destructive/50'
+                          balanceValidation.isBalanceLoaded
+                            && balanceValidation.hasInsufficientBalance
+                            ? 'text-orange-600 placeholder:text-destructive/50'
                             : ''
                         }`}
                       />
                       <Button
                         variant='outline'
                         size='sm'
-                        className='border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background disabled:opacity-50'
+                        className='border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background'
                       >
                         {sellToken && (
                           <>
@@ -917,32 +1020,27 @@ function Swap() {
                       </Button>
                     </div>
 
-                    {/* USD Value Display */}
+                    {/* Enhanced USD Value Display with optimistic indicators */}
                     <div className='flex items-center justify-between text-xs text-muted-foreground h-5'>
                       <div>{sellUsdValue || priceFor1}</div>
                       <div className='flex items-center gap-1'>
                         <button
                           onClick={handleMaxClick}
-                          disabled={balance === null || balance === BigInt(0)}
-                          className={`hover:text-foreground transition-colors cursor-pointer mr-1 disabled:cursor-not-allowed disabled:opacity-50 ${
-                            balanceValidation.hasInsufficientBalance
-                              ? 'text-destructive hover:text-destructive'
+                          disabled={sellBalance === null || sellBalance === BigInt(0)}
+                          className={`hover:text-foreground transition-colors cursor-pointer mr-1 dark:text-green-100 dark:hover:text-green-200 ${
+                            balanceValidation.isBalanceLoaded
+                              && balanceValidation.hasInsufficientBalance
+                              ? 'text-orange-600 hover:text-destructive'
                               : ''
                           }`}
                         >
-                          {balanceValidation.hasInsufficientBalance && '⚠️ '}
-                          {formattedBalance} {sellToken}
+                          {/* Enhanced balance display with optimistic indicators */}
+                          {balanceValidation.isBalanceLoaded
+                            && balanceValidation.hasInsufficientBalance}
+                          {!balanceValidation.isBalanceLoaded && sellAmount && '⏳ '}
+                          {balanceValidation.isOptimistic && '✨ '}
+                          {formattedSellBalance || 'Loading...'} {sellToken}
                         </button>
-                        {balance !== null && balance > BigInt(0) && (
-                          <Button
-                            variant='ghost'
-                            size='sm'
-                            onClick={handleMaxClick}
-                            className='h-5 px-1 text-xs text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20'
-                          >
-                            MAX
-                          </Button>
-                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -978,8 +1076,7 @@ function Swap() {
                       <Button
                         variant='outline'
                         size='sm'
-                        disabled
-                        className='border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background disabled:opacity-50'
+                        className='border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background'
                       >
                         {buyToken && (
                           <>
@@ -996,15 +1093,16 @@ function Swap() {
                       </Button>
                     </div>
 
-                    {/* Min Amount Out Display */}
-                    <div className='flex items-center justify-center text-xs text-muted-foreground h-5'>
-                      {buyAmount && minAmountOut && (
-                        <div className='text-amber-500'>
-                          Min received: {minAmountOut} {buyToken}
+                    {/* Display buy token balance */}
+                    <div className='flex items-center justify-between text-xs text-muted-foreground h-5'>
+                      <div>
+                        {buyUsdValue || priceFor1Buy}
+                      </div>
+                      {/* Only show buy token balance if it's greater than 0 */}
+                      {buyBalance !== null && buyBalance > BigInt(0) && (
+                        <div>
+                          {formattedBuyBalance} {buyToken}
                         </div>
-                      )}
-                      {!buyAmount && buyUsdValue && (
-                        <div className='text-green-500'>{buyUsdValue}</div>
                       )}
                     </div>
                   </CardContent>
@@ -1034,11 +1132,8 @@ function Swap() {
                             Creating Note...
                           </>
                         )
-                        : !balanceValidation.isBalanceLoaded
-                        ? (
-                          'Loading balance...'
-                        )
-                        : balanceValidation.hasInsufficientBalance
+                        : balanceValidation.isBalanceLoaded
+                            && balanceValidation.hasInsufficientBalance
                         ? (
                           `Insufficient ${sellToken} balance`
                         )
@@ -1049,7 +1144,12 @@ function Swap() {
                             : 'Enter amount'
                         )
                         : (
-                          'Swap'
+                          // Enhanced button text with optimistic indicators
+                          !balanceValidation.isBalanceLoaded && sellAmount
+                            ? `Swap (balance loading...)`
+                            : balanceValidation.isOptimistic
+                            ? `Swap ✨`
+                            : 'Swap'
                         )}
                     </Button>
                   )

@@ -71,7 +71,7 @@ export async function mintFromFaucet(
     if (error instanceof Error) {
       return {
         success: false,
-        message: error.message,
+        message: "Not so fast! Wait 5 secs and try again.",
       };
     }
 
