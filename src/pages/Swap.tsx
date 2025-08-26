@@ -535,47 +535,52 @@ function Swap() {
     return formatBalance(buyBalance, buyToken);
   }, [buyBalance, buyToken]);
 
-  // Stabilized price calculation logic with empty deps
   const calculateAndSetPrice = useCallback((
-    sellAmt: string,
-    buyAmt: string,
-    field: 'sell' | 'buy'
-  ) => {
-    // Use refs to avoid dependency on frequently changing values
-    const currentPrices = pricesRef.current;
-    const currentTokensLoaded = tokensLoadedRef.current;
-    const currentSellToken = sellTokenRef.current;
-    const currentBuyToken = buyTokenRef.current;
-    const currentIsSwapping = isSwappingTokensRef.current;
+  sellAmt: string,
+  buyAmt: string,
+  field: 'sell' | 'buy'
+) => {
+  // Use refs to avoid dependency on frequently changing values
+  const currentPrices = pricesRef.current;
+  const currentTokensLoaded = tokensLoadedRef.current;
+  const currentSellToken = sellTokenRef.current;
+  const currentBuyToken = buyTokenRef.current;
+  const currentIsSwapping = isSwappingTokensRef.current;
 
-    if (!currentPrices || !currentTokensLoaded || !currentSellToken || !currentBuyToken || currentIsSwapping) {
-      return;
+  if (!currentPrices || !currentTokensLoaded || !currentSellToken || !currentBuyToken || currentIsSwapping) {
+    return;
+  }
+
+  const sellTokenData = TOKENS[currentSellToken];
+  const buyTokenData = TOKENS[currentBuyToken];
+  
+  if (!sellTokenData || !buyTokenData) return;
+  
+  const sellPrice = currentPrices[sellTokenData.priceId];
+  const buyPrice = currentPrices[buyTokenData.priceId];
+  
+  if (!sellPrice || !buyPrice || sellPrice.value <= 0 || buyPrice.value <= 0) return;
+
+  if (field === 'sell' && sellAmt) {
+    const sellAmountNum = parseFloat(sellAmt);
+    if (!isNaN(sellAmountNum) && sellAmountNum > 0) {
+      // Calculate expected buy amount
+      const expectedBuyAmount = (sellAmountNum * sellPrice.value) / buyPrice.value;
+      // Apply slippage to show minimum guaranteed amount
+      const minAmountOut = expectedBuyAmount * (1 - slippage / 100);
+      setBuyAmount(minAmountOut.toFixed(8));
     }
-
-    const sellTokenData = TOKENS[currentSellToken];
-    const buyTokenData = TOKENS[currentBuyToken];
-    
-    if (!sellTokenData || !buyTokenData) return;
-    
-    const sellPrice = currentPrices[sellTokenData.priceId];
-    const buyPrice = currentPrices[buyTokenData.priceId];
-    
-    if (!sellPrice || !buyPrice || sellPrice.value <= 0 || buyPrice.value <= 0) return;
-
-    if (field === 'sell' && sellAmt) {
-      const sellAmountNum = parseFloat(sellAmt);
-      if (!isNaN(sellAmountNum) && sellAmountNum > 0) {
-        const buyAmountCalculated = (sellAmountNum * sellPrice.value) / buyPrice.value;
-        setBuyAmount(buyAmountCalculated.toFixed(8));
-      }
-    } else if (field === 'buy' && buyAmt) {
-      const buyAmountNum = parseFloat(buyAmt);
-      if (!isNaN(buyAmountNum) && buyAmountNum > 0) {
-        const sellAmountCalculated = (buyAmountNum * buyPrice.value) / sellPrice.value;
-        setSellAmount(sellAmountCalculated.toFixed(8));
-      }
+  } else if (field === 'buy' && buyAmt) {
+    const buyAmountNum = parseFloat(buyAmt);
+    if (!isNaN(buyAmountNum) && buyAmountNum > 0) {
+      // User entered min amount they want, calculate required sell amount
+      // Reverse calculate: if they want this minimum, what's the expected amount?
+      const expectedBuyAmount = buyAmountNum / (1 - slippage / 100);
+      const sellAmountCalculated = (expectedBuyAmount * buyPrice.value) / sellPrice.value;
+      setSellAmount(sellAmountCalculated.toFixed(8));
     }
-  }, []); // Empty dependency array since we use refs
+  }
+}, [slippage]); // Add slippage dependency
 
   // STABLE token data that doesn't depend on input amounts
   const tokenData = useMemo(() => {
@@ -970,7 +975,7 @@ function Swap() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background disabled:opacity-50"
+                        className="border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background"
                       >
                         {sellToken && (
                           <>
@@ -992,7 +997,7 @@ function Swap() {
                         <button 
                           onClick={handleMaxClick}
                           disabled={sellBalance === null || sellBalance === BigInt(0)}
-                          className={`hover:text-foreground transition-colors cursor-pointer mr-1 disabled:cursor-not-allowed disabled:opacity-50 ${
+                          className={`hover:text-foreground transition-colors cursor-pointer mr-1 dark:text-green-100 dark:hover:text-green-200 ${
                             balanceValidation.isBalanceLoaded && balanceValidation.hasInsufficientBalance 
                               ? 'text-orange-600 hover:text-destructive' 
                               : ''
@@ -1004,16 +1009,6 @@ function Swap() {
                           {balanceValidation.isOptimistic && '✨ '}
                           {formattedSellBalance || 'Loading...'} {sellToken}
                         </button>
-                        {sellBalance !== null && sellBalance > BigInt(0) && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleMaxClick}
-                            className="h-5 px-1 text-xs text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20"
-                          >
-                            MAX
-                          </Button>
-                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -1048,8 +1043,7 @@ function Swap() {
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled
-                        className="border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background disabled:opacity-50"
+                        className="border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background"
                       > 
                         {buyToken && (
                           <>
