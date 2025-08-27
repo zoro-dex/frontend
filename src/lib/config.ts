@@ -166,7 +166,7 @@ export type TokenSymbol = keyof typeof TOKENS;
  */
 export async function initializeTokenConfig(): Promise<void> {
   try {
-    const { fetchPoolInfo } = await import('./poolService');
+    const { fetchPoolInfo } = await import('../services/pool');
     const pools = await fetchPoolInfo();
 
     // Filter pools to only those we have icons for

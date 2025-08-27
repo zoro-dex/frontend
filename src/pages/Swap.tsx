@@ -11,7 +11,7 @@ import {
   type TokenSymbol,
   UI,
 } from '@/lib/config';
-import { midenClientService } from '@/lib/client';
+import { midenClientService } from '@/services/client.ts';
 import { AccountId } from '@demox-labs/miden-sdk';
 import { useWallet, WalletMultiButton } from '@demox-labs/miden-wallet-adapter';
 import { ArrowUpDown, Info, Loader2, Settings, X } from 'lucide-react';

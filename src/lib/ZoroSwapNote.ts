@@ -24,7 +24,7 @@ import {
   type Wallet,
 } from '@demox-labs/miden-wallet-adapter';
 import { Buffer } from 'buffer';
-import { midenClientService } from '@/lib/client';
+import { midenClientService } from '@/services/client';
 
 window.Buffer = Buffer;
 

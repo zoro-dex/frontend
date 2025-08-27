@@ -2,7 +2,7 @@ import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { initializeTokenConfig, TOKENS, type TokenSymbol } from '@/lib/config';
-import { type FaucetMintResult, mintFromFaucet } from '@/lib/faucetService';
+import { type FaucetMintResult, mintFromFaucet } from '@/services/faucet';
 import { useWallet } from '@demox-labs/miden-wallet-adapter';
 import { CheckCircle, Loader2, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';

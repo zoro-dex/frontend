@@ -1,7 +1,7 @@
 import { type AccountId } from '@demox-labs/miden-sdk';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWalletEventTracker } from './useWalletEvents';
-import { midenClientService } from '@/lib/client';
+import { midenClientService } from '@/services/client';
 
 interface BalanceParams {
   readonly accountId: AccountId | null | undefined;
