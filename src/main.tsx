@@ -12,5 +12,5 @@ createRoot(document.getElementById('root')!).render(
           <App />
       </WalletContextProvider>
     </ThemeProvider>
-  </StrictMode>,
+  </StrictMode>
 )
