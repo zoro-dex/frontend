@@ -1,13 +1,10 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useWallet } from '@demox-labs/miden-wallet-adapter';
 import { AccountId } from '@demox-labs/miden-sdk';
-import { NablaAntennaContext, useNablaAntennaPrices } from '@/components/PriceFetcher';
+import { NablaAntennaContext } from '@/components/PriceFetcher';
 import { useBalance } from '@/hooks/useBalance';
-import { getAssetIds, initializeTokenConfig, TOKENS, type TokenSymbol, UI } from '@/lib/config';
-import { midenClientService } from '@/services/client';
+import { initializeTokenConfig, TOKENS, type TokenSymbol, UI } from '@/lib/config';
 import {
-  calculateTokenPrice,
-  extractTokenData,
   getBalanceValidation,
   type TokenPriceData,
 } from '@/lib/swapHelpers';
