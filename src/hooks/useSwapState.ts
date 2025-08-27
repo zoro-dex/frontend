@@ -194,6 +194,8 @@ export const useTokenInitialization = (
  */
 export const useAutoRefetch = (
   refreshCallback: () => Promise<void>,
+  refreshSellBalance: () => Promise<void>,
+  refreshBuyBalance: () => Promise<void>,
   dependencies: readonly unknown[],
   enabled: boolean = true,
 ) => {
@@ -205,13 +207,18 @@ export const useAutoRefetch = (
 
     try {
       isRefetching.current = true;
-      await refreshCallback();
+      // Refresh prices and balances simultaneously
+      await Promise.all([
+        refreshCallback(),
+        refreshSellBalance(),
+        refreshBuyBalance(),
+      ]);
     } catch (error) {
       // Silent error handling
     } finally {
       isRefetching.current = false;
     }
-  }, [refreshCallback]);
+  }, [refreshCallback, refreshSellBalance, refreshBuyBalance]);
 
   useEffect(() => {
     if (!enabled) {
@@ -227,10 +234,10 @@ export const useAutoRefetch = (
       clearInterval(intervalRef.current);
     }
 
-    // Set up new interval
+    // Set up new interval - shorter interval for more responsive balance updates
     intervalRef.current = setInterval(() => {
       stableRefreshCallback();
-    }, 10000); // 10 seconds
+    }, 5000); // 5 seconds instead of 10
 
     // Cleanup on unmount or dependency change
     return () => {

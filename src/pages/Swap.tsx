@@ -259,16 +259,17 @@ function Swap() {
 
   // Auto-refresh setup
   const autoRefetchCallback = useCallback(async () => {
-    if (!tokensLoaded || !connected || assetIds.length === 0) return;
+      if (!tokensLoaded || !connected || assetIds.length === 0) return;
 
-    await Promise.allSettled([
-      refreshPrices(assetIds, true),
-      midenClientService.refreshAllBalances(),
-    ]);
-  }, [tokensLoaded, connected, assetIds, refreshPrices]);
+      await Promise.allSettled([
+        refreshPrices(assetIds, true),
+      ]);
+    }, [tokensLoaded, connected, assetIds, refreshPrices]);
 
   useAutoRefetch(
     autoRefetchCallback,
+    refreshSellBalance,
+    refreshBuyBalance,
     [tokensLoaded, connected, assetIds.length],
     tokensLoaded && connected && assetIds.length > 0,
   );
@@ -303,14 +304,12 @@ function Swap() {
       setSellAmount('');
       setBuyAmount('');
       
-      // Refresh balances after swap
-      setTimeout(() => {
-        Promise.all([
-          refreshSellBalance(),
-          refreshBuyBalance(),
-          midenClientService.refreshAllBalances()
+    // Immediate balance refresh after successful swap
+          Promise.all([
+            refreshSellBalance(),
+            refreshBuyBalance(),
+            midenClientService.refreshAllBalances()
         ]);
-      }, 3000);
 
     } catch (error) {
       // Silent error handling
