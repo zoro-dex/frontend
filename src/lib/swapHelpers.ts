@@ -203,38 +203,25 @@ export const canPerformSwap = (
   buyToken: TokenSymbol | undefined,
   tokensLoaded: boolean,
   balanceValidation: BalanceValidationState,
-  sellBalanceLoading: boolean,
-  buyBalanceLoading: boolean,
   isSwappingTokens: boolean,
-  isFetchingQuote: boolean,
 ): boolean => {
-  // Don't allow swap while balances are loading or fetching quote
-  if (sellBalanceLoading || buyBalanceLoading || isSwappingTokens || isFetchingQuote) {
-    return false;
-  }
+  // ✅ Remove all loading state blockers
+  if (isSwappingTokens) return false;
 
-  // Basic validation first
   const hasValidAmounts = Boolean(
-    sellAmount
-      && buyAmount
-      && !isNaN(parseFloat(sellAmount))
-      && !isNaN(parseFloat(buyAmount))
-      && parseFloat(sellAmount) > 0
-      && parseFloat(buyAmount) > 0,
+    sellAmount && buyAmount && 
+    !isNaN(parseFloat(sellAmount)) && !isNaN(parseFloat(buyAmount)) &&
+    parseFloat(sellAmount) > 0 && parseFloat(buyAmount) > 0
   );
 
   const hasValidTokens = Boolean(
-    tokenData.sellPrice
-      && tokenData.buyPrice
-      && sellToken !== buyToken
-      && sellToken
-      && buyToken
-      && tokensLoaded,
+    tokenData.sellPrice && tokenData.buyPrice &&
+    sellToken !== buyToken && sellToken && buyToken && tokensLoaded
   );
 
-  // Only check insufficient balance if balance is actually loaded
-  const hasValidBalance = !balanceValidation.isBalanceLoaded
-    || !balanceValidation.hasInsufficientBalance;
+  // ✅ Only show insufficient balance if we actually have balance data
+  const hasValidBalance = !balanceValidation.isBalanceLoaded || 
+    !balanceValidation.hasInsufficientBalance;
 
   return hasValidAmounts && hasValidTokens && hasValidBalance;
 };

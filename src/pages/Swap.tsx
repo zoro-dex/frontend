@@ -557,7 +557,7 @@ function Swap() {
                 {connected ? (
                   <Button
                     onClick={handleSwap}
-                    disabled={!canSwap || connecting || isCreatingNote}
+                    disabled={connecting || isCreatingNote || isSwappingTokens}
                     variant='outline'
                     className='w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
                   >
@@ -571,22 +571,65 @@ function Swap() {
                         <Loader2 className='w-4 h-4 mr-2 animate-spin' />
                         Creating Note...
                       </>
-                    ) : isFetchingQuote ? (
+                    ) : isSwappingTokens ? (
                       <>
                         <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                        Swapping tokens...
                       </>
-                    ) : balanceValidation.isBalanceLoaded && balanceValidation.hasInsufficientBalance ? (
-                      `Insufficient ${sellToken} balance`
-                    ) : !canSwap ? (
-                      sellToken === buyToken ? 'Select different tokens' : 'Enter amount'
-                    ) : sellBalanceLoading || buyBalanceLoading ? (
-                      <>
-                        <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-                        Loading balances...
-                      </>
-                    ) : (
-                      'Swap'
-                    )}
+                    ) : (() => {
+                      // Validation logic for button text only - doesn't block interaction
+                      const sellAmountNum = parseFloat(sellAmount);
+                      const buyAmountNum = parseFloat(buyAmount);
+                      
+                      const hasValidAmounts = Boolean(
+                        sellAmount && buyAmount && 
+                        !isNaN(sellAmountNum) && !isNaN(buyAmountNum) &&
+                        sellAmountNum > 0 && buyAmountNum > 0
+                      );
+                      
+                      const hasValidTokens = Boolean(
+                        sellToken && buyToken && 
+                        sellToken !== buyToken && 
+                        tokensLoaded
+                      );
+                      
+                      const hasPriceData = Boolean(
+                        tokenData.sellPrice && tokenData.buyPrice
+                      );
+                      
+                      // Only show insufficient balance if we have definitive balance data
+                      const showInsufficientBalance = Boolean(
+                        balanceValidation.isBalanceLoaded && 
+                        balanceValidation.hasInsufficientBalance
+                      );
+
+                      if (showInsufficientBalance) {
+                        return `Insufficient ${sellToken} balance`;
+                      }
+                      
+                      if (!hasValidTokens) {
+                        return sellToken === buyToken ? 'Select different tokens' : 'Select tokens';
+                      }
+                      
+                      if (!hasValidAmounts) {
+                        return 'Enter amount';
+                      }
+                      
+                      if (!hasPriceData && isFetchingQuote) {
+                        return (
+                          <>
+                            <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                            Fetching price...
+                          </>
+                        );
+                      }
+                      
+                      if (!hasPriceData) {
+                        return 'Price unavailable - Try anyway?';
+                      }
+                      
+                      return 'Swap';
+                    })()}
                   </Button>
                 ) : (
                   <div className='w-full h-full'>
