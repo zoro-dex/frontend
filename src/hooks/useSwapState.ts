@@ -237,7 +237,7 @@ export const useAutoRefetch = (
     // Set up new interval - shorter interval for more responsive balance updates
     intervalRef.current = setInterval(() => {
       stableRefreshCallback();
-    }, 5000); // 5 seconds instead of 10
+    }, 10000); // 10 secs
 
     // Cleanup on unmount or dependency change
     return () => {

@@ -78,36 +78,6 @@ export const getBalanceValidation = (
 };
 
 /**
- * Format BigInt balance to human-readable string with token-specific decimals
- */
-export const formatBalance = (balance: bigint, tokenSymbol: TokenSymbol): string => {
-  if (balance === BigInt(0)) {
-    return '0';
-  }
-
-  const token = TOKENS[tokenSymbol];
-  if (!token) return '0';
-
-  const divisor = BigInt(Math.pow(10, token.decimals));
-  const wholePart = balance / divisor;
-  const fractionalPart = balance % divisor;
-
-  if (fractionalPart === BigInt(0)) {
-    return wholePart.toString();
-  }
-
-  // Format with appropriate decimal places
-  const fractionalStr = fractionalPart.toString().padStart(token.decimals, '0');
-  const trimmedFractional = fractionalStr.replace(/0+$/, '');
-
-  if (trimmedFractional === '') {
-    return wholePart.toString();
-  }
-
-  return `${wholePart}.${trimmedFractional}`;
-};
-
-/**
  * Convert BigInt balance to decimal string for input fields
  */
 export const balanceToDecimalString = (balance: bigint, tokenSymbol: TokenSymbol): string => {

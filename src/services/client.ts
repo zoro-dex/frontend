@@ -1,8 +1,25 @@
 import { WebClient, AccountId } from '@demox-labs/miden-sdk';
-import { NETWORK } from '@/lib/config';
+import { NETWORK, TOKENS } from '@/lib/config';
 
 // Type for account - derived from actual SDK return type
 type MidenAccount = NonNullable<Awaited<ReturnType<WebClient['getAccount']>>>;
+
+/**
+ * Multi-balance data structure
+ */
+interface MultiBalanceData {
+  readonly btcBalance: bigint;
+  readonly ethBalance: bigint;
+  readonly lastUpdated: number;
+}
+
+/**
+ * Single balance data for backward compatibility
+ */
+interface BalanceData {
+  readonly balance: bigint;
+  readonly lastUpdated: number;
+}
 
 /**
  * Client state tracking
@@ -14,31 +31,27 @@ interface ClientState {
 }
 
 /**
- * Simple balance data
- */
-interface BalanceData {
-  readonly balance: bigint;
-  readonly lastUpdated: number;
-}
-
-/**
- * Balance update callback type
+ * Balance update callback types
  */
 type BalanceUpdateCallback = (balance: bigint, lastUpdated: number) => void;
+type MultiBalanceUpdateCallback = (balances: MultiBalanceData) => void;
 
 /**
- * Simple singleton service managing WebClient and balance fetching
- * No optimistic updates, no localStorage caching - just reliable data fetching
+ * Enhanced singleton service managing WebClient with optimized multi-balance fetching
  */
 class MidenClientService {
   private clientState: ClientState | null = null;
   private initializationPromise: Promise<WebClient> | null = null;
   private syncPromise: Promise<void> | null = null;
   
-  // Simple balance management - memory only
+  // Multi-balance management - one fetch for both tokens
+  private multiBalanceCache = new Map<string, MultiBalanceData>();
+  private multiBalanceCallbacks = new Map<string, Set<MultiBalanceUpdateCallback>>();
+  private multiFetchPromises = new Map<string, Promise<MultiBalanceData>>();
+  
+  // Legacy single balance support
   private balanceCache = new Map<string, BalanceData>();
   private balanceUpdateCallbacks = new Map<string, Set<BalanceUpdateCallback>>();
-  private fetchingPromises = new Map<string, Promise<bigint>>();
   
   // Configuration
   private static readonly SYNC_INTERVAL_MS = 30_000; // 30 seconds
@@ -150,6 +163,13 @@ class MidenClientService {
   }
   
   /**
+   * Generate cache key for multi-balance entries (account only)
+   */
+  private getMultiBalanceCacheKey(accountId: AccountId): string {
+    return accountId.toBech32();
+  }
+  
+  /**
    * Type guard to check if account is valid
    */
   private isValidAccount(account: any): account is MidenAccount {
@@ -194,19 +214,22 @@ class MidenClientService {
   }
   
   /**
-   * Fetch balance from blockchain - NO OPTIMISTIC UPDATES
+   * Fetch both BTC and ETH balances in a single blockchain call
    */
-  private async fetchBalanceFromChain(
-    accountId: AccountId, 
-    faucetId: AccountId
-  ): Promise<bigint> {
+  private async fetchMultiBalanceFromChain(accountId: AccountId): Promise<MultiBalanceData> {
     const client = await this.getClient();
     await this.ensureSynced();
     
     try {
       const account = await this.getAccountSafely(client, accountId);
-      const balance = account.vault().getBalance(faucetId);
-      return BigInt(balance ?? 0);
+      const btcBalance = account.vault().getBalance(AccountId.fromBech32(TOKENS.BTC.faucetId));
+      const ethBalance = account.vault().getBalance(AccountId.fromBech32(TOKENS.ETH.faucetId));
+      
+      return {
+        btcBalance: BigInt(btcBalance ?? 0),
+        ethBalance: BigInt(ethBalance ?? 0),
+        lastUpdated: Date.now(),
+      };
       
     } catch (error) {
       throw error;
@@ -214,72 +237,139 @@ class MidenClientService {
   }
   
   /**
-   * Get balance with simple memory caching only
-   * No localStorage, no optimistic updates - just fast, reliable data
+   * Get both token balances with single blockchain call
+   */
+  async getMultiBalance(
+    accountId: AccountId,
+    useCache: boolean = true
+  ): Promise<MultiBalanceData> {
+    const cacheKey = this.getMultiBalanceCacheKey(accountId);
+    
+    // Check memory cache first
+    if (useCache) {
+      const cached = this.multiBalanceCache.get(cacheKey);
+      if (cached) {
+        const age = Date.now() - cached.lastUpdated;
+        if (age < MidenClientService.BALANCE_CACHE_TTL) {
+          return cached;
+        }
+      }
+    }
+    
+    // Deduplicate concurrent requests
+    const existingFetch = this.multiFetchPromises.get(cacheKey);
+    if (existingFetch) {
+      return await existingFetch;
+    }
+    
+    // Start fresh fetch
+    const fetchPromise = this.fetchMultiBalanceFromChain(accountId);
+    this.multiFetchPromises.set(cacheKey, fetchPromise);
+    
+    try {
+      const freshBalances = await fetchPromise;
+      
+      // Update cache
+      this.multiBalanceCache.set(cacheKey, freshBalances);
+      
+      // Update individual balance caches for backward compatibility
+      this.updateSingleBalanceCaches(accountId, freshBalances);
+      
+      // Notify multi-balance subscribers
+      this.notifyMultiBalanceUpdate(cacheKey, freshBalances);
+      
+      return freshBalances;
+      
+    } finally {
+      this.multiFetchPromises.delete(cacheKey);
+    }
+  }
+  
+  /**
+   * Update individual balance caches when multi-balance is fetched
+   */
+  private updateSingleBalanceCaches(accountId: AccountId, balances: MultiBalanceData): void {
+    const btcCacheKey = this.getCacheKey(accountId, AccountId.fromBech32(TOKENS.BTC.faucetId));
+    const ethCacheKey = this.getCacheKey(accountId, AccountId.fromBech32(TOKENS.ETH.faucetId));
+    
+    const btcEntry: BalanceData = {
+      balance: balances.btcBalance,
+      lastUpdated: balances.lastUpdated,
+    };
+    
+    const ethEntry: BalanceData = {
+      balance: balances.ethBalance,
+      lastUpdated: balances.lastUpdated,
+    };
+    
+    this.balanceCache.set(btcCacheKey, btcEntry);
+    this.balanceCache.set(ethCacheKey, ethEntry);
+    
+    // Notify individual balance subscribers
+    this.notifyBalanceUpdate(btcCacheKey, balances.btcBalance, balances.lastUpdated);
+    this.notifyBalanceUpdate(ethCacheKey, balances.ethBalance, balances.lastUpdated);
+  }
+  
+  /**
+   * Legacy single balance API - now uses multi-balance internally for efficiency
    */
   async getBalance(
     accountId: AccountId,
     faucetId: AccountId,
     useCache: boolean = true
   ): Promise<{ balance: bigint; lastUpdated: number }> {
-    const cacheKey = this.getCacheKey(accountId, faucetId);
+    // Use multi-balance fetch for efficiency, then extract the requested token
+    const multiBalance = await this.getMultiBalance(accountId, useCache);
     
-    // Check memory cache first
-    if (useCache) {
-      const cached = this.balanceCache.get(cacheKey);
-      if (cached) {
-        const age = Date.now() - cached.lastUpdated;
-        if (age < MidenClientService.BALANCE_CACHE_TTL) {
-          return {
-            balance: cached.balance,
-            lastUpdated: cached.lastUpdated,
-          };
-        }
-      }
-    }
+    const btcFaucetId = TOKENS.BTC.faucetId;
+    const ethFaucetId = TOKENS.ETH.faucetId;
+    const requestedFaucetId = faucetId.toBech32();
     
-    // Deduplicate concurrent requests
-    const existingFetch = this.fetchingPromises.get(cacheKey);
-    if (existingFetch) {
-      const balance = await existingFetch;
-      const entry = this.balanceCache.get(cacheKey);
+    if (requestedFaucetId === btcFaucetId) {
       return {
-        balance,
-        lastUpdated: entry?.lastUpdated ?? Date.now(),
+        balance: multiBalance.btcBalance,
+        lastUpdated: multiBalance.lastUpdated,
       };
-    }
-    
-    // Start fresh fetch
-    const fetchPromise = this.fetchBalanceFromChain(accountId, faucetId);
-    this.fetchingPromises.set(cacheKey, fetchPromise);
-    
-    try {
-      const freshBalance = await fetchPromise;
-      const now = Date.now();
-      
-      // Update cache
-      const entry: BalanceData = {
-        balance: freshBalance,
-        lastUpdated: now,
-      };
-      
-      this.balanceCache.set(cacheKey, entry);
-      
-      // Notify subscribers
-      this.notifyBalanceUpdate(cacheKey, freshBalance, now);
-      
+    } else if (requestedFaucetId === ethFaucetId) {
       return {
-        balance: freshBalance,
-        lastUpdated: now,
+        balance: multiBalance.ethBalance,
+        lastUpdated: multiBalance.lastUpdated,
       };
-      
-    } finally {
-      this.fetchingPromises.delete(cacheKey);
     }
+    
+    // Fallback for unknown tokens (should not happen in current system)
+    throw new Error(`Unsupported faucet ID: ${requestedFaucetId}`);
   }
   
   /**
-   * Subscribe to balance updates for reactive UI
+   * Subscribe to multi-balance updates
+   */
+  subscribeToMultiBalanceUpdates(
+    accountId: AccountId,
+    callback: MultiBalanceUpdateCallback
+  ): () => void {
+    const cacheKey = this.getMultiBalanceCacheKey(accountId);
+    
+    if (!this.multiBalanceCallbacks.has(cacheKey)) {
+      this.multiBalanceCallbacks.set(cacheKey, new Set());
+    }
+    
+    this.multiBalanceCallbacks.get(cacheKey)!.add(callback);
+    
+    return () => {
+      const callbacks = this.multiBalanceCallbacks.get(cacheKey);
+      if (callbacks) {
+        callbacks.delete(callback);
+        if (callbacks.size === 0) {
+          this.multiBalanceCallbacks.delete(cacheKey);
+          this.multiBalanceCache.delete(cacheKey);
+        }
+      }
+    };
+  }
+  
+  /**
+   * Subscribe to single balance updates (legacy API)
    */
   subscribeToBalanceUpdates(
     accountId: AccountId,
@@ -294,14 +384,12 @@ class MidenClientService {
     
     this.balanceUpdateCallbacks.get(cacheKey)!.add(callback);
     
-    // Return unsubscribe function
     return () => {
       const callbacks = this.balanceUpdateCallbacks.get(cacheKey);
       if (callbacks) {
         callbacks.delete(callback);
         if (callbacks.size === 0) {
           this.balanceUpdateCallbacks.delete(cacheKey);
-          // Also clear the cache entry if no one is listening
           this.balanceCache.delete(cacheKey);
         }
       }
@@ -309,7 +397,23 @@ class MidenClientService {
   }
   
   /**
-   * Notify all subscribers of balance updates
+   * Notify multi-balance subscribers
+   */
+  private notifyMultiBalanceUpdate(cacheKey: string, balances: MultiBalanceData): void {
+    const callbacks = this.multiBalanceCallbacks.get(cacheKey);
+    if (callbacks) {
+      callbacks.forEach(callback => {
+        try {
+          callback(balances);
+        } catch (error) {
+          // Silent callback failures
+        }
+      });
+    }
+  }
+  
+  /**
+   * Notify single balance subscribers
    */
   private notifyBalanceUpdate(
     cacheKey: string,
@@ -322,43 +426,39 @@ class MidenClientService {
         try {
           callback(balance, lastUpdated);
         } catch (error) {
-          // Silent callback failures - don't break the system
+          // Silent callback failures
         }
       });
     }
   }
   
   /**
-   * Force refresh balance from blockchain
+   * Force refresh balances from blockchain
    */
   async refreshBalance(accountId: AccountId, faucetId: AccountId): Promise<void> {
     await this.getBalance(accountId, faucetId, false);
   }
   
   /**
-   * Refresh all cached balances (useful after transactions or token swaps)
+   * Force refresh all balances for an account
    */
-  async refreshAllBalances(): Promise<void> {
-    const refreshPromises: Promise<void>[] = [];
+  async refreshAllBalances(accountId?: AccountId): Promise<void> {
+    if (accountId) {
+      // Refresh specific account
+      await this.getMultiBalance(accountId, false);
+      return;
+    }
     
-    // Create a copy of current cache keys to avoid concurrent modification
-    const cacheKeys = Array.from(this.balanceCache.keys());
+    // Refresh all cached accounts
+    const refreshPromises: Promise<void>[] = [];
+    const cacheKeys = Array.from(this.multiBalanceCache.keys());
     
     for (const cacheKey of cacheKeys) {
-      const [accountBech32, faucetBech32] = cacheKey.split('-');
       try {
-        const accountId = AccountId.fromBech32(accountBech32);
-        const faucetId = AccountId.fromBech32(faucetBech32);
-        
-        // Force refresh each balance
-        const refreshPromise = this.getBalance(accountId, faucetId, false)
-          .then(() => {
-            // Silent success
-          })
-          .catch(error => {
-            // Silent error handling
-          });
-          
+        const accountId = AccountId.fromBech32(cacheKey);
+        const refreshPromise = this.getMultiBalance(accountId, false)
+          .then(() => {})
+          .catch(() => {});
         refreshPromises.push(refreshPromise);
       } catch (error) {
         // Silent error handling for malformed cache keys
@@ -382,6 +482,8 @@ class MidenClientService {
    * Clear all balance caches
    */
   clearBalanceCaches(): void {
+    this.multiBalanceCache.clear();
+    this.multiBalanceCallbacks.clear();
     this.balanceCache.clear();
     this.balanceUpdateCallbacks.clear();
   }
@@ -399,3 +501,6 @@ class MidenClientService {
 
 // Export singleton instance
 export const midenClientService = new MidenClientService();
+
+// Export types for use in other modules
+export type { MultiBalanceData, BalanceData };

@@ -17,46 +17,27 @@ import {
   calculateUsdValues,
   canPerformSwap,
   extractTokenData,
-  formatBalance,
   getBalanceValidation,
-  balanceToDecimalString,
+  balanceToDecimalString
 } from '@/lib/swapHelpers';
 import { useSwapState, useTokenInitialization, useAutoRefetch } from '@/hooks/useSwapState';
 import { SwapSettings } from '@/components/SwapSettings';
 
 type TabType = 'Swap' | 'Limit';
 
-interface PriceFetcherProps {
-  readonly shouldFetch: boolean;
-  readonly assetIds: readonly string[];
-}
-
-const PriceFetcher: React.FC<PriceFetcherProps> = ({ shouldFetch, assetIds }) => {
-  const { refreshPrices } = useContext(NablaAntennaContext);
-
-  useEffect(() => {
-    if (!shouldFetch) return;
-    refreshPrices(assetIds);
-  }, [shouldFetch, refreshPrices, assetIds]);
-
-  return null;
-};
-
 function Swap() {
   const [activeTab, setActiveTab] = useState<TabType>('Swap');
   const [isCreatingNote, setIsCreatingNote] = useState<boolean>(false);
-  const [shouldFetchPrices, setShouldFetchPrices] = useState<boolean>(false);
 
   const { connecting, requestTransaction } = useWallet();
+  const { refreshPrices } = useContext(NablaAntennaContext);
 
-  // Use centralized swap state
   const {
     state,
     actions,
     balances,
     refs,
     wallet,
-    context,
   } = useSwapState();
 
   const {
@@ -70,7 +51,6 @@ function Swap() {
     isSwappingTokens,
     tokensLoaded,
     availableTokens,
-    pricesFetched,
   } = state;
 
   const {
@@ -82,7 +62,6 @@ function Swap() {
     setIsSwappingTokens,
     setTokensLoaded,
     setAvailableTokens,
-    setPricesFetched,
   } = actions;
 
   const {
@@ -96,7 +75,6 @@ function Swap() {
 
   const { debounceRef, sellInputRef } = refs;
   const { connected, stableUserAccountId } = wallet;
-  const { refreshPrices } = context;
 
   // Initialize tokens
   useTokenInitialization(
@@ -106,7 +84,7 @@ function Swap() {
     actions.setBuyToken,
   );
 
-  // Asset IDs and price data
+  // Asset IDs and price data - simplified
   const assetIds: readonly string[] = useMemo(() => 
     tokensLoaded ? getAssetIds() : [], 
     [tokensLoaded]
@@ -144,10 +122,7 @@ function Swap() {
       buyToken,
       tokensLoaded,
       balanceValidation,
-      sellBalanceLoading,
-      buyBalanceLoading,
       isSwappingTokens,
-      isFetchingQuote,
     ),
     [
       sellAmount,
@@ -157,21 +132,18 @@ function Swap() {
       buyToken,
       tokensLoaded,
       balanceValidation,
-      sellBalanceLoading,
-      buyBalanceLoading,
       isSwappingTokens,
-      isFetchingQuote,
     ]
   );
 
   const formattedSellBalance = useMemo(() => {
     if (!sellToken || sellBalance === null) return '0';
-    return formatBalance(sellBalance, sellToken);
+    return balanceToDecimalString(sellBalance, sellToken);
   }, [sellBalance, sellToken]);
 
   const formattedBuyBalance = useMemo(() => {
     if (!buyToken || buyBalance === null) return '0';
-    return formatBalance(buyBalance, buyToken);
+    return balanceToDecimalString(buyBalance, buyToken);
   }, [buyBalance, buyToken]);
 
   // Price calculation function
@@ -257,22 +229,37 @@ function Swap() {
     }
   }, [sellBalance, sellToken, handleSellAmountChange]);
 
-  // Auto-refresh setup
-  const autoRefetchCallback = useCallback(async () => {
-      if (!tokensLoaded || !connected || assetIds.length === 0) return;
+  // Simplified auto-refresh - always refresh when conditions are met
+  const autoRefreshCallback = useCallback(async () => {
+    if (!tokensLoaded || !connected || assetIds.length === 0) return;
 
-      await Promise.allSettled([
-        refreshPrices(assetIds, true),
-      ]);
-    }, [tokensLoaded, connected, assetIds, refreshPrices]);
+    await refreshPrices(assetIds, true); // Always force refresh
+  }, [tokensLoaded, connected, assetIds, refreshPrices]);
 
   useAutoRefetch(
-    autoRefetchCallback,
+    autoRefreshCallback,
     refreshSellBalance,
     refreshBuyBalance,
     [tokensLoaded, connected, assetIds.length],
     tokensLoaded && connected && assetIds.length > 0,
   );
+
+  // Initial price fetch on component mount
+  useEffect(() => {
+    const initialPriceFetch = async (): Promise<void> => {
+      if (tokensLoaded && assetIds.length > 0) {
+        await refreshPrices(assetIds);
+      }
+    };
+    initialPriceFetch();
+  }, [refreshPrices, tokensLoaded, assetIds.length]);
+
+  // Input focus handler - simplified
+  const handleInputFocus = useCallback(() => {
+    if (tokensLoaded && assetIds.length > 0) {
+      refreshPrices(assetIds);
+    }
+  }, [tokensLoaded, assetIds, refreshPrices]);
 
   // Swap handler
   const handleSwap = useCallback(async (): Promise<void> => {
@@ -304,12 +291,12 @@ function Swap() {
       setSellAmount('');
       setBuyAmount('');
       
-    // Immediate balance refresh after successful swap
-          Promise.all([
-            refreshSellBalance(),
-            refreshBuyBalance(),
-            midenClientService.refreshAllBalances()
-        ]);
+      // Immediate balance refresh after successful swap
+      Promise.all([
+        refreshSellBalance(),
+        refreshBuyBalance(),
+        midenClientService.refreshAllBalances()
+      ]);
 
     } catch (error) {
       // Silent error handling
@@ -334,35 +321,12 @@ function Swap() {
     setBuyAmount,
   ]);
 
-  // Price fetching
-  const fetchPrices = useCallback(async (): Promise<void> => {
-    if (pricesFetched || !tokensLoaded || assetIds.length === 0) return;
-    setShouldFetchPrices(true);
-    await refreshPrices(assetIds);
-    setPricesFetched(true);
-  }, [pricesFetched, tokensLoaded, assetIds.length, refreshPrices, setPricesFetched]);
-
-  const handleInputFocus = useCallback(() => {
-    fetchPrices();
-  }, [fetchPrices]);
-
   // Effects
   useEffect(() => {
     if (sellInputRef.current && tokensLoaded) {
       sellInputRef.current.focus();
     }
   }, [tokensLoaded]);
-
-  useEffect(() => {
-    const prefetchPrices = async (): Promise<void> => {
-      if (!pricesFetched && tokensLoaded && assetIds.length > 0) {
-        setShouldFetchPrices(true);
-        await refreshPrices(assetIds);
-        setPricesFetched(true);
-      }
-    };
-    prefetchPrices();
-  }, [refreshPrices, pricesFetched, tokensLoaded, assetIds.length, setPricesFetched]);
 
   useEffect(() => {
     if (lastEditedField === 'sell' && sellAmount) {
@@ -403,7 +367,6 @@ function Swap() {
 
   return (
     <div className='min-h-screen bg-background text-foreground flex flex-col'>
-      <PriceFetcher shouldFetch={shouldFetchPrices} assetIds={assetIds} />
       <Header />
 
       <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-20'>

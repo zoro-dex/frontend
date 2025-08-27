@@ -17,7 +17,6 @@ interface BalanceState {
 
 /**
  * Simple balance hook that just fetches fresh data
- * No optimistic updates, no localStorage - reliable and predictable
  */
 export const useBalance = (
   { accountId, faucetId }: BalanceParams,
@@ -71,17 +70,6 @@ export const useBalance = (
       midenClientService.clearBalanceCaches();
       setBalance(null);
       setLastUpdated(0);
-    },
-    onTransactionStatusChange: (status: any) => {
-      if (status.status === 'confirmed' || status.status === 'ready_to_claim') {
-        // Refresh this specific balance and all others
-        setTimeout(() => {
-          Promise.all([
-            refreshBalance(),
-            midenClientService.refreshAllBalances()
-          ]);
-        }, 2000); // Small delay for blockchain propagation
-      }
     },
     onReadyStateChange: (state: string) => {
       if (state === 'Connected') {
