@@ -4,10 +4,10 @@ import { SwapSettings } from '@/components/SwapSettings';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useSwapState, useTokenInitialization } from '@/hooks/useSwapState';
-import { getAssetIds, TOKENS } from '@/lib/config';
+import { useBalance } from '@/hooks/useBalance.ts';
+import { useTokenInitialization } from '@/hooks/useTokenInitialization.ts';
+import { getAssetIds, poolAccountId, TOKENS, type TokenSymbol, UI } from '@/lib/config';
 import {
-  balanceToDecimalString,
   calculateMinAmountOut,
   calculateTokenPrice,
   calculateUsdValues,
@@ -16,94 +16,100 @@ import {
   formatBalance,
   getBalanceValidation,
 } from '@/lib/swapHelpers';
+import { instantiateClient } from '@/lib/utils.ts';
+import {
+  NablaAntennaContext,
+  useNablaAntennaPrices,
+} from '@/providers/NablaAntennaProvider';
+import { AccountId, type WebClient } from '@demox-labs/miden-sdk';
 import { useWallet, WalletMultiButton } from '@demox-labs/miden-wallet-adapter';
 import { ArrowUpDown, Loader2 } from 'lucide-react';
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { NablaAntennaContext, useNablaAntennaPrices } from '../components/PriceFetcher';
+import { formatUnits } from 'viem';
 import { compileZoroSwapNote, type SwapParams } from '../lib/ZoroSwapNote.ts';
 
 type TabType = 'Swap' | 'Limit';
 
-interface PriceFetcherProps {
-  readonly shouldFetch: boolean;
-  readonly assetIds: readonly string[];
-}
-
-const PriceFetcher: React.FC<PriceFetcherProps> = ({ shouldFetch, assetIds }) => {
-  const { refreshPrices } = useContext(NablaAntennaContext);
-
-  useEffect(() => {
-    if (!shouldFetch) return;
-    refreshPrices(assetIds);
-  }, [shouldFetch, refreshPrices, assetIds]);
-
-  return null;
-};
-
 function Swap() {
   const [activeTab, setActiveTab] = useState<TabType>('Swap');
   const [isCreatingNote, setIsCreatingNote] = useState<boolean>(false);
-  const [shouldFetchPrices, setShouldFetchPrices] = useState<boolean>(false);
+  const { connecting, requestTransaction, accountId: rawAccountId } = useWallet();
+  const [client, setClient] = useState<WebClient | undefined>(undefined);
+  const [sellAmount, setSellAmount] = useState<string>('');
+  const [buyAmount, setBuyAmount] = useState<string>('');
+  const [sellToken, setSellToken] = useState<TokenSymbol | undefined>(undefined);
+  const [buyToken, setBuyToken] = useState<TokenSymbol | undefined>(undefined);
+  const [slippage, setSlippage] = useState<number>(UI.defaultSlippage);
+  const [lastEditedField, setLastEditedField] = useState<'sell' | 'buy'>('sell');
+  const [isFetchingQuote, setIsFetchingQuote] = useState<boolean>(false);
+  const accountId = useMemo(() => {
+    if (rawAccountId != null) {
+      return AccountId.fromBech32(rawAccountId);
+    } else return undefined;
+  }, [rawAccountId]);
+  const [tokensLoaded, setTokensLoaded] = useState<boolean>(false);
+  const [availableTokens, setAvailableTokens] = useState<TokenSymbol[]>([]);
+  const { refreshPrices } = useContext(NablaAntennaContext);
 
-  const { connecting, requestTransaction } = useWallet();
-
-  // Use centralized swap state
-  const {
-    state,
-    actions,
-    balances,
-    refs,
-    context,
-    accountId,
-    client,
-  } = useSwapState();
-
-  const {
-    sellAmount,
-    buyAmount,
-    sellToken,
-    buyToken,
-    slippage,
-    lastEditedField,
-    isFetchingQuote,
-    isSwappingTokens,
-    tokensLoaded,
-    availableTokens,
-    pricesFetched,
-  } = state;
-
-  const {
-    setSellAmount,
-    setBuyAmount,
-    setSlippage,
-    setLastEditedField,
-    setIsFetchingQuote,
-    setIsSwappingTokens,
-    setTokensLoaded,
-    setAvailableTokens,
-    setPricesFetched,
-  } = actions;
-
-  const {
-    sellBalance,
-    buyBalance,
-    sellBalanceLoading,
-    buyBalanceLoading,
-    refreshSellBalance,
-    refreshBuyBalance,
-  } = balances;
-
-  const { debounceRef, sellInputRef } = refs;
-  const { refreshPrices } = context;
+  // Refs for stable calculations
+  const sellInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize tokens
   useTokenInitialization(
     setTokensLoaded,
     setAvailableTokens,
-    actions.setSellToken,
-    actions.setBuyToken,
+    setSellToken,
+    setBuyToken,
   );
+
+  // Balance parameters
+  const sellBalanceParams = useMemo(() => ({
+    accountId,
+    faucetId: sellToken && TOKENS[sellToken]
+      ? AccountId.fromBech32(TOKENS[sellToken].faucetId)
+      : undefined,
+  }), [accountId, sellToken]);
+
+  const buyBalanceParams = useMemo(() => ({
+    accountId,
+    faucetId: buyToken && TOKENS[buyToken]
+      ? AccountId.fromBech32(TOKENS[buyToken].faucetId)
+      : undefined,
+  }), [accountId, buyToken]);
+
+  useEffect(() => {
+    if (
+      client == null && accountId != null
+      && sellBalanceParams.faucetId != null
+      && buyBalanceParams.faucetId != null
+    ) {
+      (async () => {
+        const client = await instantiateClient({
+          accountsToImport: [
+            accountId,
+            sellBalanceParams.faucetId as AccountId,
+            buyBalanceParams.faucetId as AccountId,
+            poolAccountId,
+          ],
+        });
+        setClient(client);
+      })();
+    }
+  }, [accountId, sellBalanceParams.faucetId, buyBalanceParams.faucetId]);
+
+  // Balance hooks
+  const { balance: sellBalance } = useBalance({
+    accountId,
+    faucetId: sellBalanceParams.faucetId,
+    client,
+  });
+
+  const { balance: buyBalance } = useBalance({
+    accountId,
+    faucetId: buyBalanceParams.faucetId,
+    client,
+  });
 
   // Asset IDs and price data
   const assetIds: readonly string[] = useMemo(() => tokensLoaded ? getAssetIds() : [], [
@@ -114,7 +120,6 @@ function Swap() {
     if (!sellToken || !buyToken || !tokensLoaded) return [];
     return [TOKENS[sellToken]?.priceId, TOKENS[buyToken]?.priceId].filter(Boolean);
   }, [sellToken, buyToken, tokensLoaded]);
-
   const prices = useNablaAntennaPrices(priceIds);
 
   // Derived data
@@ -143,7 +148,6 @@ function Swap() {
       buyToken,
       tokensLoaded,
       balanceValidation,
-      isSwappingTokens,
     ), [
     sellAmount,
     buyAmount,
@@ -152,7 +156,6 @@ function Swap() {
     buyToken,
     tokensLoaded,
     balanceValidation,
-    isSwappingTokens,
   ]);
 
   const formattedSellBalance = useMemo(() => {
@@ -183,19 +186,13 @@ function Swap() {
   const handleSellAmountChange = useCallback((value: string): void => {
     setSellAmount(value);
     setLastEditedField('sell');
-
     if (!value) {
       setBuyAmount('');
       setIsFetchingQuote(false);
       return;
     }
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
     setIsFetchingQuote(true);
-
-    debounceRef.current = setTimeout(() => {
-      calculateAndSetPrice(value, '', 'sell');
-    }, 300);
+    calculateAndSetPrice(value, '', 'sell');
   }, [
     setSellAmount,
     setLastEditedField,
@@ -207,19 +204,13 @@ function Swap() {
   const handleBuyAmountChange = useCallback((value: string): void => {
     setBuyAmount(value);
     setLastEditedField('buy');
-
     if (!value) {
       setSellAmount('');
       setIsFetchingQuote(false);
       return;
     }
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
     setIsFetchingQuote(true);
-
-    debounceRef.current = setTimeout(() => {
-      calculateAndSetPrice('', value, 'buy');
-    }, 300);
+    calculateAndSetPrice('', value, 'buy');
   }, [
     setBuyAmount,
     setLastEditedField,
@@ -229,62 +220,43 @@ function Swap() {
   ]);
 
   // Token replacement
-  const handleReplaceTokens = useCallback(() => {
+  const handleReplaceTokens = useCallback(async () => {
     if (!sellToken || !buyToken) return;
-
-    setIsSwappingTokens(true);
-
-    // Swap everything atomically
-    actions.setSellToken(buyToken);
-    actions.setBuyToken(sellToken);
+    setSellToken(buyToken);
+    setBuyToken(sellToken);
     setSellAmount(buyAmount);
     setBuyAmount(sellAmount);
     setLastEditedField(lastEditedField === 'sell' ? 'buy' : 'sell');
-
-    setTimeout(async () => {
-      try {
-        await client?.syncState();
-      } finally {
-        setIsSwappingTokens(false);
-        sellInputRef.current?.focus();
-      }
-    }, 100);
+    sellInputRef.current?.focus();
   }, [
-    client,
     sellToken,
     buyToken,
     buyAmount,
     sellAmount,
     lastEditedField,
-    actions,
+    setBuyToken,
+    setSellToken,
     setSellAmount,
     setBuyAmount,
     setLastEditedField,
-    setIsSwappingTokens,
   ]);
 
   // Max balance handler
   const handleMaxClick = useCallback((): void => {
     if (sellBalance !== null && sellBalance > BigInt(0) && sellToken) {
-      const maxAmount = balanceToDecimalString(sellBalance, sellToken);
+      const decimals = TOKENS[sellToken]?.decimals || 8;
+      const maxAmount = formatUnits(sellBalance, decimals);
       handleSellAmountChange(maxAmount);
       sellInputRef.current?.focus();
     }
   }, [sellBalance, sellToken, handleSellAmountChange]);
 
   // Swap handler
-  const handleSwap = useCallback(async (): Promise<void> => {
+  const handleSwap = useCallback(async () => {
     if (!sellToken || !buyToken || !canSwap || !client) return;
-
     const minAmountOutValue = calculateMinAmountOut(buyAmount, slippage);
-
-    await Promise.all([
-      refreshPrices(assetIds, true),
-      client.syncState(),
-    ]);
-
+    await refreshPrices(assetIds, true);
     setIsCreatingNote(true);
-
     try {
       const swapParams: SwapParams = {
         sellToken,
@@ -295,14 +267,9 @@ function Swap() {
         wallet: { adapter: { accountId } } as any,
         requestTransaction: requestTransaction || (async () => ''),
       };
-
       await compileZoroSwapNote(swapParams, client);
-
-      // Clear form and refresh data after successful swap
       setSellAmount('');
       setBuyAmount('');
-    } catch (error) {
-      // Silent error handling
     } finally {
       setIsCreatingNote(false);
     }
@@ -317,49 +284,29 @@ function Swap() {
     requestTransaction,
     refreshPrices,
     assetIds,
-    refreshSellBalance,
-    refreshBuyBalance,
     setSellAmount,
     setBuyAmount,
   ]);
 
-  // Price fetching
-  const fetchPrices = useCallback(async (): Promise<void> => {
-    if (pricesFetched || !tokensLoaded || assetIds.length === 0) return;
-    setShouldFetchPrices(true);
+  const handleInputFocus = useCallback(async () => {
     await refreshPrices(assetIds);
-    setPricesFetched(true);
-  }, [pricesFetched, tokensLoaded, assetIds.length, refreshPrices, setPricesFetched]);
-
-  const handleInputFocus = useCallback(() => {
-    fetchPrices();
-  }, [fetchPrices]);
+  }, [refreshPrices]);
 
   // Effects
+  useEffect(() => {
+    if (assetIds.length == 0) return;
+    refreshPrices(assetIds);
+    let priceFetchingInterval = setInterval(() => {
+      refreshPrices(assetIds);
+    }, 30000);
+    return () => clearInterval(priceFetchingInterval);
+  }, [assetIds]);
+
   useEffect(() => {
     if (sellInputRef.current && tokensLoaded) {
       sellInputRef.current.focus();
     }
   }, [tokensLoaded]);
-
-  useEffect(() => {
-    const prefetchPrices = async () => {
-      if (!pricesFetched && tokensLoaded && assetIds.length > 0) {
-        setShouldFetchPrices(true);
-        await refreshPrices(assetIds);
-        setPricesFetched(true);
-      }
-    };
-    prefetchPrices();
-  }, [refreshPrices, pricesFetched, tokensLoaded, assetIds.length, setPricesFetched]);
-
-  useEffect(() => {
-    if (lastEditedField === 'sell' && sellAmount) {
-      calculateAndSetPrice(sellAmount, '', 'sell');
-    } else if (lastEditedField === 'buy' && buyAmount) {
-      calculateAndSetPrice('', buyAmount, 'buy');
-    }
-  }, [prices, calculateAndSetPrice, lastEditedField, sellAmount, buyAmount]);
 
   // Loading states
   if (!tokensLoaded) {
@@ -392,9 +339,7 @@ function Swap() {
 
   return (
     <div className='min-h-screen bg-background text-foreground flex flex-col'>
-      <PriceFetcher shouldFetch={shouldFetchPrices} assetIds={assetIds} />
       <Header />
-
       <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-20'>
         <div className='w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6'>
           <div className='flex items-center justify-between'>
@@ -415,13 +360,11 @@ function Swap() {
                 </Button>
               ))}
             </div>
-
             <div className='flex items-center gap-1 sm:gap-2'>
               <SwapSettings slippage={slippage} onSlippageChange={setSlippage} />
               <ModeToggle />
             </div>
           </div>
-
           <Card className='border rounded-xl sm:rounded-2xl'>
             <CardContent className='p-3 sm:p-4 space-y-3 sm:space-y-4'>
               {/* Sell Section */}
@@ -463,7 +406,6 @@ function Swap() {
                         )}
                       </Button>
                     </div>
-
                     <div className='flex items-center justify-between text-xs text-muted-foreground h-5'>
                       <div>{usdValues.sellUsdValue || usdValues.priceFor1}</div>
                       <div className='flex items-center gap-1'>
@@ -471,10 +413,8 @@ function Swap() {
                           onClick={handleMaxClick}
                           disabled={sellBalance === null || sellBalance === BigInt(0)}
                           className={`hover:text-foreground transition-colors cursor-pointer mr-1 ${
-                            sellBalanceLoading
-                              ? 'animate-pulse text-yellow-100'
-                              : balanceValidation.isBalanceLoaded
-                                  && balanceValidation.hasInsufficientBalance
+                            balanceValidation.isBalanceLoaded
+                              && balanceValidation.hasInsufficientBalance
                               ? 'text-orange-600 hover:text-destructive'
                               : 'dark:text-green-100 dark:hover:text-green-200'
                           }`}
@@ -494,8 +434,7 @@ function Swap() {
                   size='icon'
                   className='h-8 w-8 sm:h-10 sm:w-10 rounded-full border dark:bg-black bg-white dark:text-white text-black hover:text-black dark:hover:bg-gray-500/10 hover:bg-gray-500/10 dark:hover:text-white'
                   onClick={handleReplaceTokens}
-                  disabled={!sellToken || !buyToken || isCreatingNote || connecting
-                    || isSwappingTokens}
+                  disabled={!sellToken || !buyToken || isCreatingNote || connecting}
                 >
                   <ArrowUpDown className='w-3 h-3 sm:w-4 sm:h-4' />
                 </Button>
@@ -534,11 +473,10 @@ function Swap() {
                         )}
                       </Button>
                     </div>
-
                     <div className='flex items-center justify-between text-xs text-muted-foreground h-5'>
                       <div>{usdValues.buyUsdValue || usdValues.priceFor1Buy}</div>
                       {buyBalance !== null && buyBalance > BigInt(0) && (
-                        <div className={buyBalanceLoading ? 'animate-pulse' : ''}>
+                        <div>
                           {formattedBuyBalance} {buyToken}
                         </div>
                       )}
@@ -553,7 +491,7 @@ function Swap() {
                   ? (
                     <Button
                       onClick={handleSwap}
-                      disabled={connecting || isCreatingNote || isSwappingTokens}
+                      disabled={connecting || isCreatingNote}
                       variant='outline'
                       className='w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
                     >
@@ -571,34 +509,23 @@ function Swap() {
                             Creating Note...
                           </>
                         )
-                        : isSwappingTokens
-                        ? (
-                          <>
-                            <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-                            Swapping tokens...
-                          </>
-                        )
                         : (() => {
                           // Validation logic for button text only - doesn't block interaction
                           const sellAmountNum = parseFloat(sellAmount);
                           const buyAmountNum = parseFloat(buyAmount);
-
                           const hasValidAmounts = Boolean(
                             sellAmount && buyAmount
                               && !isNaN(sellAmountNum) && !isNaN(buyAmountNum)
                               && sellAmountNum > 0 && buyAmountNum > 0,
                           );
-
                           const hasValidTokens = Boolean(
                             sellToken && buyToken
                               && sellToken !== buyToken
                               && tokensLoaded,
                           );
-
                           const hasPriceData = Boolean(
                             tokenData.sellPrice && tokenData.buyPrice,
                           );
-
                           // Only show insufficient balance if we have definitive balance data
                           const showInsufficientBalance = Boolean(
                             balanceValidation.isBalanceLoaded
@@ -608,17 +535,12 @@ function Swap() {
                           if (showInsufficientBalance) {
                             return `Insufficient ${sellToken} balance`;
                           }
-
                           if (!hasValidTokens) {
-                            return sellToken === buyToken
-                              ? 'Select different tokens'
-                              : 'Select tokens';
+                            return 'Select tokens';
                           }
-
                           if (!hasValidAmounts) {
                             return 'Enter amount';
                           }
-
                           if (!hasPriceData && isFetchingQuote) {
                             return (
                               <>
@@ -627,11 +549,9 @@ function Swap() {
                               </>
                             );
                           }
-
                           if (!hasPriceData) {
                             return 'Price unavailable - Try anyway?';
                           }
-
                           return 'Swap';
                         })()}
                     </Button>

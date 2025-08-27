@@ -32,7 +32,7 @@ export const useBalance = (
 
   useEffect(() => {
     refreshBalance();
-    let clear = setInterval(refreshBalance, 5000);
+    let clear = setInterval(refreshBalance, 10000);
     return () => clearInterval(clear);
   }, [refreshBalance]);
 
