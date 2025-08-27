@@ -1,17 +1,13 @@
 import { Header } from '@/components/Header';
 import { ModeToggle } from '@/components/ModeToggle';
+import { SwapSettings } from '@/components/SwapSettings';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useSwapState, useTokenInitialization } from '@/hooks/useSwapState';
 import { getAssetIds, TOKENS } from '@/lib/config';
-import { midenClientService } from '@/services/client.ts';
-import { useWallet, WalletMultiButton } from '@demox-labs/miden-wallet-adapter';
-import { ArrowUpDown, Loader2 } from 'lucide-react';
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { NablaAntennaContext, useNablaAntennaPrices } from '../components/PriceFetcher';
-import { compileZoroSwapNote, type SwapParams } from '../lib/ZoroSwapNote.ts';
 import {
+  balanceToDecimalString,
   calculateMinAmountOut,
   calculateTokenPrice,
   calculateUsdValues,
@@ -19,10 +15,13 @@ import {
   extractTokenData,
   formatBalance,
   getBalanceValidation,
-  balanceToDecimalString,
 } from '@/lib/swapHelpers';
-import { useSwapState, useTokenInitialization, useAutoRefetch } from '@/hooks/useSwapState';
-import { SwapSettings } from '@/components/SwapSettings';
+import { useWallet, WalletMultiButton } from '@demox-labs/miden-wallet-adapter';
+import { ArrowUpDown, Loader2 } from 'lucide-react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { NablaAntennaContext, useNablaAntennaPrices } from '../components/PriceFetcher';
+import { compileZoroSwapNote, type SwapParams } from '../lib/ZoroSwapNote.ts';
 
 type TabType = 'Swap' | 'Limit';
 
@@ -55,8 +54,9 @@ function Swap() {
     actions,
     balances,
     refs,
-    wallet,
     context,
+    accountId,
+    client,
   } = useSwapState();
 
   const {
@@ -95,7 +95,6 @@ function Swap() {
   } = balances;
 
   const { debounceRef, sellInputRef } = refs;
-  const { connected, stableUserAccountId } = wallet;
   const { refreshPrices } = context;
 
   // Initialize tokens
@@ -107,10 +106,9 @@ function Swap() {
   );
 
   // Asset IDs and price data
-  const assetIds: readonly string[] = useMemo(() => 
-    tokensLoaded ? getAssetIds() : [], 
-    [tokensLoaded]
-  );
+  const assetIds: readonly string[] = useMemo(() => tokensLoaded ? getAssetIds() : [], [
+    tokensLoaded,
+  ]);
 
   const priceIds: string[] = useMemo(() => {
     if (!sellToken || !buyToken || !tokensLoaded) return [];
@@ -120,9 +118,9 @@ function Swap() {
   const prices = useNablaAntennaPrices(priceIds);
 
   // Derived data
-  const tokenData = useMemo(() => 
-    extractTokenData(sellToken, buyToken, tokensLoaded, prices),
-    [sellToken, buyToken, tokensLoaded, prices]
+  const tokenData = useMemo(
+    () => extractTokenData(sellToken, buyToken, tokensLoaded, prices),
+    [sellToken, buyToken, tokensLoaded, prices],
   );
 
   const balanceValidation = useMemo(() => {
@@ -130,12 +128,13 @@ function Swap() {
     return getBalanceValidation(sellAmount, sellBalance, sellToken);
   }, [sellAmount, sellBalance, sellToken]);
 
-  const usdValues = useMemo(() => 
-    calculateUsdValues(sellAmount, buyAmount, tokenData),
-    [sellAmount, buyAmount, tokenData]
-  );
+  const usdValues = useMemo(() => calculateUsdValues(sellAmount, buyAmount, tokenData), [
+    sellAmount,
+    buyAmount,
+    tokenData,
+  ]);
 
-  const canSwap = useMemo(() => 
+  const canSwap = useMemo(() =>
     canPerformSwap(
       sellAmount,
       buyAmount,
@@ -144,25 +143,17 @@ function Swap() {
       buyToken,
       tokensLoaded,
       balanceValidation,
-      sellBalanceLoading,
-      buyBalanceLoading,
       isSwappingTokens,
-      isFetchingQuote,
-    ),
-    [
-      sellAmount,
-      buyAmount,
-      tokenData,
-      sellToken,
-      buyToken,
-      tokensLoaded,
-      balanceValidation,
-      sellBalanceLoading,
-      buyBalanceLoading,
-      isSwappingTokens,
-      isFetchingQuote,
-    ]
-  );
+    ), [
+    sellAmount,
+    buyAmount,
+    tokenData,
+    sellToken,
+    buyToken,
+    tokensLoaded,
+    balanceValidation,
+    isSwappingTokens,
+  ]);
 
   const formattedSellBalance = useMemo(() => {
     if (!sellToken || sellBalance === null) return '0';
@@ -181,10 +172,10 @@ function Swap() {
     field: 'sell' | 'buy',
   ) => {
     const result = calculateTokenPrice(sellAmt, buyAmt, field, tokenData, slippage);
-    
+
     if (result.sellAmount) setSellAmount(result.sellAmount);
     if (result.buyAmount) setBuyAmount(result.buyAmount);
-    
+
     setIsFetchingQuote(false);
   }, [tokenData, slippage, setSellAmount, setBuyAmount, setIsFetchingQuote]);
 
@@ -192,7 +183,7 @@ function Swap() {
   const handleSellAmountChange = useCallback((value: string): void => {
     setSellAmount(value);
     setLastEditedField('sell');
-    
+
     if (!value) {
       setBuyAmount('');
       setIsFetchingQuote(false);
@@ -201,16 +192,22 @@ function Swap() {
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     setIsFetchingQuote(true);
-    
+
     debounceRef.current = setTimeout(() => {
       calculateAndSetPrice(value, '', 'sell');
     }, 300);
-  }, [setSellAmount, setLastEditedField, setBuyAmount, setIsFetchingQuote, calculateAndSetPrice]);
+  }, [
+    setSellAmount,
+    setLastEditedField,
+    setBuyAmount,
+    setIsFetchingQuote,
+    calculateAndSetPrice,
+  ]);
 
   const handleBuyAmountChange = useCallback((value: string): void => {
     setBuyAmount(value);
     setLastEditedField('buy');
-    
+
     if (!value) {
       setSellAmount('');
       setIsFetchingQuote(false);
@@ -219,18 +216,24 @@ function Swap() {
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     setIsFetchingQuote(true);
-    
+
     debounceRef.current = setTimeout(() => {
       calculateAndSetPrice('', value, 'buy');
     }, 300);
-  }, [setBuyAmount, setLastEditedField, setSellAmount, setIsFetchingQuote, calculateAndSetPrice]);
+  }, [
+    setBuyAmount,
+    setLastEditedField,
+    setSellAmount,
+    setIsFetchingQuote,
+    calculateAndSetPrice,
+  ]);
 
   // Token replacement
-  const handleReplaceTokens = useCallback((): void => {
+  const handleReplaceTokens = useCallback(() => {
     if (!sellToken || !buyToken) return;
 
     setIsSwappingTokens(true);
-    
+
     // Swap everything atomically
     actions.setSellToken(buyToken);
     actions.setBuyToken(sellToken);
@@ -240,13 +243,25 @@ function Swap() {
 
     setTimeout(async () => {
       try {
-        await midenClientService.refreshAllBalances();
+        await client?.syncState();
       } finally {
         setIsSwappingTokens(false);
         sellInputRef.current?.focus();
       }
     }, 100);
-  }, [sellToken, buyToken, buyAmount, sellAmount, lastEditedField, actions, setSellAmount, setBuyAmount, setLastEditedField, setIsSwappingTokens]);
+  }, [
+    client,
+    sellToken,
+    buyToken,
+    buyAmount,
+    sellAmount,
+    lastEditedField,
+    actions,
+    setSellAmount,
+    setBuyAmount,
+    setLastEditedField,
+    setIsSwappingTokens,
+  ]);
 
   // Max balance handler
   const handleMaxClick = useCallback((): void => {
@@ -257,32 +272,15 @@ function Swap() {
     }
   }, [sellBalance, sellToken, handleSellAmountChange]);
 
-  // Auto-refresh setup
-  const autoRefetchCallback = useCallback(async () => {
-      if (!tokensLoaded || !connected || assetIds.length === 0) return;
-
-      await Promise.allSettled([
-        refreshPrices(assetIds, true),
-      ]);
-    }, [tokensLoaded, connected, assetIds, refreshPrices]);
-
-  useAutoRefetch(
-    autoRefetchCallback,
-    refreshSellBalance,
-    refreshBuyBalance,
-    [tokensLoaded, connected, assetIds.length],
-    tokensLoaded && connected && assetIds.length > 0,
-  );
-
   // Swap handler
   const handleSwap = useCallback(async (): Promise<void> => {
-    if (!connected || !stableUserAccountId || !sellToken || !buyToken || !canSwap) return;
+    if (!sellToken || !buyToken || !canSwap || !client) return;
 
     const minAmountOutValue = calculateMinAmountOut(buyAmount, slippage);
 
     await Promise.all([
       refreshPrices(assetIds, true),
-      midenClientService.refreshAllBalances(),
+      client.syncState(),
     ]);
 
     setIsCreatingNote(true);
@@ -293,32 +291,23 @@ function Swap() {
         buyToken,
         sellAmount,
         buyAmount: minAmountOutValue,
-        userAccountId: stableUserAccountId,
-        wallet: { adapter: { accountId: stableUserAccountId } } as any,
+        userAccountId: accountId,
+        wallet: { adapter: { accountId } } as any,
         requestTransaction: requestTransaction || (async () => ''),
       };
 
-      await compileZoroSwapNote(swapParams);
+      await compileZoroSwapNote(swapParams, client);
 
       // Clear form and refresh data after successful swap
       setSellAmount('');
       setBuyAmount('');
-      
-    // Immediate balance refresh after successful swap
-          Promise.all([
-            refreshSellBalance(),
-            refreshBuyBalance(),
-            midenClientService.refreshAllBalances()
-        ]);
-
     } catch (error) {
       // Silent error handling
     } finally {
       setIsCreatingNote(false);
     }
   }, [
-    connected,
-    stableUserAccountId,
+    client,
     sellAmount,
     buyAmount,
     sellToken,
@@ -354,7 +343,7 @@ function Swap() {
   }, [tokensLoaded]);
 
   useEffect(() => {
-    const prefetchPrices = async (): Promise<void> => {
+    const prefetchPrices = async () => {
       if (!pricesFetched && tokensLoaded && assetIds.length > 0) {
         setShouldFetchPrices(true);
         await refreshPrices(assetIds);
@@ -449,7 +438,8 @@ function Swap() {
                         onFocus={handleInputFocus}
                         placeholder='0'
                         className={`border-none text-3xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner ${
-                          balanceValidation.isBalanceLoaded && balanceValidation.hasInsufficientBalance
+                          balanceValidation.isBalanceLoaded
+                            && balanceValidation.hasInsufficientBalance
                             ? 'text-orange-600 placeholder:text-destructive/50'
                             : ''
                         }`}
@@ -464,7 +454,9 @@ function Swap() {
                             <img
                               src={TOKENS[sellToken].icon}
                               alt='sell token logo'
-                              className={`w-8 h-8 -ml-2 ${TOKENS[sellToken].iconClass || ''}`}
+                              className={`w-8 h-8 -ml-2 ${
+                                TOKENS[sellToken].iconClass || ''
+                              }`}
                             />
                             {sellToken}
                           </>
@@ -481,7 +473,8 @@ function Swap() {
                           className={`hover:text-foreground transition-colors cursor-pointer mr-1 ${
                             sellBalanceLoading
                               ? 'animate-pulse text-yellow-100'
-                              : balanceValidation.isBalanceLoaded && balanceValidation.hasInsufficientBalance
+                              : balanceValidation.isBalanceLoaded
+                                  && balanceValidation.hasInsufficientBalance
                               ? 'text-orange-600 hover:text-destructive'
                               : 'dark:text-green-100 dark:hover:text-green-200'
                           }`}
@@ -501,7 +494,8 @@ function Swap() {
                   size='icon'
                   className='h-8 w-8 sm:h-10 sm:w-10 rounded-full border dark:bg-black bg-white dark:text-white text-black hover:text-black dark:hover:bg-gray-500/10 hover:bg-gray-500/10 dark:hover:text-white'
                   onClick={handleReplaceTokens}
-                  disabled={!sellToken || !buyToken || isCreatingNote || connecting || isSwappingTokens}
+                  disabled={!sellToken || !buyToken || isCreatingNote || connecting
+                    || isSwappingTokens}
                 >
                   <ArrowUpDown className='w-3 h-3 sm:w-4 sm:h-4' />
                 </Button>
@@ -531,7 +525,9 @@ function Swap() {
                             <img
                               src={TOKENS[buyToken].icon}
                               alt='buy token logo'
-                              className={`w-8 h-8 -ml-2 ${TOKENS[buyToken].iconClass || ''}`}
+                              className={`w-8 h-8 -ml-2 ${
+                                TOKENS[buyToken].iconClass || ''
+                              }`}
                             />
                             {buyToken}
                           </>
@@ -553,93 +549,103 @@ function Swap() {
 
               {/* Main Action Button */}
               <div className='w-full h-12 sm:h-16 mt-4 sm:mt-6'>
-                {connected ? (
-                  <Button
-                    onClick={handleSwap}
-                    disabled={connecting || isCreatingNote || isSwappingTokens}
-                    variant='outline'
-                    className='w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
-                  >
-                    {connecting ? (
-                      <>
-                        <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-                        Connecting...
-                      </>
-                    ) : isCreatingNote ? (
-                      <>
-                        <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-                        Creating Note...
-                      </>
-                    ) : isSwappingTokens ? (
-                      <>
-                        <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-                        Swapping tokens...
-                      </>
-                    ) : (() => {
-                      // Validation logic for button text only - doesn't block interaction
-                      const sellAmountNum = parseFloat(sellAmount);
-                      const buyAmountNum = parseFloat(buyAmount);
-                      
-                      const hasValidAmounts = Boolean(
-                        sellAmount && buyAmount && 
-                        !isNaN(sellAmountNum) && !isNaN(buyAmountNum) &&
-                        sellAmountNum > 0 && buyAmountNum > 0
-                      );
-                      
-                      const hasValidTokens = Boolean(
-                        sellToken && buyToken && 
-                        sellToken !== buyToken && 
-                        tokensLoaded
-                      );
-                      
-                      const hasPriceData = Boolean(
-                        tokenData.sellPrice && tokenData.buyPrice
-                      );
-                      
-                      // Only show insufficient balance if we have definitive balance data
-                      const showInsufficientBalance = Boolean(
-                        balanceValidation.isBalanceLoaded && 
-                        balanceValidation.hasInsufficientBalance
-                      );
-
-                      if (showInsufficientBalance) {
-                        return `Insufficient ${sellToken} balance`;
-                      }
-                      
-                      if (!hasValidTokens) {
-                        return sellToken === buyToken ? 'Select different tokens' : 'Select tokens';
-                      }
-                      
-                      if (!hasValidAmounts) {
-                        return 'Enter amount';
-                      }
-                      
-                      if (!hasPriceData && isFetchingQuote) {
-                        return (
+                {client
+                  ? (
+                    <Button
+                      onClick={handleSwap}
+                      disabled={connecting || isCreatingNote || isSwappingTokens}
+                      variant='outline'
+                      className='w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
+                    >
+                      {connecting
+                        ? (
                           <>
                             <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-                            Fetching price...
+                            Connecting...
                           </>
-                        );
-                      }
-                      
-                      if (!hasPriceData) {
-                        return 'Price unavailable - Try anyway?';
-                      }
-                      
-                      return 'Swap';
-                    })()}
-                  </Button>
-                ) : (
-                  <div className='w-full h-full'>
-                    <WalletMultiButton
-                      disabled={connecting}
-                      className='!w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-muted-foreground hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center !border-none !p-0'
-                    >
-                      {connecting ? 'Connecting...' : 'Connect Wallet'}
-                    </WalletMultiButton>
-                  </div>
-                )}
+                        )
+                        : isCreatingNote
+                        ? (
+                          <>
+                            <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                            Creating Note...
+                          </>
+                        )
+                        : isSwappingTokens
+                        ? (
+                          <>
+                            <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                            Swapping tokens...
+                          </>
+                        )
+                        : (() => {
+                          // Validation logic for button text only - doesn't block interaction
+                          const sellAmountNum = parseFloat(sellAmount);
+                          const buyAmountNum = parseFloat(buyAmount);
+
+                          const hasValidAmounts = Boolean(
+                            sellAmount && buyAmount
+                              && !isNaN(sellAmountNum) && !isNaN(buyAmountNum)
+                              && sellAmountNum > 0 && buyAmountNum > 0,
+                          );
+
+                          const hasValidTokens = Boolean(
+                            sellToken && buyToken
+                              && sellToken !== buyToken
+                              && tokensLoaded,
+                          );
+
+                          const hasPriceData = Boolean(
+                            tokenData.sellPrice && tokenData.buyPrice,
+                          );
+
+                          // Only show insufficient balance if we have definitive balance data
+                          const showInsufficientBalance = Boolean(
+                            balanceValidation.isBalanceLoaded
+                              && balanceValidation.hasInsufficientBalance,
+                          );
+
+                          if (showInsufficientBalance) {
+                            return `Insufficient ${sellToken} balance`;
+                          }
+
+                          if (!hasValidTokens) {
+                            return sellToken === buyToken
+                              ? 'Select different tokens'
+                              : 'Select tokens';
+                          }
+
+                          if (!hasValidAmounts) {
+                            return 'Enter amount';
+                          }
+
+                          if (!hasPriceData && isFetchingQuote) {
+                            return (
+                              <>
+                                <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                                Fetching price...
+                              </>
+                            );
+                          }
+
+                          if (!hasPriceData) {
+                            return 'Price unavailable - Try anyway?';
+                          }
+
+                          return 'Swap';
+                        })()}
+                    </Button>
+                  )
+                  : (
+                    <div className='w-full h-full'>
+                      <WalletMultiButton
+                        disabled={connecting}
+                        className='!w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-muted-foreground hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center !border-none !p-0'
+                      >
+                        {connecting ? 'Connecting...' : 'Connect Wallet'}
+                      </WalletMultiButton>
+                    </div>
+                  )}
               </div>
             </CardContent>
           </Card>

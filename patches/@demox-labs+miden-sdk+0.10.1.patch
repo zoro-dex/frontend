@@ -1,0 +1,15 @@
+diff --git a/node_modules/@demox-labs/miden-sdk/dist/workers/web-client-methods-worker.js b/node_modules/@demox-labs/miden-sdk/dist/workers/web-client-methods-worker.js
+index a0c4541..588da91 100644
+--- a/node_modules/@demox-labs/miden-sdk/dist/workers/web-client-methods-worker.js
++++ b/node_modules/@demox-labs/miden-sdk/dist/workers/web-client-methods-worker.js
+@@ -14848,7 +14848,9 @@ async function __wbg_init(module_or_path) {
+
+ const module = new URL("assets/miden_client_web.wasm", import.meta.url);
+ 
+-                    await __wbg_init({ module_or_path: module });
++(async () => {
++  await __wbg_init({ module_or_path: module });
++})();
+ 
+ var wasmModule = /*#__PURE__*/Object.freeze({
+ 	__proto__: null,

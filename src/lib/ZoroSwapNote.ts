@@ -15,6 +15,7 @@ import {
   OutputNote,
   OutputNotesArray,
   TransactionRequestBuilder,
+  WebClient,
   Word,
 } from '@demox-labs/miden-sdk';
 import {
@@ -24,11 +25,9 @@ import {
   type Wallet,
 } from '@demox-labs/miden-wallet-adapter';
 import { Buffer } from 'buffer';
-import { midenClientService } from '@/services/client';
 
 window.Buffer = Buffer;
 
-// @ts-ignore - MASM files are treated as raw text
 import ZOROSWAP_SCRIPT from './ZOROSWAP.masm?raw';
 
 export interface SwapParams {
@@ -36,7 +35,7 @@ export interface SwapParams {
   readonly buyToken: TokenSymbol;
   readonly sellAmount: string;
   readonly buyAmount: string; // min_amount_out
-  readonly userAccountId: string;
+  readonly userAccountId?: AccountId;
   readonly wallet: Wallet | null;
   readonly requestTransaction: (tx: MidenTransaction) => Promise<string>;
 }
@@ -55,11 +54,15 @@ function generateRandomSerialNumber(): Word {
   ]);
 }
 
-export async function compileZoroSwapNote(swapParams: SwapParams): Promise<SwapResult> {
+export async function compileZoroSwapNote(
+  swapParams: SwapParams,
+  client: WebClient,
+): Promise<SwapResult> {
   // Validate tokens exist in configuration
   const sellTokenConfig = TOKENS[swapParams.sellToken];
   const buyTokenConfig = TOKENS[swapParams.buyToken];
 
+  if (!swapParams.userAccountId) throw new Error(`No userAccount.`);
   if (!sellTokenConfig || !buyTokenConfig) {
     throw new Error(
       `Token configuration not found for ${swapParams.sellToken} or ${swapParams.buyToken}`,
@@ -68,9 +71,7 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<SwapR
 
   try {
     // ── Use single client service ──────────────
-    const client = await midenClientService.getClient();
-    await midenClientService.ensureSynced();
-
+    await client.syncState();
     // Use the faucet IDs from the token configuration
     const sellFaucetId = AccountId.fromBech32(sellTokenConfig.faucetId);
     const buyFaucetId = AccountId.fromBech32(buyTokenConfig.faucetId);
@@ -105,10 +106,8 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<SwapR
     const noteAssets = new NoteAssets([offeredAsset]);
     const noteTag = NoteTag.fromAccountId(poolAccountId);
 
-    const userAddress = AccountId.fromBech32(swapParams.userAccountId);
-
     const metadata = new NoteMetadata(
-      userAddress,
+      swapParams.userAccountId,
       noteType,
       noteTag,
       NoteExecutionHint.always(),
@@ -118,7 +117,7 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<SwapR
     const deadline = Date.now() + 60_000; // 1 min from now
 
     // Use the AccountId for p2id tag
-    const p2idTag = NoteTag.fromAccountId(userAddress).asU32();
+    const p2idTag = NoteTag.fromAccountId(swapParams.userAccountId).asU32();
 
     // Following the pattern: [asset_id_prefix, asset_id_suffix, 0, min_amount_out]
     const inputs = new NoteInputs(
@@ -133,8 +132,8 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<SwapR
         new Felt(BigInt(0)),
         new Felt(BigInt(0)),
         new Felt(BigInt(0)),
-        userAddress.suffix(),
-        userAddress.prefix(),
+        swapParams.userAccountId.suffix(),
+        swapParams.userAccountId.prefix(),
       ]),
     );
 
@@ -168,8 +167,7 @@ export async function compileZoroSwapNote(swapParams: SwapParams): Promise<SwapR
       noteId: noteId,
     });
 
-    // Use client service for post-transaction sync
-    await midenClientService.ensureSynced(true); // Force sync after transaction
+    await client.syncState();
 
     return {
       txId,

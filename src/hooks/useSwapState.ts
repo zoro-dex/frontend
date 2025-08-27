@@ -1,13 +1,16 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { useWallet } from '@demox-labs/miden-wallet-adapter';
-import { AccountId } from '@demox-labs/miden-sdk';
 import { NablaAntennaContext } from '@/components/PriceFetcher';
 import { useBalance } from '@/hooks/useBalance';
-import { initializeTokenConfig, TOKENS, type TokenSymbol, UI } from '@/lib/config';
 import {
-  getBalanceValidation,
-  type TokenPriceData,
-} from '@/lib/swapHelpers';
+  initializeTokenConfig,
+  poolAccountId,
+  TOKENS,
+  type TokenSymbol,
+  UI,
+} from '@/lib/config';
+import { getBalanceValidation, type TokenPriceData } from '@/lib/swapHelpers';
+import { AccountId, WebClient } from '@demox-labs/miden-sdk';
+import { useWallet } from '@demox-labs/miden-wallet-adapter';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 export interface SwapState {
   readonly sellAmount: string;
@@ -46,11 +49,29 @@ export interface SwapData {
   readonly stableUserAccountId: string | undefined;
 }
 
+const instantiateClient = async (
+  { accountsToImport }: { accountsToImport: AccountId[] },
+) => {
+  const { WebClient } = await import(
+    '@demox-labs/miden-sdk'
+  );
+  const nodeEndpoint = 'https://rpc.testnet.miden.io:443';
+  const client = await WebClient.createClient(nodeEndpoint);
+  for (const acc of accountsToImport) {
+    try {
+      await client.importAccountById(acc);
+    } catch {}
+  }
+  await client.syncState();
+  return client;
+};
+
 /**
  * Centralized swap state management hook
  */
 export const useSwapState = () => {
   // Core state
+  const [client, setClient] = useState<WebClient | undefined>(undefined);
   const [sellAmount, setSellAmount] = useState<string>('');
   const [buyAmount, setBuyAmount] = useState<string>('');
   const [sellToken, setSellToken] = useState<TokenSymbol | undefined>(undefined);
@@ -59,52 +80,78 @@ export const useSwapState = () => {
   const [lastEditedField, setLastEditedField] = useState<'sell' | 'buy'>('sell');
   const [isFetchingQuote, setIsFetchingQuote] = useState<boolean>(false);
   const [isSwappingTokens, setIsSwappingTokens] = useState<boolean>(false);
+  const { accountId: rawAccountId } = useWallet();
+
+  const accountId = useMemo(() => {
+    if (rawAccountId != null) {
+      return AccountId.fromBech32(rawAccountId);
+    } else return undefined;
+  }, [rawAccountId]);
 
   // Loading states
   const [tokensLoaded, setTokensLoaded] = useState<boolean>(false);
   const [availableTokens, setAvailableTokens] = useState<TokenSymbol[]>([]);
   const [pricesFetched, setPricesFetched] = useState<boolean>(false);
 
-  // Wallet connection
-  const { connected, wallet } = useWallet();
   const { refreshPrices } = useContext(NablaAntennaContext);
 
   // Refs for stable calculations
   const debounceRef = useRef<NodeJS.Timeout>();
   const sellInputRef = useRef<HTMLInputElement>(null);
 
-  // Stable user account ID
-  const stableUserAccountId = useMemo(() => {
-    return wallet?.adapter?.accountId;
-  }, [wallet?.adapter?.accountId]);
-
   // Balance parameters
   const sellBalanceParams = useMemo(() => ({
-    accountId: stableUserAccountId ? AccountId.fromBech32(stableUserAccountId) : null,
+    accountId,
     faucetId: sellToken && TOKENS[sellToken]
       ? AccountId.fromBech32(TOKENS[sellToken].faucetId)
       : undefined,
-  }), [stableUserAccountId, sellToken]);
+  }), [accountId, sellToken]);
 
   const buyBalanceParams = useMemo(() => ({
-    accountId: stableUserAccountId ? AccountId.fromBech32(stableUserAccountId) : null,
+    accountId,
     faucetId: buyToken && TOKENS[buyToken]
       ? AccountId.fromBech32(TOKENS[buyToken].faucetId)
       : undefined,
-  }), [stableUserAccountId, buyToken]);
+  }), [accountId, buyToken]);
+
+  useEffect(() => {
+    if (
+      client == null && accountId != null
+      && sellBalanceParams.faucetId != null
+      && buyBalanceParams.faucetId != null
+    ) {
+      (async () => {
+        const client = await instantiateClient({
+          accountsToImport: [
+            accountId,
+            sellBalanceParams.faucetId as AccountId,
+            buyBalanceParams.faucetId as AccountId,
+            poolAccountId,
+          ],
+        });
+        setClient(client);
+      })();
+    }
+  }, [accountId, sellBalanceParams.faucetId, buyBalanceParams.faucetId]);
 
   // Balance hooks
   const {
     balance: sellBalance,
-    isLoading: sellBalanceLoading,
     refreshBalance: refreshSellBalance,
-  } = useBalance(sellBalanceParams);
+  } = useBalance({
+    accountId,
+    faucetId: sellBalanceParams.faucetId,
+    client,
+  });
 
   const {
     balance: buyBalance,
-    isLoading: buyBalanceLoading,
     refreshBalance: refreshBuyBalance,
-  } = useBalance(buyBalanceParams);
+  } = useBalance({
+    accountId,
+    faucetId: buyBalanceParams.faucetId,
+    client,
+  });
 
   return {
     state: {
@@ -136,8 +183,8 @@ export const useSwapState = () => {
     balances: {
       sellBalance,
       buyBalance,
-      sellBalanceLoading,
-      buyBalanceLoading,
+      sellBalanceLoading: false,
+      buyBalanceLoading: false,
       refreshSellBalance,
       refreshBuyBalance,
     },
@@ -145,13 +192,11 @@ export const useSwapState = () => {
       debounceRef,
       sellInputRef,
     },
-    wallet: {
-      connected,
-      stableUserAccountId,
-    },
     context: {
       refreshPrices,
     },
+    accountId,
+    client,
   };
 };
 
@@ -187,73 +232,4 @@ export const useTokenInitialization = (
 
     loadTokens();
   }, []); // Only run once on mount
-};
-
-/**
- * Auto-refetch hook for prices and balances
- */
-export const useAutoRefetch = (
-  refreshCallback: () => Promise<void>,
-  refreshSellBalance: () => Promise<void>,
-  refreshBuyBalance: () => Promise<void>,
-  dependencies: readonly unknown[],
-  enabled: boolean = true,
-) => {
-  const intervalRef = useRef<NodeJS.Timeout>();
-  const isRefetching = useRef<boolean>(false);
-
-  const stableRefreshCallback = useCallback(async () => {
-    if (isRefetching.current) return;
-
-    try {
-      isRefetching.current = true;
-      // Refresh prices and balances simultaneously
-      await Promise.all([
-        refreshCallback(),
-        refreshSellBalance(),
-        refreshBuyBalance(),
-      ]);
-    } catch (error) {
-      // Silent error handling
-    } finally {
-      isRefetching.current = false;
-    }
-  }, [refreshCallback, refreshSellBalance, refreshBuyBalance]);
-
-  useEffect(() => {
-    if (!enabled) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = undefined;
-      }
-      return;
-    }
-
-    // Clear existing interval
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-
-    // Set up new interval - shorter interval for more responsive balance updates
-    intervalRef.current = setInterval(() => {
-      stableRefreshCallback();
-    }, 5000); // 5 seconds instead of 10
-
-    // Cleanup on unmount or dependency change
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = undefined;
-      }
-    };
-  }, [stableRefreshCallback, enabled, ...dependencies]);
-
-  // Stop interval when component unmounts
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, []);
 };
