@@ -10,6 +10,7 @@ import FaucetPage from './pages/Faucet';
 import LandingPage from './pages/Landing';
 import SwapPage from './pages/Swap';
 import { ThemeProvider } from './providers/ThemeProvider';
+import '@demox-labs/miden-wallet-adapter-reactui/styles.css';
 
 function AppRouter() {
   return (
