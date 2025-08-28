@@ -42,7 +42,6 @@ function Swap() {
   const [buyToken, setBuyToken] = useState<TokenSymbol | undefined>(undefined);
   const [slippage, setSlippage] = useState<number>(UI.defaultSlippage);
   const [lastEditedField, setLastEditedField] = useState<'sell' | 'buy'>('sell');
-  const [isFetchingQuote, setIsFetchingQuote] = useState<boolean>(false);
   const accountId = useMemo(() => {
     if (rawAccountId != null) {
       return AccountId.fromBech32(rawAccountId);
@@ -175,12 +174,9 @@ function Swap() {
     field: 'sell' | 'buy',
   ) => {
     const result = calculateTokenPrice(sellAmt, buyAmt, field, tokenData, slippage);
-
     if (result.sellAmount) setSellAmount(result.sellAmount);
     if (result.buyAmount) setBuyAmount(result.buyAmount);
-
-    setIsFetchingQuote(false);
-  }, [tokenData, slippage, setSellAmount, setBuyAmount, setIsFetchingQuote]);
+  }, [tokenData, slippage, setSellAmount, setBuyAmount]);
 
   // Input handlers with debouncing
   const handleSellAmountChange = useCallback((value: string): void => {
@@ -188,16 +184,13 @@ function Swap() {
     setLastEditedField('sell');
     if (!value) {
       setBuyAmount('');
-      setIsFetchingQuote(false);
       return;
     }
-    setIsFetchingQuote(true);
     calculateAndSetPrice(value, '', 'sell');
   }, [
     setSellAmount,
     setLastEditedField,
     setBuyAmount,
-    setIsFetchingQuote,
     calculateAndSetPrice,
   ]);
 
@@ -206,16 +199,13 @@ function Swap() {
     setLastEditedField('buy');
     if (!value) {
       setSellAmount('');
-      setIsFetchingQuote(false);
       return;
     }
-    setIsFetchingQuote(true);
     calculateAndSetPrice('', value, 'buy');
   }, [
     setBuyAmount,
     setLastEditedField,
     setSellAmount,
-    setIsFetchingQuote,
     calculateAndSetPrice,
   ]);
 
@@ -307,6 +297,48 @@ function Swap() {
       sellInputRef.current.focus();
     }
   }, [tokensLoaded]);
+
+  const buttonText = useMemo(() => {
+    // Validation logic for button text only - doesn't block interaction
+    const sellAmountNum = parseFloat(sellAmount);
+    const buyAmountNum = parseFloat(buyAmount);
+    const hasValidAmounts = Boolean(
+      sellAmount && buyAmount
+        && !isNaN(sellAmountNum) && !isNaN(buyAmountNum)
+        && sellAmountNum > 0 && buyAmountNum > 0,
+    );
+    const hasValidTokens = Boolean(
+      sellToken && buyToken
+        && sellToken !== buyToken
+        && tokensLoaded,
+    );
+    const hasPriceData = Boolean(
+      tokenData.sellPrice && tokenData.buyPrice,
+    );
+    // Only show insufficient balance if we have definitive balance data
+    const showInsufficientBalance = Boolean(
+      balanceValidation.isBalanceLoaded
+        && balanceValidation.hasInsufficientBalance,
+    );
+    if (showInsufficientBalance) {
+      return `Insufficient ${sellToken} balance`;
+    } else if (!hasValidTokens) {
+      return 'Select tokens';
+    } else if (!hasValidAmounts) {
+      return 'Enter amount';
+    } else if (!hasPriceData) {
+      return 'Price unavailable - Try anyway?';
+    } else return 'Swap';
+  }, [
+    sellAmount,
+    buyAmount,
+    sellToken,
+    buyToken,
+    tokensLoaded,
+    tokenData.sellPrice,
+    tokenData.buyPrice,
+    balanceValidation,
+  ]);
 
   // Loading states
   if (!tokensLoaded) {
@@ -509,51 +541,7 @@ function Swap() {
                             Creating Note...
                           </>
                         )
-                        : (() => {
-                          // Validation logic for button text only - doesn't block interaction
-                          const sellAmountNum = parseFloat(sellAmount);
-                          const buyAmountNum = parseFloat(buyAmount);
-                          const hasValidAmounts = Boolean(
-                            sellAmount && buyAmount
-                              && !isNaN(sellAmountNum) && !isNaN(buyAmountNum)
-                              && sellAmountNum > 0 && buyAmountNum > 0,
-                          );
-                          const hasValidTokens = Boolean(
-                            sellToken && buyToken
-                              && sellToken !== buyToken
-                              && tokensLoaded,
-                          );
-                          const hasPriceData = Boolean(
-                            tokenData.sellPrice && tokenData.buyPrice,
-                          );
-                          // Only show insufficient balance if we have definitive balance data
-                          const showInsufficientBalance = Boolean(
-                            balanceValidation.isBalanceLoaded
-                              && balanceValidation.hasInsufficientBalance,
-                          );
-
-                          if (showInsufficientBalance) {
-                            return `Insufficient ${sellToken} balance`;
-                          }
-                          if (!hasValidTokens) {
-                            return 'Select tokens';
-                          }
-                          if (!hasValidAmounts) {
-                            return 'Enter amount';
-                          }
-                          if (!hasPriceData && isFetchingQuote) {
-                            return (
-                              <>
-                                <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-                                Fetching price...
-                              </>
-                            );
-                          }
-                          if (!hasPriceData) {
-                            return 'Price unavailable - Try anyway?';
-                          }
-                          return 'Swap';
-                        })()}
+                        : buttonText}
                     </Button>
                   )
                   : (
