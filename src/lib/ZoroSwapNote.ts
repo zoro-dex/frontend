@@ -22,7 +22,6 @@ import {
   CustomTransaction,
   type MidenTransaction,
   TransactionType,
-  type Wallet,
 } from '@demox-labs/miden-wallet-adapter';
 import { Buffer } from 'buffer';
 
@@ -36,7 +35,6 @@ export interface SwapParams {
   readonly sellAmount: string;
   readonly buyAmount: string; // min_amount_out
   readonly userAccountId?: AccountId;
-  readonly wallet: Wallet | null;
   readonly requestTransaction: (tx: MidenTransaction) => Promise<string>;
 }
 
@@ -150,7 +148,7 @@ export async function compileZoroSwapNote(
       .build();
 
     const tx = new CustomTransaction(
-      swapParams.wallet?.adapter.accountId ?? '', // creatorID
+      swapParams.userAccountId.toBech32(), // creatorID
       transactionRequest,
       [],
       [],

@@ -254,7 +254,6 @@ function Swap() {
         sellAmount,
         buyAmount: minAmountOutValue,
         userAccountId: accountId,
-        wallet: { adapter: { accountId } } as any,
         requestTransaction: requestTransaction || (async () => ''),
       };
       await compileZoroSwapNote(swapParams, client);
