@@ -369,7 +369,7 @@ function Swap() {
     <div className='min-h-screen bg-background text-foreground flex flex-col'>
       <Header />
 
-      <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-20'>
+      <main className='flex-1 flex items-center justify-center p-3 sm:p-4'>
         <div className='w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6'>
           <div className='flex items-center justify-between'>
             <div className='flex bg-muted rounded-full p-0.5 sm:p-1'>
@@ -526,17 +526,14 @@ function Swap() {
                     {connecting ? (
                       <>
                         <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-                        Connecting...
                       </>
                     ) : isCreatingNote ? (
                       <>
                         <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-                        Creating Note...
                       </>
                     ) : isSwappingTokens ? (
                       <>
                         <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-                        Swapping tokens...
                       </>
                     ) : (() => {
                       // Validation logic for button text only - doesn't block interaction
