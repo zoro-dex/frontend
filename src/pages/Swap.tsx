@@ -343,8 +343,7 @@ function Swap() {
         <Header />
         <main className='flex-1 flex items-center justify-center'>
           <div className='flex items-center gap-2'>
-            <Loader2 className='w-5 h-5 animate-spin' />
-            <span>Loading token configuration...</span>
+            <Loader2 className='w-20 h-20 animate-spin' />
           </div>
         </main>
       </div>
@@ -357,7 +356,7 @@ function Swap() {
         <Header />
         <main className='flex-1 flex items-center justify-center'>
           <div className='text-center space-y-4'>
-            <div className='text-orange-600'>Failed to load token configuration</div>
+            <div className='text-orange-600'>Server down, wait a bit</div>
             <Button onClick={() => window.location.reload()}>Retry</Button>
           </div>
         </main>
