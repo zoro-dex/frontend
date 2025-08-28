@@ -1,8 +1,15 @@
 import { NablaAntennaProvider } from '@/providers/NablaAntennaProvider';
+import {
+  MidenWalletAdapter,
+  WalletModalProvider,
+  WalletProvider,
+} from '@demox-labs/miden-wallet-adapter';
+import { useMemo } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import FaucetPage from './pages/Faucet';
 import LandingPage from './pages/Landing';
 import SwapPage from './pages/Swap';
+import { ThemeProvider } from './providers/ThemeProvider';
 
 function AppRouter() {
   return (
@@ -17,10 +24,24 @@ function AppRouter() {
 }
 
 function App() {
+  const wallets = useMemo(
+    () => [
+      new MidenWalletAdapter({
+        appName: 'Zoro',
+      }),
+    ],
+    [],
+  );
   return (
-    <NablaAntennaProvider>
-      <AppRouter />
-    </NablaAntennaProvider>
+    <WalletProvider wallets={wallets} autoConnect>
+      <WalletModalProvider>
+        <NablaAntennaProvider>
+          <ThemeProvider defaultTheme='dark' storageKey='vite-ui-theme'>
+            <AppRouter />
+          </ThemeProvider>
+        </NablaAntennaProvider>
+      </WalletModalProvider>
+    </WalletProvider>
   );
 }
 
