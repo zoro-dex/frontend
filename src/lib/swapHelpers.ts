@@ -1,4 +1,4 @@
-import { type TokenSymbol, TOKENS } from '@/lib/config';
+import { TOKENS, type TokenSymbol } from '@/lib/config';
 
 export interface BalanceValidationState {
   readonly hasInsufficientBalance: boolean;
@@ -22,7 +22,10 @@ export interface TokenPriceData {
 /**
  * Calculate minimum amount out considering slippage
  */
-export const calculateMinAmountOut = (buyAmount: string, slippagePercent: number): string => {
+export const calculateMinAmountOut = (
+  buyAmount: string,
+  slippagePercent: number,
+): string => {
   const buyAmountNum = parseFloat(buyAmount);
   if (isNaN(buyAmountNum) || buyAmountNum <= 0) {
     return '';
@@ -78,22 +81,27 @@ export const getBalanceValidation = (
 };
 
 /**
- * Convert BigInt balance to decimal string for input fields
+ * Format BigInt balance to human-readable string with token-specific decimals
  */
-export const balanceToDecimalString = (balance: bigint, tokenSymbol: TokenSymbol): string => {
+export const formatBalance = (balance: bigint, tokenSymbol: TokenSymbol): string => {
+  if (balance === BigInt(0)) {
+    return '0';
+  }
   const token = TOKENS[tokenSymbol];
   if (!token) return '0';
-
   const divisor = BigInt(Math.pow(10, token.decimals));
   const wholePart = balance / divisor;
   const fractionalPart = balance % divisor;
-
   if (fractionalPart === BigInt(0)) {
     return wholePart.toString();
   }
-
+  // Format with appropriate decimal places
   const fractionalStr = fractionalPart.toString().padStart(token.decimals, '0');
-  return `${wholePart}.${fractionalStr}`.replace(/\.?0+$/, '');
+  const trimmedFractional = fractionalStr.replace(/0+$/, '');
+  if (trimmedFractional === '') {
+    return wholePart.toString();
+  }
+  return `${wholePart}.${trimmedFractional}`;
 };
 
 /**
@@ -104,9 +112,7 @@ export const calculateUsdValue = (amount: string, priceUsd: number): string => {
   if (isNaN(amountNum) || amountNum <= 0 || !priceUsd) {
     return '';
   }
-
   const usdValue: number = amountNum * priceUsd;
-
   return usdValue.toLocaleString('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -153,7 +159,7 @@ export const calculateUsdValues = (
   tokenData: TokenPriceData,
 ): UsdCalculationData => {
   const { sellPrice, buyPrice } = tokenData;
-  
+
   return {
     sellUsdValue: sellPrice ? calculateUsdValue(sellAmount, sellPrice.value) : '',
     buyUsdValue: buyPrice ? calculateUsdValue(buyAmount, buyPrice.value) : '',
@@ -173,26 +179,18 @@ export const canPerformSwap = (
   buyToken: TokenSymbol | undefined,
   tokensLoaded: boolean,
   balanceValidation: BalanceValidationState,
-  isSwappingTokens: boolean,
 ): boolean => {
-  // ✅ Remove all loading state blockers
-  if (isSwappingTokens) return false;
-
   const hasValidAmounts = Boolean(
-    sellAmount && buyAmount && 
-    !isNaN(parseFloat(sellAmount)) && !isNaN(parseFloat(buyAmount)) &&
-    parseFloat(sellAmount) > 0 && parseFloat(buyAmount) > 0
+    sellAmount && buyAmount
+      && !isNaN(parseFloat(sellAmount)) && !isNaN(parseFloat(buyAmount))
+      && parseFloat(sellAmount) > 0 && parseFloat(buyAmount) > 0,
   );
-
   const hasValidTokens = Boolean(
-    tokenData.sellPrice && tokenData.buyPrice &&
-    sellToken !== buyToken && sellToken && buyToken && tokensLoaded
+    tokenData.sellPrice && tokenData.buyPrice
+      && sellToken !== buyToken && sellToken && buyToken && tokensLoaded,
   );
-
-  // ✅ Only show insufficient balance if we actually have balance data
-  const hasValidBalance = !balanceValidation.isBalanceLoaded || 
-    !balanceValidation.hasInsufficientBalance;
-
+  const hasValidBalance = !balanceValidation.isBalanceLoaded
+    || !balanceValidation.hasInsufficientBalance;
   return hasValidAmounts && hasValidTokens && hasValidBalance;
 };
 
