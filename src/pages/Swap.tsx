@@ -34,7 +34,7 @@ type TabType = 'Swap' | 'Limit';
 function Swap() {
   const [activeTab, setActiveTab] = useState<TabType>('Swap');
   const [isCreatingNote, setIsCreatingNote] = useState<boolean>(false);
-  const { connecting, requestTransaction, accountId: rawAccountId } = useWallet();
+  const {connected, connecting, requestTransaction, accountId: rawAccountId } = useWallet();
   const [client, setClient] = useState<WebClient | undefined>(undefined);
   const [sellAmount, setSellAmount] = useState<string>('');
   const [buyAmount, setBuyAmount] = useState<string>('');
@@ -515,14 +515,14 @@ function Swap() {
                   </CardContent>
                 </Card>
               </div>
-
+          
               {/* Main Action Button */}
               <div className='w-full h-12 sm:h-16 mt-4 sm:mt-6'>
-                {client
+                {connected
                   ? (
                     <Button
                       onClick={handleSwap}
-                      disabled={connecting || isCreatingNote}
+                      disabled={connecting || isCreatingNote || !client}
                       variant='outline'
                       className='w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
                     >
@@ -540,17 +540,35 @@ function Swap() {
                             Creating Note...
                           </>
                         )
+                        : !client
+                        ? (
+                          <>
+                            <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                          </>
+                        )
                         : buttonText}
                     </Button>
                   )
                   : (
-                    <div className='w-full h-full'>
-                      <WalletMultiButton
-                        disabled={connecting}
-                        className='!w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-muted-foreground hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center !border-none !p-0'
-                      >
-                        {connecting ? 'Connecting...' : 'Connect Wallet'}
-                      </WalletMultiButton>
+                    <div className='relative w-full h-full'>
+
+                      {connecting && (
+                        <Button
+                          disabled
+                          variant='outline'
+                          className='w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
+                        >
+                          <Loader2 className='w-10 h-10 animate-spin' />
+                        </Button>
+                      )}
+                      
+                      <div className={connecting ? 'invisible' : 'visible'}>
+                        <WalletMultiButton
+                          className='!p-5 !w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-muted-foreground hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center'
+                        >
+                          Connect wallet
+                        </WalletMultiButton>
+                      </div>
                     </div>
                   )}
               </div>

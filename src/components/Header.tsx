@@ -18,7 +18,7 @@ export function Header() {
 
       {/* Right */}
       <div className="flex items-center gap-2">
-          <WalletMultiButton className="!py-3 sm:!py-4 !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !border-none !text-muted-foreground hover:!text-foreground hover:!bg-gray-500/10" />
+          <WalletMultiButton className="!p-3 sm:!py-4 !rounded-xl !font-medium !text-sm sm:!text-md !text-muted-foreground !border-none hover:!text-foreground hover:!bg-gray-500/10" />
       </div>
     </div>
   );
