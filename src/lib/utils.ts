@@ -1,4 +1,4 @@
-import type { AccountId } from '@demox-labs/miden-sdk';
+import type { AccountId, WebClient } from '@demox-labs/miden-sdk';
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -16,9 +16,19 @@ export const instantiateClient = async (
   const client = await WebClient.createClient(nodeEndpoint);
   for (const acc of accountsToImport) {
     try {
-      await client.importAccountById(acc);
+      await safeAccountImport(client, acc);
     } catch {}
   }
   await client.syncState();
   return client;
+};
+
+export const safeAccountImport = async (client: WebClient, accountId: AccountId) => {
+  if (await client.getAccount(accountId) == null) {
+    try {
+      client.importAccountById(accountId);
+    } catch (e) {
+      console.warn(e);
+    }
+  }
 };

@@ -87,9 +87,9 @@ function Swap() {
         const client = await instantiateClient({
           accountsToImport: [
             accountId,
-            sellBalanceParams.faucetId as AccountId,
-            buyBalanceParams.faucetId as AccountId,
-            poolAccountId,
+            // sellBalanceParams.faucetId as AccountId,
+            // buyBalanceParams.faucetId as AccountId,
+            // poolAccountId,
           ],
         });
         setClient(client);
