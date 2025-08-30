@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useBalance } from '@/hooks/useBalance.ts';
 import { useTokenInitialization } from '@/hooks/useTokenInitialization.ts';
-import { getAssetIds, poolAccountId, TOKENS, type TokenSymbol, UI } from '@/lib/config';
+import { getAssetIds, TOKENS, type TokenSymbol, UI } from '@/lib/config';
 import {
   calculateMinAmountOut,
   calculateTokenPrice,
@@ -15,6 +15,7 @@ import {
   extractTokenData,
   formatBalance,
   getBalanceValidation,
+  type OriginalInput
 } from '@/lib/swapHelpers';
 import { instantiateClient } from '@/lib/utils.ts';
 import {
@@ -42,6 +43,7 @@ function Swap() {
   const [buyToken, setBuyToken] = useState<TokenSymbol | undefined>(undefined);
   const [slippage, setSlippage] = useState<number>(UI.defaultSlippage);
   const [lastEditedField, setLastEditedField] = useState<'sell' | 'buy'>('sell');
+  const [isRecalculatingBalance, setIsRecalculatingBalance] = useState<boolean>(false);
   const accountId = useMemo(() => {
     if (rawAccountId != null) {
       return AccountId.fromBech32(rawAccountId);
@@ -49,6 +51,7 @@ function Swap() {
   }, [rawAccountId]);
   const [tokensLoaded, setTokensLoaded] = useState<boolean>(false);
   const [availableTokens, setAvailableTokens] = useState<TokenSymbol[]>([]);
+  const [originalInput, setOriginalInput] = useState<OriginalInput | null>(null);
   const { refreshPrices } = useContext(NablaAntennaContext);
 
   // Refs for stable calculations
@@ -167,121 +170,190 @@ function Swap() {
     return formatBalance(buyBalance, buyToken);
   }, [buyBalance, buyToken]);
 
-  // Price calculation function
   const calculateAndSetPrice = useCallback((
-    sellAmt: string,
-    buyAmt: string,
-    field: 'sell' | 'buy',
-  ) => {
-    const result = calculateTokenPrice(sellAmt, buyAmt, field, tokenData, slippage);
-    if (result.sellAmount) setSellAmount(result.sellAmount);
-    if (result.buyAmount) setBuyAmount(result.buyAmount);
-  }, [tokenData, slippage, setSellAmount, setBuyAmount]);
+  sellAmt: string,
+  buyAmt: string,
+  field: 'sell' | 'buy',
+) => {
+  const result = calculateTokenPrice(sellAmt, buyAmt, field, tokenData, slippage);
+  if (result.sellAmount) setSellAmount(result.sellAmount);
+  if (result.buyAmount) setBuyAmount(result.buyAmount);
+}, [tokenData, slippage]);
 
-  // Input handlers with debouncing
-  const handleSellAmountChange = useCallback((value: string): void => {
-    setSellAmount(value);
-    setLastEditedField('sell');
-    if (!value) {
+const handleSellAmountChange = useCallback((value: string): void => {
+  setSellAmount(value);
+  setLastEditedField('sell');
+  
+  if (value && sellToken) {
+    setOriginalInput({
+      amount: value,
+      token: sellToken,
+    });
+  } else {
+    setOriginalInput(null);
+  }
+  
+  if (!value) {
+    setBuyAmount('');
+    return;
+  }
+  calculateAndSetPrice(value, '', 'sell');
+}, [sellToken, calculateAndSetPrice]);
+
+const handleBuyAmountChange = useCallback((value: string): void => {
+  setBuyAmount(value);
+  setLastEditedField('buy');
+  
+  // Track original input with current token
+  if (value && buyToken) {
+    setOriginalInput({
+      amount: value,
+      token: buyToken,
+    });
+  } else {
+    setOriginalInput(null);
+  }
+  
+  if (!value) {
+    setSellAmount('');
+    return;
+  }
+  calculateAndSetPrice('', value, 'buy');
+}, [buyToken, calculateAndSetPrice]);
+
+const calculateAndSetPriceWithTokens = useCallback((
+  sellAmt: string,
+  buyAmt: string,
+  field: 'sell' | 'buy',
+  sellTokenSymbol: TokenSymbol,
+  buyTokenSymbol: TokenSymbol,
+) => {
+  // Get fresh token data with the correct token assignment
+  const tokenData = extractTokenData(sellTokenSymbol, buyTokenSymbol, tokensLoaded, prices);
+  const result = calculateTokenPrice(sellAmt, buyAmt, field, tokenData, slippage);
+  if (result.sellAmount) setSellAmount(result.sellAmount);
+  if (result.buyAmount) setBuyAmount(result.buyAmount);
+}, [tokensLoaded, prices, slippage]);
+
+const handleReplaceTokens = useCallback(async () => {
+  if (!sellToken || !buyToken) return;
+
+  setIsRecalculatingBalance(true);
+  
+  const currentOriginalInput = originalInput;
+  const newSellToken = buyToken;
+  const newBuyToken = sellToken;
+  
+  setSellToken(newSellToken);
+  setBuyToken(newBuyToken);
+  
+  if (currentOriginalInput) {
+    if (currentOriginalInput.token === newSellToken) {
+      setSellAmount(currentOriginalInput.amount);
       setBuyAmount('');
-      return;
-    }
-    calculateAndSetPrice(value, '', 'sell');
-  }, [
-    setSellAmount,
-    setLastEditedField,
-    setBuyAmount,
-    calculateAndSetPrice,
-  ]);
-
-  const handleBuyAmountChange = useCallback((value: string): void => {
-    setBuyAmount(value);
-    setLastEditedField('buy');
-    if (!value) {
+      setLastEditedField('sell');
+      
+      setTimeout(() => {
+        calculateAndSetPriceWithTokens(
+          currentOriginalInput.amount, 
+          '', 
+          'sell', 
+          newSellToken, 
+          newBuyToken
+        );
+      setTimeout(() => setIsRecalculatingBalance(false), 500);
+      }, 10);
+      
+    } else if (currentOriginalInput.token === newBuyToken) {
+      setBuyAmount(currentOriginalInput.amount);
       setSellAmount('');
-      return;
+      setLastEditedField('buy');
+      
+      setTimeout(() => {
+        calculateAndSetPriceWithTokens(
+          '', 
+          currentOriginalInput.amount, 
+          'buy', 
+          newSellToken, 
+          newBuyToken
+        );
+      setTimeout(() => setIsRecalculatingBalance(false), 500);
+      }, 10);
     }
-    calculateAndSetPrice('', value, 'buy');
-  }, [
-    setBuyAmount,
-    setLastEditedField,
-    setSellAmount,
-    calculateAndSetPrice,
-  ]);
-
-  // Token replacement
-  const handleReplaceTokens = useCallback(async () => {
-    if (!sellToken || !buyToken) return;
-    setSellToken(buyToken);
-    setBuyToken(sellToken);
+  } else {
     setSellAmount(buyAmount);
     setBuyAmount(sellAmount);
     setLastEditedField(lastEditedField === 'sell' ? 'buy' : 'sell');
+    setTimeout(() => setIsRecalculatingBalance(false), 200);
+  }
+  
+  sellInputRef.current?.focus();
+}, [
+  sellToken,
+  buyToken,
+  originalInput,
+  buyAmount,
+  sellAmount,
+  lastEditedField,
+  calculateAndSetPriceWithTokens,
+]);
+
+const handleMaxClick = useCallback((): void => {
+  if (sellBalance !== null && sellBalance > BigInt(0) && sellToken) {
+    const decimals = TOKENS[sellToken]?.decimals || 8;
+    const maxAmount = formatUnits(sellBalance, decimals);
+    
+    setOriginalInput({
+      amount: maxAmount,
+      token: sellToken,
+    });
+    
+    handleSellAmountChange(maxAmount);
     sellInputRef.current?.focus();
-  }, [
-    sellToken,
-    buyToken,
-    buyAmount,
-    sellAmount,
-    lastEditedField,
-    setBuyToken,
-    setSellToken,
-    setSellAmount,
-    setBuyAmount,
-    setLastEditedField,
-  ]);
+  }
+}, [sellBalance, sellToken, handleSellAmountChange]);
 
-  // Max balance handler
-  const handleMaxClick = useCallback((): void => {
-    if (sellBalance !== null && sellBalance > BigInt(0) && sellToken) {
-      const decimals = TOKENS[sellToken]?.decimals || 8;
-      const maxAmount = formatUnits(sellBalance, decimals);
-      handleSellAmountChange(maxAmount);
-      sellInputRef.current?.focus();
-    }
-  }, [sellBalance, sellToken, handleSellAmountChange]);
-
-  // Swap handler
-  const handleSwap = useCallback(async () => {
-    if (!sellToken || !buyToken || !canSwap || !client) return;
-    const minAmountOutValue = calculateMinAmountOut(buyAmount, slippage);
-    await refreshPrices(assetIds, true);
-    setIsCreatingNote(true);
-    try {
-      const swapParams: SwapParams = {
-        sellToken,
-        buyToken,
-        sellAmount,
-        buyAmount: minAmountOutValue,
-        userAccountId: accountId,
-        requestTransaction: requestTransaction || (async () => ''),
-      };
-      await compileZoroSwapNote(swapParams, client);
-      setSellAmount('');
-      setBuyAmount('');
-    } finally {
-      setIsCreatingNote(false);
-    }
-  }, [
-    client,
-    sellAmount,
-    buyAmount,
-    sellToken,
-    buyToken,
-    slippage,
-    canSwap,
-    requestTransaction,
-    refreshPrices,
-    assetIds,
-    setSellAmount,
-    setBuyAmount,
-  ]);
+const handleSwap = useCallback(async () => {
+  if (!sellToken || !buyToken || !canSwap || !client) return;
+  const minAmountOutValue = calculateMinAmountOut(buyAmount, slippage);
+  await refreshPrices(assetIds, true);
+  setIsCreatingNote(true);
+  try {
+    const swapParams: SwapParams = {
+      sellToken,
+      buyToken,
+      sellAmount,
+      buyAmount: minAmountOutValue,
+      userAccountId: accountId,
+      requestTransaction: requestTransaction || (async () => ''),
+    };
+    await compileZoroSwapNote(swapParams, client);
+    
+    // Clear everything after successful swap
+    setSellAmount('');
+    setBuyAmount('');
+    setOriginalInput(null);
+  } finally {
+    setIsCreatingNote(false);
+  }
+}, [
+  client,
+  sellAmount,
+  buyAmount,
+  sellToken,
+  buyToken,
+  slippage,
+  canSwap,
+  requestTransaction,
+  refreshPrices,
+  assetIds,
+  accountId,
+]);
 
   const handleInputFocus = useCallback(async () => {
     await refreshPrices(assetIds);
   }, [refreshPrices]);
 
-  // Effects
   useEffect(() => {
     if (assetIds.length == 0) return;
     refreshPrices(assetIds);
@@ -298,46 +370,51 @@ function Swap() {
   }, [tokensLoaded]);
 
   const buttonText = useMemo(() => {
-    // Validation logic for button text only - doesn't block interaction
-    const sellAmountNum = parseFloat(sellAmount);
-    const buyAmountNum = parseFloat(buyAmount);
-    const hasValidAmounts = Boolean(
-      sellAmount && buyAmount
-        && !isNaN(sellAmountNum) && !isNaN(buyAmountNum)
-        && sellAmountNum > 0 && buyAmountNum > 0,
-    );
-    const hasValidTokens = Boolean(
-      sellToken && buyToken
-        && sellToken !== buyToken
-        && tokensLoaded,
-    );
-    const hasPriceData = Boolean(
-      tokenData.sellPrice && tokenData.buyPrice,
-    );
-    // Only show insufficient balance if we have definitive balance data
-    const showInsufficientBalance = Boolean(
-      balanceValidation.isBalanceLoaded
-        && balanceValidation.hasInsufficientBalance,
-    );
-    if (showInsufficientBalance) {
-      return `Insufficient ${sellToken} balance`;
-    } else if (!hasValidTokens) {
-      return 'Select tokens';
-    } else if (!hasValidAmounts) {
-      return 'Enter amount';
-    } else if (!hasPriceData) {
-      return 'Price unavailable - Try anyway?';
-    } else return 'Swap';
-  }, [
-    sellAmount,
-    buyAmount,
-    sellToken,
-    buyToken,
-    tokensLoaded,
-    tokenData.sellPrice,
-    tokenData.buyPrice,
-    balanceValidation,
-  ]);
+  const sellAmountNum = parseFloat(sellAmount);
+  const buyAmountNum = parseFloat(buyAmount);
+  const hasValidAmounts = Boolean(
+    sellAmount && buyAmount
+      && !isNaN(sellAmountNum) && !isNaN(buyAmountNum)
+      && sellAmountNum > 0 && buyAmountNum > 0,
+  );
+  const hasValidTokens = Boolean(
+    sellToken && buyToken
+      && sellToken !== buyToken
+      && tokensLoaded,
+  );
+  const hasPriceData = Boolean(
+    tokenData.sellPrice && tokenData.buyPrice,
+  );
+  
+  if (isRecalculatingBalance) {
+    return 'Calculating...';
+  }
+  
+  const showInsufficientBalance = Boolean(
+    balanceValidation.isBalanceLoaded
+      && balanceValidation.hasInsufficientBalance,
+  );
+  
+  if (showInsufficientBalance) {
+    return `Insufficient ${sellToken} balance`;
+  } else if (!hasValidTokens) {
+    return 'Select tokens';
+  } else if (!hasValidAmounts) {
+    return 'Enter amount';
+  } else if (!hasPriceData) {
+    return 'Price unavailable - Try anyway?';
+  } else return 'Swap';
+}, [
+  sellAmount,
+  buyAmount,
+  sellToken,
+  buyToken,
+  tokensLoaded,
+  tokenData.sellPrice,
+  tokenData.buyPrice,
+  balanceValidation,
+  isRecalculatingBalance,
+]);
 
   // Loading states
   if (!tokensLoaded) {
@@ -346,8 +423,7 @@ function Swap() {
         <Header />
         <main className='flex-1 flex items-center justify-center'>
           <div className='flex items-center gap-2'>
-            <Loader2 className='w-5 h-5 animate-spin' />
-            <span>Loading token configuration...</span>
+            <Loader2 className='w-10 h-10 animate-spin mb-20' />
           </div>
         </main>
       </div>
@@ -360,7 +436,7 @@ function Swap() {
         <Header />
         <main className='flex-1 flex items-center justify-center'>
           <div className='text-center space-y-4'>
-            <div className='text-orange-600'>Failed to load token configuration</div>
+            <div className='text-orange-600'>Server is down, come again in a bit</div>
             <Button onClick={() => window.location.reload()}>Retry</Button>
           </div>
         </main>
@@ -522,7 +598,7 @@ function Swap() {
                   ? (
                     <Button
                       onClick={handleSwap}
-                      disabled={connecting || isCreatingNote || !client}
+                      disabled={connecting || isCreatingNote || !client || isRecalculatingBalance}
                       variant='outline'
                       className='w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
                     >
@@ -544,6 +620,13 @@ function Swap() {
                         ? (
                           <>
                             <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                          </>
+                        )
+                        : isRecalculatingBalance
+                        ? (
+                          <>
+                            <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                            {buttonText}
                           </>
                         )
                         : buttonText}
