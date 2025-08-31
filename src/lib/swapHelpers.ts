@@ -40,9 +40,6 @@ export const calculateMinAmountOut = (
   return minAmount.toFixed(8);
 };
 
-/**
- * Simple balance validation - no optimistic complexity
- */
 export const getBalanceValidation = (
   sellAmount: string,
   balance: bigint | null,
@@ -227,8 +224,7 @@ export const calculateTokenPrice = (
         return { buyAmount: expectedBuyAmount.toFixed(8) };
       } else {
 
-        const minAmountOut = expectedBuyAmount * (1 - slippage / 100);
-        return { buyAmount: minAmountOut.toFixed(8) };
+        return { buyAmount: expectedBuyAmount.toFixed(8) };
       }
     }
   } else if (field === 'buy' && buyAmount) {

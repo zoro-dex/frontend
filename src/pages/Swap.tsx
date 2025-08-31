@@ -29,6 +29,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'r
 import { Link } from 'react-router-dom';
 import { formatUnits } from 'viem';
 import { compileZoroSwapNote, type SwapParams } from '../lib/ZoroSwapNote.ts';
+import { SwapSuccess } from '@/components/SwapSuccess.tsx';
 
 type TabType = 'Swap' | 'Limit';
 
@@ -52,6 +53,8 @@ function Swap() {
   const [tokensLoaded, setTokensLoaded] = useState<boolean>(false);
   const [availableTokens, setAvailableTokens] = useState<TokenSymbol[]>([]);
   const [originalInput, setOriginalInput] = useState<OriginalInput | null>(null);
+  const [swapResult, setSwapResult] = useState<{ txId: string; noteId: string } | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
   const { refreshPrices } = useContext(NablaAntennaContext);
 
   // Refs for stable calculations
@@ -204,7 +207,6 @@ const handleBuyAmountChange = useCallback((value: string): void => {
   setBuyAmount(value);
   setLastEditedField('buy');
   
-  // Track original input with current token
   if (value && buyToken) {
     setOriginalInput({
       amount: value,
@@ -323,11 +325,16 @@ const handleSwap = useCallback(async () => {
       sellToken,
       buyToken,
       sellAmount,
-      buyAmount: minAmountOutValue,
+      buyAmount,
+      minAmountOut: minAmountOutValue,
       userAccountId: accountId,
       requestTransaction: requestTransaction || (async () => ''),
     };
-    await compileZoroSwapNote(swapParams, client);
+
+    const result = await compileZoroSwapNote(swapParams, client);
+
+    setSwapResult(result);
+    setShowSuccessModal(true);
     
     // Clear everything after successful swap
     setSellAmount('');
@@ -336,19 +343,24 @@ const handleSwap = useCallback(async () => {
   } finally {
     setIsCreatingNote(false);
   }
-}, [
-  client,
-  sellAmount,
-  buyAmount,
-  sellToken,
-  buyToken,
-  slippage,
-  canSwap,
-  requestTransaction,
-  refreshPrices,
-  assetIds,
-  accountId,
-]);
+  }, [
+    client,
+    sellAmount,
+    buyAmount,
+    sellToken,
+    buyToken,
+    slippage,
+    canSwap,
+    requestTransaction,
+    refreshPrices,
+    assetIds,
+    accountId,
+  ]);
+
+  const handleCloseSuccessModal = useCallback(() => {
+    setShowSuccessModal(false);
+    setSwapResult(null);
+  }, []);
 
   const handleInputFocus = useCallback(async () => {
     await refreshPrices(assetIds);
@@ -672,6 +684,14 @@ const handleSwap = useCallback(async () => {
           </div>
         </div>
       </main>
+      <SwapSuccess
+        isOpen={showSuccessModal}
+        onClose={handleCloseSuccessModal}
+        swapResult={swapResult}
+        sellToken={sellToken}
+        buyToken={buyToken}
+        sellAmount={sellAmount}
+      />
     </div>
   );
 }
