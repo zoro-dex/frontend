@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 export function Header() {
 
   return (
-    <div className="flex items-center justify-between p-4 z-10">
+    <div className="flex items-center justify-between p-4 relative">
       {/* Left */}
       <Link to="/">
         <div className="flex items-center gap-1">

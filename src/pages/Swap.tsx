@@ -31,10 +31,7 @@ import { formatUnits } from 'viem';
 import { compileZoroSwapNote, type SwapParams } from '../lib/ZoroSwapNote.ts';
 import { SwapSuccess } from '@/components/SwapSuccess.tsx';
 
-type TabType = 'Swap' | 'Limit';
-
 function Swap() {
-  const [activeTab, setActiveTab] = useState<TabType>('Swap');
   const [isCreatingNote, setIsCreatingNote] = useState<boolean>(false);
   const {connected, connecting, requestTransaction, accountId: rawAccountId } = useWallet();
   const [client, setClient] = useState<WebClient | undefined>(undefined);
@@ -432,11 +429,8 @@ const handleSwap = useCallback(async () => {
   if (!tokensLoaded) {
     return (
       <div className='min-h-screen bg-background text-foreground flex flex-col'>
-        <Header />
         <main className='flex-1 flex items-center justify-center'>
-          <div className='flex items-center gap-2'>
-            <Loader2 className='w-10 h-10 animate-spin mb-20' />
-          </div>
+          <img src="/zoro_logo_final3.svg" alt="Zoro Hat" className="w-24 h-24 animate-pulse opacity-25" />
         </main>
       </div>
     );
@@ -461,8 +455,10 @@ const handleSwap = useCallback(async () => {
       <Header />
       <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-20'>
         <div className='w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6'>
-          <div className='flex items-center justify-between'>
-            <div className='flex bg-muted rounded-full p-0.5 sm:p-1'>
+          <div>
+
+            {/* SWAP/LIMIT TAB
+              <div className='flex bg-muted rounded-full p-0.5 sm:p-1'>
               {(['Swap', 'Limit'] as const).map((tab) => (
                 <Button
                   key={tab}
@@ -478,8 +474,8 @@ const handleSwap = useCallback(async () => {
                   {tab}
                 </Button>
               ))}
-            </div>
-            <div className='flex items-center gap-1 sm:gap-2'>
+            </div> */}
+            <div className='flex gap-1 sm:gap-2 justify-end'>
               <SwapSettings slippage={slippage} onSlippageChange={setSlippage} />
               <ModeToggle />
             </div>

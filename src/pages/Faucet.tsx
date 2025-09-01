@@ -16,6 +16,46 @@ interface MintStatus {
 
 type TokenMintStatuses = Record<TokenSymbol, MintStatus>;
 
+interface SkeletonCardProps {
+  readonly index: number;
+}
+
+function SkeletonCard({ index }: SkeletonCardProps): JSX.Element {
+  return (
+    <Card className='rounded-xl animate-pulse'>
+      <CardContent className='p-4 sm:p-6'>
+        <div className='flex items-center gap-4 mb-4'>
+          <div className='w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-muted' />
+          <div className='flex-1 space-y-2'>
+            <div className='h-5 sm:h-6 bg-muted rounded w-24 sm:w-32' />
+            <div className='h-3 bg-muted rounded w-32 sm:w-40' />
+          </div>
+        </div>
+        <div className='space-y-3'>
+          <div className='h-8 sm:h-9 bg-muted rounded-md w-full' />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function FaucetSkeleton(): JSX.Element {
+  return (
+    <div className='min-h-screen bg-background text-foreground flex flex-col'>
+      <Header />
+      <main className='flex-1 flex items-center justify-center p-3 sm:p-4'>
+        <div className='w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6'>
+          <div className='space-y-4 mb-14'>
+            {[0, 1].map((index) => (
+              <SkeletonCard key={index} index={index} />
+            ))}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
 function Faucet(): JSX.Element {
   const { wallet, connected } = useWallet();
   const [tokensLoaded, setTokensLoaded] = useState<boolean>(false);
@@ -24,7 +64,6 @@ function Faucet(): JSX.Element {
     {} as TokenMintStatuses,
   );
 
-  // Initialize tokens and set up available tokens list
   useEffect(() => {
     const loadTokens = async (): Promise<void> => {
       try {
@@ -32,7 +71,6 @@ function Faucet(): JSX.Element {
         const tokenSymbols = Object.keys(TOKENS) as TokenSymbol[];
         setAvailableTokens(tokenSymbols);
 
-        // Initialize mint statuses for each token
         const initialStatuses: TokenMintStatuses = {} as TokenMintStatuses;
         for (const symbol of tokenSymbols) {
           initialStatuses[symbol] = {
@@ -45,7 +83,7 @@ function Faucet(): JSX.Element {
 
         setTokensLoaded(true);
       } catch (error) {
-        setTokensLoaded(true); // Still set to true to show error state
+        setTokensLoaded(true);
       }
     };
 
@@ -78,7 +116,6 @@ function Faucet(): JSX.Element {
     const accountId = wallet.adapter.accountId;
     const faucetId = token.faucetId;
 
-    // Set loading state
     updateMintStatus(tokenSymbol, {
       isLoading: true,
       lastAttempt: Date.now(),
@@ -131,22 +168,10 @@ function Faucet(): JSX.Element {
     return status.isLoading || !connected;
   };
 
-  // Show loading state while tokens are being fetched
   if (!tokensLoaded) {
-    return (
-      <div className='min-h-screen bg-background text-foreground flex flex-col'>
-        <Header />
-        <main className='flex-1 flex items-center justify-center'>
-          <div className='flex items-center gap-2'>
-            <Loader2 className='w-5 h-5 animate-spin' />
-            <span>Loading faucet configuration...</span>
-          </div>
-        </main>
-      </div>
-    );
+    return <FaucetSkeleton />;
   }
 
-  // Show error state if no tokens are available
   if (availableTokens.length === 0) {
     return (
       <div className='min-h-screen bg-background text-foreground flex flex-col'>
@@ -169,7 +194,6 @@ function Faucet(): JSX.Element {
 
       <main className='flex-1 flex items-center justify-center p-3 sm:p-4'>
         <div className='w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6'>
-          {/* Connection Status */}
           {!connected && (
             <Card className='rounded-xl border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20'>
               <CardContent className='p-4 text-center'>
@@ -180,7 +204,6 @@ function Faucet(): JSX.Element {
             </Card>
           )}
 
-          {/* Faucet Cards */}
           <div className='space-y-4'>
             {availableTokens.map((tokenSymbol) => {
               const token = TOKENS[tokenSymbol];
@@ -214,7 +237,6 @@ function Faucet(): JSX.Element {
                     </div>
 
                     <div className='space-y-3'>
-                      {/* Status Message */}
                       {status.lastResult && (
                         <div
                           className={`text-xs p-2 rounded-md ${
@@ -250,7 +272,6 @@ function Faucet(): JSX.Element {
             })}
           </div>
 
-          {/* Back to App */}
           <div className='text-center'>
             <Link to='/'>
               <Button

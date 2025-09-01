@@ -89,7 +89,7 @@ export function SwapSuccess({
             {/* Header */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <img src="/Zoro_logo_final3.svg" alt="Zoro" className="w-8 h-8 -ml-2 -mt-1" />
+                <img src="/zoro_logo_final3.svg" alt="Zoro" className="w-8 h-8 -ml-2 -mt-1" />
                 <span className="font-semibold text-sm">Swap note created.</span>
               </div>
               <Button
