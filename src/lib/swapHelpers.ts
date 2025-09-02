@@ -19,11 +19,6 @@ export interface TokenPriceData {
   readonly buyPrice: { value: number; publish_time: number } | null;
 }
 
-export interface OriginalInput {
-  readonly amount: string;
-  readonly token: TokenSymbol;
-}
-
 /**
  * Calculate minimum amount out considering slippage
  */

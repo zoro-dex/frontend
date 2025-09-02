@@ -9,7 +9,7 @@ export function Header() {
       <Link to="/">
         <div className="flex items-center gap-1">
         <img 
-            src="/zoro_logo_final3.svg" 
+            src="/zoro_logo_with_outline.svg" 
             alt="Zoro Hat" 
             className="h-8 w-auto mirror-x"
           />

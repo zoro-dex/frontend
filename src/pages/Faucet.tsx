@@ -257,7 +257,7 @@ function Faucet(): JSX.Element {
                       <Button
                         onClick={() => requestTokens(tokenSymbol)}
                         disabled={isButtonDisabled(status)}
-                        className='w-full bg-blue-500 hover:bg-blue-600 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+                        className='w-full bg-pink-500 hover:bg-pink-600 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
                         variant='ghost'
                       >
                         {status.isLoading && (
@@ -279,7 +279,7 @@ function Faucet(): JSX.Element {
                 size='sm'
                 className='text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors'
               >
-                ← Back to Zoro AMM
+                ← Back to Zoro
               </Button>
             </Link>
           </div>
