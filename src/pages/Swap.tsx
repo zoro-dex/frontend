@@ -1,4 +1,5 @@
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import { ModeToggle } from '@/components/ModeToggle';
 import { SwapSettings } from '@/components/SwapSettings';
 import { Button } from '@/components/ui/button';
@@ -354,7 +355,7 @@ const handleSwap = useCallback(async () => {
   return (
     <div className='min-h-screen bg-background text-foreground flex flex-col'>
       <Header />
-      <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-20'>
+      <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-4'>
         <div className='w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6'>
           <div>
 
@@ -575,6 +576,7 @@ const handleSwap = useCallback(async () => {
           </div>
         </div>
       </main>
+      <Footer />
       <SwapSuccess
         isOpen={showSuccessModal}
         onClose={handleCloseSuccessModal}
