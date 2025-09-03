@@ -120,11 +120,11 @@ export function SwapSuccess({
                 {swapDetails && (
   <div className="mb-4">
     <div className="text-xs mb-3">Order sent:</div>
-    <div className="flex items-center justify-between px-1 text-xs">
+    <div className="flex items-center justify-between px-3 text-sm">
       <div className="dark:text-red-200 text-red-700">
         {formatAmount(swapDetails.sellAmount)} {swapDetails.sellToken}
       </div>
-      <span className="text-muted-foreground">for</span>
+      <span className="text-muted-foreground text-xs">for</span>
       <div className="dark:text-green-200 text-green-700">
         {formatAmount(swapDetails.buyAmount)} {swapDetails.buyToken}
       </div>
