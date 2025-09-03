@@ -61,7 +61,7 @@ export function SwapSettings({ slippage, onSlippageChange }: SwapSettingsProps) 
           />
 
           {/* Settings Panel */}
-          <Card className='absolute top-10 right-0 w-[200px] sm:w-[220px] z-50 border shadow-lg'>
+          <Card className='absolute top-10 right-0 w-[200px] sm:w-[220px] z-20 shadow-lg'>
             <CardContent className='p-4 space-y-3'>
               {/* Header */}
               <div className='flex items-center justify-between'>

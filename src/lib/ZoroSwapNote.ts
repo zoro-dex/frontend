@@ -33,7 +33,8 @@ export interface SwapParams {
   readonly sellToken: TokenSymbol;
   readonly buyToken: TokenSymbol;
   readonly sellAmount: string;
-  readonly buyAmount: string; // min_amount_out
+  readonly buyAmount: string;
+  readonly minAmountOut: string;
   readonly userAccountId?: AccountId;
   readonly requestTransaction: (tx: MidenTransaction) => Promise<string>;
 }
@@ -68,36 +69,34 @@ export async function compileZoroSwapNote(
   }
 
   try {
-    // ── Use single client service ──────────────
+
     await client.syncState();
-    // Use the faucet IDs from the token configuration
+
     const sellFaucetId = AccountId.fromBech32(sellTokenConfig.faucetId);
     const buyFaucetId = AccountId.fromBech32(buyTokenConfig.faucetId);
 
-    // Convert amounts to BigInt using token-specific decimals
     const sellAmountNum = parseFloat(swapParams.sellAmount);
-    const buyAmountNum = parseFloat(swapParams.buyAmount);
+    const minAmountOutNum = parseFloat(swapParams.minAmountOut);
 
-    if (
-      isNaN(sellAmountNum) || isNaN(buyAmountNum) || sellAmountNum <= 0
-      || buyAmountNum <= 0
+   if (
+      isNaN(sellAmountNum) || isNaN(minAmountOutNum) || 
+      sellAmountNum <= 0 || minAmountOutNum <= 0
     ) {
       throw new Error(
-        `Invalid swap amounts: sell=${swapParams.sellAmount}, buy=${swapParams.buyAmount}`,
+        `Invalid swap amounts: sell=${swapParams.sellAmount}, expectedBuy=${swapParams.minAmountOut}`,
       );
     }
 
     const sellAmountBigInt = BigInt(
       Math.floor(sellAmountNum * Math.pow(10, sellTokenConfig.decimals)),
     );
-    const buyAmountBigInt = BigInt(
-      Math.floor(buyAmountNum * Math.pow(10, buyTokenConfig.decimals)),
+    const minAmountOutBigInt = BigInt(
+      Math.floor(minAmountOutNum * Math.pow(10, buyTokenConfig.decimals)),
     );
 
     const script = client.compileNoteScript(ZOROSWAP_SCRIPT);
     const noteType = NoteType.Public;
 
-    // Create assets using the faucet IDs from token configuration
     const offeredAsset = new FungibleAsset(sellFaucetId, sellAmountBigInt);
 
     // Note should only contain the offered asset
@@ -120,7 +119,7 @@ export async function compileZoroSwapNote(
     // Following the pattern: [asset_id_prefix, asset_id_suffix, 0, min_amount_out]
     const inputs = new NoteInputs(
       new FeltArray([
-        new Felt(buyAmountBigInt),
+        new Felt(minAmountOutBigInt),
         new Felt(BigInt(0)),
         buyFaucetId.suffix(),
         buyFaucetId.prefix(),

@@ -1,4 +1,5 @@
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import { ModeToggle } from '@/components/ModeToggle';
 import { SwapSettings } from '@/components/SwapSettings';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useBalance } from '@/hooks/useBalance.ts';
 import { useTokenInitialization } from '@/hooks/useTokenInitialization.ts';
-import { getAssetIds, poolAccountId, TOKENS, type TokenSymbol, UI } from '@/lib/config';
+import { getAssetIds, TOKENS, type TokenSymbol, UI } from '@/lib/config';
 import {
   calculateMinAmountOut,
   calculateTokenPrice,
@@ -14,7 +15,7 @@ import {
   canPerformSwap,
   extractTokenData,
   formatBalance,
-  getBalanceValidation,
+  getBalanceValidation
 } from '@/lib/swapHelpers';
 import { instantiateClient } from '@/lib/utils.ts';
 import {
@@ -28,13 +29,11 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'r
 import { Link } from 'react-router-dom';
 import { formatUnits } from 'viem';
 import { compileZoroSwapNote, type SwapParams } from '../lib/ZoroSwapNote.ts';
-
-type TabType = 'Swap' | 'Limit';
+import { SwapSuccess } from '@/components/SwapSuccess.tsx';
 
 function Swap() {
-  const [activeTab, setActiveTab] = useState<TabType>('Swap');
   const [isCreatingNote, setIsCreatingNote] = useState<boolean>(false);
-  const { connecting, requestTransaction, accountId: rawAccountId } = useWallet();
+  const {connected, connecting, requestTransaction, accountId: rawAccountId } = useWallet();
   const [client, setClient] = useState<WebClient | undefined>(undefined);
   const [sellAmount, setSellAmount] = useState<string>('');
   const [buyAmount, setBuyAmount] = useState<string>('');
@@ -49,6 +48,8 @@ function Swap() {
   }, [rawAccountId]);
   const [tokensLoaded, setTokensLoaded] = useState<boolean>(false);
   const [availableTokens, setAvailableTokens] = useState<TokenSymbol[]>([]);
+  const [swapResult, setSwapResult] = useState<{ txId: string; noteId: string } | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
   const { refreshPrices } = useContext(NablaAntennaContext);
 
   // Refs for stable calculations
@@ -167,56 +168,38 @@ function Swap() {
     return formatBalance(buyBalance, buyToken);
   }, [buyBalance, buyToken]);
 
-  // Price calculation function
-  const calculateAndSetPrice = useCallback((
-    sellAmt: string,
-    buyAmt: string,
-    field: 'sell' | 'buy',
-  ) => {
-    const result = calculateTokenPrice(sellAmt, buyAmt, field, tokenData, slippage);
-    if (result.sellAmount) setSellAmount(result.sellAmount);
-    if (result.buyAmount) setBuyAmount(result.buyAmount);
-  }, [tokenData, slippage, setSellAmount, setBuyAmount]);
-
-  // Input handlers with debouncing
   const handleSellAmountChange = useCallback((value: string): void => {
-    setSellAmount(value);
-    setLastEditedField('sell');
-    if (!value) {
-      setBuyAmount('');
-      return;
-    }
-    calculateAndSetPrice(value, '', 'sell');
-  }, [
-    setSellAmount,
-    setLastEditedField,
-    setBuyAmount,
-    calculateAndSetPrice,
-  ]);
+  setSellAmount(value);
+  setLastEditedField('sell');
+  
+  if (!value) {
+    setBuyAmount('');
+    return;
+  }
+  
+  const result = calculateTokenPrice(value, '', 'sell', tokenData, slippage);
+  if (result.buyAmount) setBuyAmount(result.buyAmount);
+}, [tokenData, slippage]);
 
-  const handleBuyAmountChange = useCallback((value: string): void => {
-    setBuyAmount(value);
-    setLastEditedField('buy');
-    if (!value) {
-      setSellAmount('');
-      return;
-    }
-    calculateAndSetPrice('', value, 'buy');
-  }, [
-    setBuyAmount,
-    setLastEditedField,
-    setSellAmount,
-    calculateAndSetPrice,
-  ]);
+const handleBuyAmountChange = useCallback((value: string): void => {
+  setBuyAmount(value);
+  setLastEditedField('buy');
+  
+  if (!value) {
+    setSellAmount('');
+    return;
+  }
+  
+  const result = calculateTokenPrice('', value, 'buy', tokenData, slippage);
+  if (result.sellAmount) setSellAmount(result.sellAmount);
+}, [tokenData, slippage]);
 
-  // Token replacement
-  const handleReplaceTokens = useCallback(async () => {
+  const handleReplaceTokens = useCallback(() => {
     if (!sellToken || !buyToken) return;
     setSellToken(buyToken);
     setBuyToken(sellToken);
     setSellAmount(buyAmount);
     setBuyAmount(sellAmount);
-    setLastEditedField(lastEditedField === 'sell' ? 'buy' : 'sell');
     sellInputRef.current?.focus();
   }, [
     sellToken,
@@ -224,44 +207,46 @@ function Swap() {
     buyAmount,
     sellAmount,
     lastEditedField,
-    setBuyToken,
-    setSellToken,
-    setSellAmount,
-    setBuyAmount,
-    setLastEditedField,
   ]);
 
-  // Max balance handler
-  const handleMaxClick = useCallback((): void => {
-    if (sellBalance !== null && sellBalance > BigInt(0) && sellToken) {
-      const decimals = TOKENS[sellToken]?.decimals || 8;
-      const maxAmount = formatUnits(sellBalance, decimals);
-      handleSellAmountChange(maxAmount);
-      sellInputRef.current?.focus();
-    }
-  }, [sellBalance, sellToken, handleSellAmountChange]);
 
-  // Swap handler
-  const handleSwap = useCallback(async () => {
-    if (!sellToken || !buyToken || !canSwap || !client) return;
-    const minAmountOutValue = calculateMinAmountOut(buyAmount, slippage);
-    await refreshPrices(assetIds, true);
-    setIsCreatingNote(true);
-    try {
-      const swapParams: SwapParams = {
-        sellToken,
-        buyToken,
-        sellAmount,
-        buyAmount: minAmountOutValue,
-        userAccountId: accountId,
-        requestTransaction: requestTransaction || (async () => ''),
-      };
-      await compileZoroSwapNote(swapParams, client);
-      setSellAmount('');
-      setBuyAmount('');
-    } finally {
-      setIsCreatingNote(false);
-    }
+const handleMaxClick = useCallback((): void => {
+  if (sellBalance !== null && sellBalance > BigInt(0) && sellToken) {
+    const decimals = TOKENS[sellToken]?.decimals || 8;
+    const maxAmount = formatUnits(sellBalance, decimals);
+    
+    handleSellAmountChange(maxAmount);
+    sellInputRef.current?.focus();
+  }
+}, [sellBalance, sellToken, handleSellAmountChange]);
+
+const handleSwap = useCallback(async () => {
+  if (!sellToken || !buyToken || !canSwap || !client) return;
+  const minAmountOutValue = calculateMinAmountOut(buyAmount, slippage);
+  await refreshPrices(assetIds, true);
+  setIsCreatingNote(true);
+  try {
+    const swapParams: SwapParams = {
+      sellToken,
+      buyToken,
+      sellAmount,
+      buyAmount,
+      minAmountOut: minAmountOutValue,
+      userAccountId: accountId,
+      requestTransaction: requestTransaction || (async () => ''),
+    };
+
+    const result = await compileZoroSwapNote(swapParams, client);
+
+    setSwapResult(result);
+    setShowSuccessModal(true);
+    
+    // Clear everything after successful swap
+    setSellAmount('');
+    setBuyAmount('');
+  } finally {
+    setIsCreatingNote(false);
+  }
   }, [
     client,
     sellAmount,
@@ -273,15 +258,18 @@ function Swap() {
     requestTransaction,
     refreshPrices,
     assetIds,
-    setSellAmount,
-    setBuyAmount,
+    accountId,
   ]);
+
+  const handleCloseSuccessModal = useCallback(() => {
+    setShowSuccessModal(false);
+    setSwapResult(null);
+  }, []);
 
   const handleInputFocus = useCallback(async () => {
     await refreshPrices(assetIds);
   }, [refreshPrices]);
 
-  // Effects
   useEffect(() => {
     if (assetIds.length == 0) return;
     refreshPrices(assetIds);
@@ -298,57 +286,53 @@ function Swap() {
   }, [tokensLoaded]);
 
   const buttonText = useMemo(() => {
-    // Validation logic for button text only - doesn't block interaction
-    const sellAmountNum = parseFloat(sellAmount);
-    const buyAmountNum = parseFloat(buyAmount);
-    const hasValidAmounts = Boolean(
-      sellAmount && buyAmount
-        && !isNaN(sellAmountNum) && !isNaN(buyAmountNum)
-        && sellAmountNum > 0 && buyAmountNum > 0,
-    );
-    const hasValidTokens = Boolean(
-      sellToken && buyToken
-        && sellToken !== buyToken
-        && tokensLoaded,
-    );
-    const hasPriceData = Boolean(
-      tokenData.sellPrice && tokenData.buyPrice,
-    );
-    // Only show insufficient balance if we have definitive balance data
-    const showInsufficientBalance = Boolean(
-      balanceValidation.isBalanceLoaded
-        && balanceValidation.hasInsufficientBalance,
-    );
-    if (showInsufficientBalance) {
-      return `Insufficient ${sellToken} balance`;
-    } else if (!hasValidTokens) {
-      return 'Select tokens';
-    } else if (!hasValidAmounts) {
-      return 'Enter amount';
-    } else if (!hasPriceData) {
-      return 'Price unavailable - Try anyway?';
-    } else return 'Swap';
-  }, [
-    sellAmount,
-    buyAmount,
-    sellToken,
-    buyToken,
-    tokensLoaded,
-    tokenData.sellPrice,
-    tokenData.buyPrice,
-    balanceValidation,
-  ]);
+  const sellAmountNum = parseFloat(sellAmount);
+  const buyAmountNum = parseFloat(buyAmount);
+  const hasValidAmounts = Boolean(
+    sellAmount && buyAmount
+      && !isNaN(sellAmountNum) && !isNaN(buyAmountNum)
+      && sellAmountNum > 0 && buyAmountNum > 0,
+  );
+  const hasValidTokens = Boolean(
+    sellToken && buyToken
+      && sellToken !== buyToken
+      && tokensLoaded,
+  );
+  const hasPriceData = Boolean(
+    tokenData.sellPrice && tokenData.buyPrice,
+  );
+  
+  const showInsufficientBalance = Boolean(
+    balanceValidation.isBalanceLoaded
+      && balanceValidation.hasInsufficientBalance,
+  );
+  
+  if (showInsufficientBalance) {
+    return `Insufficient ${sellToken} balance`;
+  } else if (!hasValidTokens) {
+    return 'Select tokens';
+  } else if (!hasValidAmounts) {
+    return 'Enter amount';
+  } else if (!hasPriceData) {
+    return 'Price unavailable - Try anyway?';
+  } else return 'Swap';
+}, [
+  sellAmount,
+  buyAmount,
+  sellToken,
+  buyToken,
+  tokensLoaded,
+  tokenData.sellPrice,
+  tokenData.buyPrice,
+  balanceValidation
+]);
 
   // Loading states
   if (!tokensLoaded) {
     return (
       <div className='min-h-screen bg-background text-foreground flex flex-col'>
-        <Header />
         <main className='flex-1 flex items-center justify-center'>
-          <div className='flex items-center gap-2'>
-            <Loader2 className='w-5 h-5 animate-spin' />
-            <span>Loading token configuration...</span>
-          </div>
+          <img src="/zoro_logo_with_outline.svg" alt="Zoro Hat" className="w-24 h-24 animate-pulse opacity-25" />
         </main>
       </div>
     );
@@ -360,7 +344,7 @@ function Swap() {
         <Header />
         <main className='flex-1 flex items-center justify-center'>
           <div className='text-center space-y-4'>
-            <div className='text-orange-600'>Failed to load token configuration</div>
+            <div className='text-orange-600'>Server is down, come again in a bit</div>
             <Button onClick={() => window.location.reload()}>Retry</Button>
           </div>
         </main>
@@ -371,10 +355,12 @@ function Swap() {
   return (
     <div className='min-h-screen bg-background text-foreground flex flex-col'>
       <Header />
-      <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-20'>
+      <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-4'>
         <div className='w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6'>
-          <div className='flex items-center justify-between'>
-            <div className='flex bg-muted rounded-full p-0.5 sm:p-1'>
+          <div>
+
+            {/* SWAP/LIMIT TAB
+              <div className='flex bg-muted rounded-full p-0.5 sm:p-1'>
               {(['Swap', 'Limit'] as const).map((tab) => (
                 <Button
                   key={tab}
@@ -390,8 +376,8 @@ function Swap() {
                   {tab}
                 </Button>
               ))}
-            </div>
-            <div className='flex items-center gap-1 sm:gap-2'>
+            </div> */}
+            <div className='flex gap-1 sm:gap-2 justify-end'>
               <SwapSettings slippage={slippage} onSlippageChange={setSlippage} />
               <ModeToggle />
             </div>
@@ -408,7 +394,8 @@ function Swap() {
                         ref={sellInputRef}
                         type='number'
                         value={sellAmount}
-                        onChange={(e) => handleSellAmountChange(e.target.value)}
+                        onChange={(e) =>
+                          handleSellAmountChange(e.target.value)}
                         onFocus={handleInputFocus}
                         placeholder='0'
                         className={`border-none text-3xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner ${
@@ -515,14 +502,14 @@ function Swap() {
                   </CardContent>
                 </Card>
               </div>
-
+          
               {/* Main Action Button */}
               <div className='w-full h-12 sm:h-16 mt-4 sm:mt-6'>
-                {client
+                {connected
                   ? (
                     <Button
                       onClick={handleSwap}
-                      disabled={connecting || isCreatingNote}
+                      disabled={connecting || isCreatingNote || !client }
                       variant='outline'
                       className='w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
                     >
@@ -540,17 +527,35 @@ function Swap() {
                             Creating Note...
                           </>
                         )
+                        : !client
+                        ? (
+                          <>
+                            <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                          </>
+                        )
                         : buttonText}
                     </Button>
                   )
                   : (
-                    <div className='w-full h-full'>
-                      <WalletMultiButton
-                        disabled={connecting}
-                        className='!w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-muted-foreground hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center !border-none !p-0'
-                      >
-                        {connecting ? 'Connecting...' : 'Connect Wallet'}
-                      </WalletMultiButton>
+                    <div className='relative w-full h-full'>
+
+                      {connecting && (
+                        <Button
+                          disabled
+                          variant='outline'
+                          className='w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
+                        >
+                          <Loader2 className='w-10 h-10 animate-spin' />
+                        </Button>
+                      )}
+                      
+                      <div className={connecting ? 'invisible' : 'visible'}>
+                        <WalletMultiButton
+                          className='!p-5 !w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-muted-foreground animate-pulse hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center'
+                        >
+                          Connect wallet
+                        </WalletMultiButton>
+                      </div>
                     </div>
                   )}
               </div>
@@ -571,6 +576,15 @@ function Swap() {
           </div>
         </div>
       </main>
+      <Footer />
+      <SwapSuccess
+        isOpen={showSuccessModal}
+        onClose={handleCloseSuccessModal}
+        swapResult={swapResult}
+        sellToken={sellToken}
+        buyToken={buyToken}
+        sellAmount={sellAmount}
+      />
     </div>
   );
 }

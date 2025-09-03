@@ -35,9 +35,6 @@ export const calculateMinAmountOut = (
   return minAmount.toFixed(8);
 };
 
-/**
- * Simple balance validation - no optimistic complexity
- */
 export const getBalanceValidation = (
   sellAmount: string,
   balance: bigint | null,
@@ -203,6 +200,7 @@ export const calculateTokenPrice = (
   field: 'sell' | 'buy',
   tokenData: TokenPriceData,
   slippage: number,
+  preserveOriginalInput: boolean = false,
 ): { sellAmount?: string; buyAmount?: string } => {
   const { sellPrice, buyPrice } = tokenData;
 
@@ -213,20 +211,30 @@ export const calculateTokenPrice = (
   if (field === 'sell' && sellAmount) {
     const sellAmountNum = parseFloat(sellAmount);
     if (!isNaN(sellAmountNum) && sellAmountNum > 0) {
-      // Calculate expected buy amount
-      const expectedBuyAmount = (sellAmountNum * sellPrice.value) / buyPrice.value;
-      // Apply slippage to show minimum guaranteed amount
-      const minAmountOut = expectedBuyAmount * (1 - slippage / 100);
-      return { buyAmount: minAmountOut.toFixed(8) };
+      const sellValueUsd = sellAmountNum * sellPrice.value;
+      const expectedBuyAmount = sellValueUsd / buyPrice.value;
+      
+      if (preserveOriginalInput) {
+
+        return { buyAmount: expectedBuyAmount.toFixed(8) };
+      } else {
+
+        return { buyAmount: expectedBuyAmount.toFixed(8) };
+      }
     }
   } else if (field === 'buy' && buyAmount) {
     const buyAmountNum = parseFloat(buyAmount);
     if (!isNaN(buyAmountNum) && buyAmountNum > 0) {
-      // User entered min amount they want, calculate required sell amount
-      // Reverse calculate: if they want this minimum, what's the expected amount?
-      const expectedBuyAmount = buyAmountNum / (1 - slippage / 100);
-      const sellAmountCalculated = (expectedBuyAmount * buyPrice.value) / sellPrice.value;
-      return { sellAmount: sellAmountCalculated.toFixed(8) };
+      if (preserveOriginalInput) {
+        const buyValueUsd = buyAmountNum * buyPrice.value;
+        const sellAmountCalculated = buyValueUsd / sellPrice.value;
+        return { sellAmount: sellAmountCalculated.toFixed(8) };
+      } else {
+        const expectedBuyAmount = buyAmountNum / (1 - slippage / 100);
+        const buyValueUsd = expectedBuyAmount * buyPrice.value;
+        const sellAmountCalculated = buyValueUsd / sellPrice.value;
+        return { sellAmount: sellAmountCalculated.toFixed(8) };
+      }
     }
   }
 
