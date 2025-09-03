@@ -424,7 +424,7 @@ const handleSwap = useCallback(async () => {
                         )}
                       </Button>
                     </div>
-                    <div className='flex items-center justify-between text-xs text-muted-foreground h-5'>
+                    <div className='flex items-center justify-between text-xs h-5'>
                       <div>{usdValues.sellUsdValue || usdValues.priceFor1}</div>
                       <div className='flex items-center gap-1'>
                         <button
@@ -434,7 +434,7 @@ const handleSwap = useCallback(async () => {
                             balanceValidation.isBalanceLoaded
                               && balanceValidation.hasInsufficientBalance
                               ? 'text-orange-600 hover:text-destructive'
-                              : 'dark:text-green-100 dark:hover:text-green-200'
+                              : 'text-green-800 hover:text-green-600 dark:text-green-200 dark:hover:text-green-300'
                           }`}
                         >
                           {formattedSellBalance || 'Loading...'} {sellToken}
@@ -491,7 +491,7 @@ const handleSwap = useCallback(async () => {
                         )}
                       </Button>
                     </div>
-                    <div className='flex items-center justify-between text-xs text-muted-foreground h-5'>
+                    <div className='flex items-center justify-between text-xs h-5'>
                       <div>{usdValues.buyUsdValue || usdValues.priceFor1Buy}</div>
                       {buyBalance !== null && buyBalance > BigInt(0) && (
                         <div>

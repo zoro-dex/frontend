@@ -11,11 +11,9 @@ export function Header() {
             alt="Zoro Hat" 
             className="h-8 w-auto mirror-x"
           />
-          <img 
-            src="/logotype.png" 
-            alt="Zoro" 
-            className="hidden sm:block h-6 w-auto invert dark:invert-0"
-          />
+          <span className="hidden sm:block font-cal-sans text-3xl font-normal text-foreground">
+            Zoro
+          </span>
         </div>
       </Link>
 
