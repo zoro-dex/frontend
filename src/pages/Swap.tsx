@@ -434,7 +434,7 @@ const handleSwap = useCallback(async () => {
                             balanceValidation.isBalanceLoaded
                               && balanceValidation.hasInsufficientBalance
                               ? 'text-orange-600 hover:text-destructive'
-                              : 'text-green-800 hover:text-green-600 dark:text-green-200 dark:hover:text-green-300'
+                              : 'text-green-700 hover:text-green-600 dark:text-green-200 dark:hover:text-green-300'
                           }`}
                         >
                           {formattedSellBalance || 'Loading...'} {sellToken}
