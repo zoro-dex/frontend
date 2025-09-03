@@ -52,6 +52,12 @@ function Swap() {
   const [swapResult, setSwapResult] = useState<{ txId: string; noteId: string } | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
   const { refreshPrices } = useContext(NablaAntennaContext);
+  const [swapDetails, setSwapDetails] = useState<{
+  sellToken: TokenSymbol;
+  buyToken: TokenSymbol;
+  sellAmount: string;
+  buyAmount: string;
+} | null>(null);
 
   // Refs for stable calculations
   const sellInputRef = useRef<HTMLInputElement>(null);
@@ -246,11 +252,14 @@ const handleSwap = useCallback(async () => {
     const result = await compileZoroSwapNote(swapParams, client);
 
     setSwapResult(result);
+    setSwapDetails({
+      sellToken,
+      buyToken,
+      sellAmount,
+      buyAmount,
+    });
     setShowSuccessModal(true);
     
-    // Clear everything after successful swap
-    setSellAmount('');
-    setBuyAmount('');
   } finally {
     setIsCreatingNote(false);
   }
@@ -271,6 +280,7 @@ const handleSwap = useCallback(async () => {
   const handleCloseSuccessModal = useCallback(() => {
     setShowSuccessModal(false);
     setSwapResult(null);
+    setSwapDetails(null);
   }, []);
 
   const handleInputFocus = useCallback(async () => {
@@ -588,9 +598,7 @@ const handleSwap = useCallback(async () => {
         isOpen={showSuccessModal}
         onClose={handleCloseSuccessModal}
         swapResult={swapResult}
-        sellToken={sellToken}
-        buyToken={buyToken}
-        sellAmount={sellAmount}
+        swapDetails={swapDetails}
       />
     </div>
   );
