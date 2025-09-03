@@ -467,7 +467,7 @@ const handleSwap = useCallback(async () => {
                 <Button
                   variant='outline'
                   size='icon'
-                  className='h-8 w-8 sm:h-10 sm:w-10 rounded-full border dark:bg-black bg-white dark:text-white text-black hover:text-black dark:hover:bg-gray-500/10 hover:bg-gray-500/10 dark:hover:text-white'
+                  className='h-8 w-8 sm:h-10 sm:w-10 rounded-full border dark:text-white text-black hover:text-black dark:hover:bg-gray-500/10 hover:bg-gray-500/10 dark:hover:text-white'
                   onClick={handleReplaceTokens}
                   disabled={!sellToken || !buyToken || isCreatingNote || connecting || isSwapping}
                 >
