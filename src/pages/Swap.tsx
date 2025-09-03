@@ -41,6 +41,7 @@ function Swap() {
   const [buyToken, setBuyToken] = useState<TokenSymbol | undefined>(undefined);
   const [slippage, setSlippage] = useState<number>(UI.defaultSlippage);
   const [lastEditedField, setLastEditedField] = useState<'sell' | 'buy'>('sell');
+  const [isSwapping, setIsSwapping] = useState<boolean>(false);
   const accountId = useMemo(() => {
     if (rawAccountId != null) {
       return AccountId.fromBech32(rawAccountId);
@@ -200,13 +201,19 @@ const handleBuyAmountChange = useCallback((value: string): void => {
     setBuyToken(sellToken);
     setSellAmount(buyAmount);
     setBuyAmount(sellAmount);
-    sellInputRef.current?.focus();
+    setIsSwapping(true);
+    
+    setTimeout(() => {
+      setIsSwapping(false);
+      sellInputRef.current?.focus();
+    }, 500);
   }, [
     sellToken,
     buyToken,
     buyAmount,
     sellAmount,
     lastEditedField,
+    isSwapping,
   ]);
 
 
@@ -424,7 +431,7 @@ const handleSwap = useCallback(async () => {
                         )}
                       </Button>
                     </div>
-                    <div className='flex items-center justify-between text-xs text-muted-foreground h-5'>
+                    <div className='flex items-center justify-between text-xs h-5'>
                       <div>{usdValues.sellUsdValue || usdValues.priceFor1}</div>
                       <div className='flex items-center gap-1'>
                         <button
@@ -434,7 +441,7 @@ const handleSwap = useCallback(async () => {
                             balanceValidation.isBalanceLoaded
                               && balanceValidation.hasInsufficientBalance
                               ? 'text-orange-600 hover:text-destructive'
-                              : 'dark:text-green-100 dark:hover:text-green-200'
+                              : 'text-green-700 hover:text-green-600 dark:text-green-200 dark:hover:text-green-300'
                           }`}
                         >
                           {formattedSellBalance || 'Loading...'} {sellToken}
@@ -452,7 +459,7 @@ const handleSwap = useCallback(async () => {
                   size='icon'
                   className='h-8 w-8 sm:h-10 sm:w-10 rounded-full border dark:bg-black bg-white dark:text-white text-black hover:text-black dark:hover:bg-gray-500/10 hover:bg-gray-500/10 dark:hover:text-white'
                   onClick={handleReplaceTokens}
-                  disabled={!sellToken || !buyToken || isCreatingNote || connecting}
+                  disabled={!sellToken || !buyToken || isCreatingNote || connecting || isSwapping}
                 >
                   <ArrowUpDown className='w-3 h-3 sm:w-4 sm:h-4' />
                 </Button>
@@ -491,7 +498,7 @@ const handleSwap = useCallback(async () => {
                         )}
                       </Button>
                     </div>
-                    <div className='flex items-center justify-between text-xs text-muted-foreground h-5'>
+                    <div className='flex items-center justify-between text-xs h-5'>
                       <div>{usdValues.buyUsdValue || usdValues.priceFor1Buy}</div>
                       {buyBalance !== null && buyBalance > BigInt(0) && (
                         <div>
