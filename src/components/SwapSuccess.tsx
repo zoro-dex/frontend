@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Copy, X } from 'lucide-react';
+import { type TokenSymbol } from '@/lib/config';
+import { CheckCircle, X, ExternalLink } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 interface SwapResult {
@@ -7,22 +8,27 @@ interface SwapResult {
   readonly noteId: string;
 }
 
-interface SwapProps {
+interface SwapDetails {
+  readonly sellToken: TokenSymbol;
+  readonly buyToken: TokenSymbol;
+  readonly sellAmount: string;
+  readonly buyAmount: string;
+}
+
+interface SwapSuccessProps {
   readonly isOpen: boolean;
   readonly onClose: () => void;
   readonly swapResult: SwapResult | null;
-  readonly sellToken?: string;
-  readonly buyToken?: string;
-  readonly sellAmount?: string;
+  readonly swapDetails: SwapDetails | null;
 }
 
 export function SwapSuccess({ 
   isOpen, 
   onClose, 
-  swapResult
-}: SwapProps) {
-  const [copiedTx, setCopiedTx] = useState<boolean>(false);
-  const [copiedNote, setCopiedNote] = useState<boolean>(false);
+  swapResult,
+  swapDetails
+}: SwapSuccessProps) {
+  const [copiedText, setCopiedText] = useState<boolean>(false);
   const [isVisible, setIsVisible] = useState<boolean>(false);
 
   useEffect(() => {
@@ -34,23 +40,28 @@ export function SwapSuccess({
     }
   }, [isOpen]);
 
-    const copyToClipboard = useCallback(async (text: string, type: 'tx' | 'note'): Promise<void> => {
-    try {
-      await navigator.clipboard.writeText(text);
-      if (type === 'tx') {
-        setCopiedTx(true);
-        setTimeout(() => setCopiedTx(false), 2000);
-      } else {
-        setCopiedNote(true);
-        setTimeout(() => setCopiedNote(false), 2000);
-      }
-    } catch (error) {
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.body.removeChild(textArea);
+async function copyText(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+    setCopiedText(true);
+    setTimeout(() => setCopiedText(false), 2000);
+  } catch (error: any) {
+    console.error(error.message);
+  }
+}
+
+  const formatAmount = useCallback((amount: string): string => {
+    const num = parseFloat(amount);
+    if (isNaN(num)) return amount;
+    
+    if (num >= 1) {
+      return num.toLocaleString(undefined, { 
+        minimumFractionDigits: 0, 
+        maximumFractionDigits: 6 
+      });
     }
+    
+    return parseFloat(num.toFixed(7)).toString();
   }, []);
 
   const truncateId = (id: string): string => {
@@ -65,10 +76,8 @@ export function SwapSuccess({
 
   if (!isOpen || !swapResult) return null;
 
-
   return (
     <>
-      {/* Backdrop */}
       <div 
         className="fixed inset-0 bg-black/50 z-40"
         onClick={handleClose}
@@ -83,10 +92,9 @@ export function SwapSuccess({
           }`}
         >
           <div className="bg-background border border-border rounded-2xl shadow-xl p-4">
-
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <img src="/zoro_logo_with_outline.svg" alt="Zoro" className="w-8 h-8 -ml-2 -mt-1" />
+                <img src="/zoro_logo_with_outline.svg" alt="Zoro" className="w-8 h-8 -mt-1" />
                 <span className="font-semibold text-sm">Swap note created.</span>
               </div>
               <Button
@@ -98,63 +106,56 @@ export function SwapSuccess({
                 <X className="h-3 w-3" />
               </Button>
             </div>
+
+                {swapDetails && (
+  <div className="mb-4">
+    <div className="text-xs mb-3">Order sent:</div>
+    <div className="flex items-center justify-between px-3 text-sm">
+      <div className="dark:text-red-200 text-red-700">
+        {formatAmount(swapDetails.sellAmount)} {swapDetails.sellToken}
+      </div>
+      <span className="text-muted-foreground text-xs">for</span>
+      <div className="dark:text-green-200 text-green-700">
+        {formatAmount(swapDetails.buyAmount)} {swapDetails.buyToken}
+      </div>
+    </div>
+  </div>
+)}
             
-            <div className="text-xs text-center">
-              <span className="animate-pulse text-green-500">Click on the Miden wallet extension to continue.</span>
-              <br/><br/>
-              After processing the swap, your tokens will be claimable in the wallet.
+            <div className="text-xs text-left mb-4">
+              Your tokens will be claimable in the wallet!
             </div>
-
-            <br/>
             
-            <div className="space-y-2 mb-3">
-              <div>
-                <label className="text-xs text-muted-foreground block mb-1">
-                  Transaction ID
-                </label>
-                <div className="flex items-center gap-1 p-2 bg-muted/50 rounded-md">
-                  <code className="text-xs flex-1 font-mono text-foreground">
-                    {truncateId(swapResult.txId)}
-                  </code>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => copyToClipboard(swapResult.txId, 'tx')}
-                    className="h-6 w-6 p-0 hover:bg-muted"
-                  >
-                    {copiedTx ? (
-                      <CheckCircle className="h-3 w-3 text-green-500" />
-                    ) : (
-                      <Copy className="h-3 w-3" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-
+            <div className="space-y-2">
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">
                   Note ID
                 </label>
                 <div className="flex items-center gap-1 p-2 bg-muted/50 rounded-md">
-                  <code className="text-xs flex-1 font-mono text-foreground">
-                    {truncateId(swapResult.noteId)}
-                  </code>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => copyToClipboard(swapResult.noteId, 'note')}
-                    className="h-6 w-6 p-0 hover:bg-muted"
+                  <button
+                    onClick={() => copyText(swapResult.noteId)}
+                    className="text-xs flex-1 font-mono text-foreground text-left hover:bg-muted/50 rounded transition-colors cursor-pointer p-1"
                   >
-                    {copiedNote ? (
-                      <CheckCircle className="h-3 w-3 text-green-500" />
+                    {copiedText ? (
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3 text-green-500" />
+                        Copied!
+                      </span>
                     ) : (
-                      <Copy className="h-3 w-3" />
+                      truncateId(swapResult.noteId)
                     )}
-                  </Button>
+                  </button>
+                  <a
+                    href={`https://testnet.midenscan.com/note/${swapResult.noteId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
                 </div>
+
               </div>
             </div>
-
           </div>
         </div>
       </div>
