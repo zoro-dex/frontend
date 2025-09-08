@@ -28,7 +28,7 @@ export function SwapSuccess({
   swapResult,
   swapDetails
 }: SwapSuccessProps) {
-  const [copiedNote, setCopiedNote] = useState<boolean>(false);
+  const [copiedText, setCopiedText] = useState<boolean>(false);
   const [isVisible, setIsVisible] = useState<boolean>(false);
 
   useEffect(() => {
@@ -40,21 +40,15 @@ export function SwapSuccess({
     }
   }, [isOpen]);
 
-  const copyNoteId = useCallback(async (noteId: string): Promise<void> => {
-    try {
-      await navigator.clipboard.writeText(noteId);
-      setCopiedNote(true);
-      setTimeout(() => setCopiedNote(false), 2000);
-    } catch {
-      const textArea = document.createElement('textarea');
-      textArea.value = noteId;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.body.removeChild(textArea);
-      setCopiedNote(true);
-      setTimeout(() => setCopiedNote(false), 2000);
-    }
-  }, []);
+async function copyText(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+    setCopiedText(true);
+    setTimeout(() => setCopiedText(false), 2000);
+  } catch (error: any) {
+    console.error(error.message);
+  }
+}
 
   const formatAmount = useCallback((amount: string): string => {
     const num = parseFloat(amount);
@@ -79,10 +73,6 @@ export function SwapSuccess({
     setIsVisible(false);
     setTimeout(onClose, 200);
   }, [onClose]);
-
-  const openMidenScan = useCallback((noteId: string): void => {
-    window.open(`https://testnet.midenscan.com/note/${noteId}`, '_blank', 'noopener,noreferrer');
-  }, []);
 
   if (!isOpen || !swapResult) return null;
 
@@ -143,10 +133,10 @@ export function SwapSuccess({
                 </label>
                 <div className="flex items-center gap-1 p-2 bg-muted/50 rounded-md">
                   <button
-                    onClick={() => copyNoteId(swapResult.noteId)}
+                    onClick={() => copyText(swapResult.noteId)}
                     className="text-xs flex-1 font-mono text-foreground text-left hover:bg-muted/50 rounded transition-colors cursor-pointer p-1"
                   >
-                    {copiedNote ? (
+                    {copiedText ? (
                       <span className="flex items-center gap-1">
                         <CheckCircle className="h-3 w-3 text-green-500" />
                         Copied!
@@ -155,14 +145,13 @@ export function SwapSuccess({
                       truncateId(swapResult.noteId)
                     )}
                   </button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => openMidenScan(swapResult.noteId)}
-                    className="h-6 w-6 p-0 hover:bg-muted"
+                  <a
+                    href={`https://testnet.midenscan.com/note/${swapResult.noteId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
-                    <ExternalLink className="h-3 w-3" />
-                  </Button>
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
                 </div>
 
               </div>
