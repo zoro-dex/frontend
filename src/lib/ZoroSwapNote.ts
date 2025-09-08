@@ -159,11 +159,6 @@ export async function compileZoroSwapNote(
       payload: tx,
     });
 
-    console.log('🎉 Swap note created successfully:', {
-      txId: txId,
-      noteId: noteId,
-    });
-
     await client.syncState();
 
     return {
