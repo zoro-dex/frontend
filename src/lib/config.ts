@@ -93,7 +93,7 @@ export const NETWORK: NetworkConfig = {
 export const ORACLE: OracleConfig = {
   endpoint: getEnvVar(
     'VITE_PRICE_ORACLE_ENDPOINT',
-    'https://antenna.nabla.fi/v1/updates/price/latest',
+    'https://oracle.zoroswap.com/v1/updates/price/latest',
   ),
   cacheTtlSeconds: getNumericEnvVar('VITE_PRICE_CACHE_TTL_SECONDS', 3000),
 } as const;
