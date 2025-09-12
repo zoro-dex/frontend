@@ -23,15 +23,6 @@ interface ImportMetaEnv {
   // Backend API
   readonly VITE_API_ENDPOINT?: string;
 
-  // Asset Configuration
-  readonly VITE_BTC_PRICE_ID?: string;
-  readonly VITE_ETH_PRICE_ID?: string;
-
-  // Faucet Configuration
-  readonly VITE_TEST_FAUCET_ID?: string;
-  readonly VITE_BTC_FAUCET_SYMBOL?: string;
-  readonly VITE_ETH_FAUCET_SYMBOL?: string;
-
   // UI Configuration
   readonly VITE_DEFAULT_SLIPPAGE?: string;
 }
