@@ -1,11 +1,9 @@
 import { poolAccountId, TOKENS, type TokenSymbol } from '@/lib/config';
 import {
   AccountId,
-  AccountInterface,
   Felt,
   FeltArray,
   FungibleAsset,
-  NetworkId,
   Note,
   NoteAssets,
   NoteExecutionHint,
