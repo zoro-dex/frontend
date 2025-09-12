@@ -29,6 +29,7 @@ import { Buffer } from 'buffer';
 
 window.Buffer = Buffer;
 
+import { accountIdToBech32, bech32ToAccountId } from './utils';
 import ZOROSWAP_SCRIPT from './ZOROSWAP.masm?raw';
 
 export interface SwapParams {
@@ -73,8 +74,8 @@ export async function compileZoroSwapNote(
   try {
     await client.syncState();
 
-    const sellFaucetId = AccountId.fromBech32(sellTokenConfig.faucetId);
-    const buyFaucetId = AccountId.fromBech32(buyTokenConfig.faucetId);
+    const sellFaucetId = bech32ToAccountId(sellTokenConfig.faucetId);
+    const buyFaucetId = bech32ToAccountId(buyTokenConfig.faucetId);
 
     const sellAmountNum = parseFloat(swapParams.sellAmount);
     const minAmountOutNum = parseFloat(swapParams.minAmountOut);
@@ -148,7 +149,7 @@ export async function compileZoroSwapNote(
       .build();
 
     const tx = new CustomTransaction(
-      swapParams.userAccountId.toBech32(NetworkId.Testnet, AccountInterface.BasicWallet), // creatorID
+      accountIdToBech32(swapParams.userAccountId),
       transactionRequest,
       [],
       [],
