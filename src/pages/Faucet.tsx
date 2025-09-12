@@ -16,11 +16,7 @@ interface MintStatus {
 
 type TokenMintStatuses = Record<TokenSymbol, MintStatus>;
 
-interface SkeletonCardProps {
-  readonly index: number;
-}
-
-function SkeletonCard({ index }: SkeletonCardProps): JSX.Element {
+function SkeletonCard() {
   return (
     <Card className='rounded-xl animate-pulse'>
       <CardContent className='p-4 sm:p-6'>
@@ -39,16 +35,14 @@ function SkeletonCard({ index }: SkeletonCardProps): JSX.Element {
   );
 }
 
-function FaucetSkeleton(): JSX.Element {
+function FaucetSkeleton() {
   return (
     <div className='min-h-screen bg-background text-foreground flex flex-col'>
       <Header />
       <main className='flex-1 flex items-center justify-center p-3 sm:p-4'>
         <div className='w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6'>
           <div className='space-y-4 mb-14'>
-            {[0, 1].map((index) => (
-              <SkeletonCard key={index} index={index} />
-            ))}
+            {[0, 1].map((index) => <SkeletonCard key={index} />)}
           </div>
         </div>
       </main>
@@ -56,7 +50,7 @@ function FaucetSkeleton(): JSX.Element {
   );
 }
 
-function Faucet(): JSX.Element {
+function Faucet() {
   const { wallet, connected } = useWallet();
   const [tokensLoaded, setTokensLoaded] = useState<boolean>(false);
   const [availableTokens, setAvailableTokens] = useState<TokenSymbol[]>([]);
@@ -128,7 +122,6 @@ function Faucet(): JSX.Element {
         isLoading: false,
         lastResult: result,
       });
-
     } catch (error) {
       updateMintStatus(tokenSymbol, {
         isLoading: false,
@@ -221,9 +214,7 @@ function Faucet(): JSX.Element {
                       <img
                         src={token.icon}
                         alt={token.name}
-                        className={`w-10 h-10 sm:w-12 sm:h-12 ${
-                          token.iconClass || ''
-                        }`}
+                        className={`w-10 h-10 sm:w-12 sm:h-12 ${token.iconClass || ''}`}
                       />
                       <div className='flex-1'>
                         <h3 className='text-lg sm:text-xl font-semibold'>

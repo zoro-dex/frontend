@@ -1,9 +1,11 @@
 import { poolAccountId, TOKENS, type TokenSymbol } from '@/lib/config';
 import {
   AccountId,
+  AccountInterface,
   Felt,
   FeltArray,
   FungibleAsset,
+  NetworkId,
   Note,
   NoteAssets,
   NoteExecutionHint,
@@ -69,7 +71,6 @@ export async function compileZoroSwapNote(
   }
 
   try {
-
     await client.syncState();
 
     const sellFaucetId = AccountId.fromBech32(sellTokenConfig.faucetId);
@@ -78,9 +79,9 @@ export async function compileZoroSwapNote(
     const sellAmountNum = parseFloat(swapParams.sellAmount);
     const minAmountOutNum = parseFloat(swapParams.minAmountOut);
 
-   if (
-      isNaN(sellAmountNum) || isNaN(minAmountOutNum) || 
-      sellAmountNum <= 0 || minAmountOutNum <= 0
+    if (
+      isNaN(sellAmountNum) || isNaN(minAmountOutNum)
+      || sellAmountNum <= 0 || minAmountOutNum <= 0
     ) {
       throw new Error(
         `Invalid swap amounts: sell=${swapParams.sellAmount}, expectedBuy=${swapParams.minAmountOut}`,
@@ -147,7 +148,7 @@ export async function compileZoroSwapNote(
       .build();
 
     const tx = new CustomTransaction(
-      swapParams.userAccountId.toBech32(), // creatorID
+      swapParams.userAccountId.toBech32(NetworkId.Testnet, AccountInterface.BasicWallet), // creatorID
       transactionRequest,
       [],
       [],
