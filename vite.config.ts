@@ -19,4 +19,7 @@ export default defineConfig({
   },
   assetsInclude: ['**/*.masm'], // Include .masm files as assets
   server: { allowedHosts: ['zoroswap.com'] },
+  worker: {
+    format: 'es',
+  },
 });
