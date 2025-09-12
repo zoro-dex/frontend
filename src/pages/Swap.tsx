@@ -23,7 +23,7 @@ import {
   NablaAntennaContext,
   useNablaAntennaPrices,
 } from '@/providers/NablaAntennaProvider';
-import { AccountId, type WebClient } from '@demox-labs/miden-sdk';
+import { type WebClient } from '@demox-labs/miden-sdk';
 import { useWallet, WalletMultiButton } from '@demox-labs/miden-wallet-adapter';
 import { ArrowUpDown, Loader2 } from 'lucide-react';
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
