@@ -4,6 +4,7 @@
  */
 
 import { AccountId } from '@demox-labs/miden-sdk';
+import { bech32ToAccountId } from './utils';
 
 export interface PoolInfo {
   readonly decimals: number;
@@ -109,7 +110,7 @@ export const UI: UiConfig = {
 } as const;
 
 // UI Configuration
-export const poolAccountId: AccountId = AccountId.fromBech32(
+export const poolAccountId: AccountId = bech32ToAccountId(
   getEnvVar('VITE_POOL_ID'),
 );
 
@@ -177,7 +178,6 @@ export async function initializeTokenConfig(): Promise<void> {
     }
 
     TOKENS = buildTokenConfigFromPools(supportedPools);
-
   } catch (error) {
     throw error; // Don't use fallback - fail fast if server is unavailable
   }
