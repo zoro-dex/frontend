@@ -1,7 +1,8 @@
-import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { Header } from '@/components/Header';
 import { ModeToggle } from '@/components/ModeToggle';
 import { SwapSettings } from '@/components/SwapSettings';
+import { SwapSuccess } from '@/components/SwapSuccess.tsx';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,25 +16,25 @@ import {
   canPerformSwap,
   extractTokenData,
   formatBalance,
-  getBalanceValidation
+  getBalanceValidation,
 } from '@/lib/swapHelpers';
-import { instantiateClient } from '@/lib/utils.ts';
+import { bech32ToAccountId, instantiateClient } from '@/lib/utils.ts';
 import {
   NablaAntennaContext,
   useNablaAntennaPrices,
 } from '@/providers/NablaAntennaProvider';
-import { AccountId, type WebClient } from '@demox-labs/miden-sdk';
+import { type WebClient } from '@demox-labs/miden-sdk';
 import { useWallet, WalletMultiButton } from '@demox-labs/miden-wallet-adapter';
 import { ArrowUpDown, Loader2 } from 'lucide-react';
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatUnits } from 'viem';
 import { compileZoroSwapNote, type SwapParams } from '../lib/ZoroSwapNote.ts';
-import { SwapSuccess } from '@/components/SwapSuccess.tsx';
 
 function Swap() {
   const [isCreatingNote, setIsCreatingNote] = useState<boolean>(false);
-  const {connected, connecting, requestTransaction, accountId: rawAccountId } = useWallet();
+  const { connected, connecting, requestTransaction, accountId: rawAccountId } =
+    useWallet();
   const [client, setClient] = useState<WebClient | undefined>(undefined);
   const [sellAmount, setSellAmount] = useState<string>('');
   const [buyAmount, setBuyAmount] = useState<string>('');
@@ -44,20 +45,24 @@ function Swap() {
   const [isSwapping, setIsSwapping] = useState<boolean>(false);
   const accountId = useMemo(() => {
     if (rawAccountId != null) {
-      return AccountId.fromBech32(rawAccountId);
+      return bech32ToAccountId(rawAccountId);
     } else return undefined;
   }, [rawAccountId]);
   const [tokensLoaded, setTokensLoaded] = useState<boolean>(false);
   const [availableTokens, setAvailableTokens] = useState<TokenSymbol[]>([]);
-  const [swapResult, setSwapResult] = useState<{ txId: string; noteId: string } | null>(null);
+  const [swapResult, setSwapResult] = useState<{ txId: string; noteId: string } | null>(
+    null,
+  );
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
   const { refreshPrices } = useContext(NablaAntennaContext);
-  const [swapDetails, setSwapDetails] = useState<{
-  sellToken: TokenSymbol;
-  buyToken: TokenSymbol;
-  sellAmount: string;
-  buyAmount: string;
-} | null>(null);
+  const [swapDetails, setSwapDetails] = useState<
+    {
+      sellToken: TokenSymbol;
+      buyToken: TokenSymbol;
+      sellAmount: string;
+      buyAmount: string;
+    } | null
+  >(null);
 
   // Refs for stable calculations
   const sellInputRef = useRef<HTMLInputElement>(null);
@@ -74,14 +79,14 @@ function Swap() {
   const sellBalanceParams = useMemo(() => ({
     accountId,
     faucetId: sellToken && TOKENS[sellToken]
-      ? AccountId.fromBech32(TOKENS[sellToken].faucetId)
+      ? bech32ToAccountId(TOKENS[sellToken].faucetId)
       : undefined,
   }), [accountId, sellToken]);
 
   const buyBalanceParams = useMemo(() => ({
     accountId,
     faucetId: buyToken && TOKENS[buyToken]
-      ? AccountId.fromBech32(TOKENS[buyToken].faucetId)
+      ? bech32ToAccountId(TOKENS[buyToken].faucetId)
       : undefined,
   }), [accountId, buyToken]);
 
@@ -176,30 +181,30 @@ function Swap() {
   }, [buyBalance, buyToken]);
 
   const handleSellAmountChange = useCallback((value: string): void => {
-  setSellAmount(value);
-  setLastEditedField('sell');
-  
-  if (!value) {
-    setBuyAmount('');
-    return;
-  }
-  
-  const result = calculateTokenPrice(value, '', 'sell', tokenData, slippage);
-  if (result.buyAmount) setBuyAmount(result.buyAmount);
-}, [tokenData, slippage]);
+    setSellAmount(value);
+    setLastEditedField('sell');
 
-const handleBuyAmountChange = useCallback((value: string): void => {
-  setBuyAmount(value);
-  setLastEditedField('buy');
-  
-  if (!value) {
-    setSellAmount('');
-    return;
-  }
-  
-  const result = calculateTokenPrice('', value, 'buy', tokenData, slippage);
-  if (result.sellAmount) setSellAmount(result.sellAmount);
-}, [tokenData, slippage]);
+    if (!value) {
+      setBuyAmount('');
+      return;
+    }
+
+    const result = calculateTokenPrice(value, '', 'sell', tokenData, slippage);
+    if (result.buyAmount) setBuyAmount(result.buyAmount);
+  }, [tokenData, slippage]);
+
+  const handleBuyAmountChange = useCallback((value: string): void => {
+    setBuyAmount(value);
+    setLastEditedField('buy');
+
+    if (!value) {
+      setSellAmount('');
+      return;
+    }
+
+    const result = calculateTokenPrice('', value, 'buy', tokenData, slippage);
+    if (result.sellAmount) setSellAmount(result.sellAmount);
+  }, [tokenData, slippage]);
 
   const handleReplaceTokens = useCallback(() => {
     if (!sellToken || !buyToken) return;
@@ -208,7 +213,7 @@ const handleBuyAmountChange = useCallback((value: string): void => {
     setSellAmount(buyAmount);
     setBuyAmount(sellAmount);
     setIsSwapping(true);
-    
+
     setTimeout(() => {
       setIsSwapping(false);
       sellInputRef.current?.focus();
@@ -222,47 +227,45 @@ const handleBuyAmountChange = useCallback((value: string): void => {
     isSwapping,
   ]);
 
+  const handleMaxClick = useCallback((): void => {
+    if (sellBalance !== null && sellBalance > BigInt(0) && sellToken) {
+      const decimals = TOKENS[sellToken]?.decimals || 8;
+      const maxAmount = formatUnits(sellBalance, decimals);
 
-const handleMaxClick = useCallback((): void => {
-  if (sellBalance !== null && sellBalance > BigInt(0) && sellToken) {
-    const decimals = TOKENS[sellToken]?.decimals || 8;
-    const maxAmount = formatUnits(sellBalance, decimals);
-    
-    handleSellAmountChange(maxAmount);
-    sellInputRef.current?.focus();
-  }
-}, [sellBalance, sellToken, handleSellAmountChange]);
+      handleSellAmountChange(maxAmount);
+      sellInputRef.current?.focus();
+    }
+  }, [sellBalance, sellToken, handleSellAmountChange]);
 
-const handleSwap = useCallback(async () => {
-  if (!sellToken || !buyToken || !canSwap || !client) return;
-  const minAmountOutValue = calculateMinAmountOut(buyAmount, slippage);
-  await refreshPrices(assetIds, true);
-  setIsCreatingNote(true);
-  try {
-    const swapParams: SwapParams = {
-      sellToken,
-      buyToken,
-      sellAmount,
-      buyAmount,
-      minAmountOut: minAmountOutValue,
-      userAccountId: accountId,
-      requestTransaction: requestTransaction || (async () => ''),
-    };
+  const handleSwap = useCallback(async () => {
+    if (!sellToken || !buyToken || !canSwap || !client) return;
+    const minAmountOutValue = calculateMinAmountOut(buyAmount, slippage);
+    await refreshPrices(assetIds, true);
+    setIsCreatingNote(true);
+    try {
+      const swapParams: SwapParams = {
+        sellToken,
+        buyToken,
+        sellAmount,
+        buyAmount,
+        minAmountOut: minAmountOutValue,
+        userAccountId: accountId,
+        requestTransaction: requestTransaction || (async () => ''),
+      };
 
-    const result = await compileZoroSwapNote(swapParams, client);
+      const result = await compileZoroSwapNote(swapParams, client);
 
-    setSwapResult(result);
-    setSwapDetails({
-      sellToken,
-      buyToken,
-      sellAmount,
-      buyAmount,
-    });
-    setShowSuccessModal(true);
-    
-  } finally {
-    setIsCreatingNote(false);
-  }
+      setSwapResult(result);
+      setSwapDetails({
+        sellToken,
+        buyToken,
+        sellAmount,
+        buyAmount,
+      });
+      setShowSuccessModal(true);
+    } finally {
+      setIsCreatingNote(false);
+    }
   }, [
     client,
     sellAmount,
@@ -303,53 +306,57 @@ const handleSwap = useCallback(async () => {
   }, [tokensLoaded]);
 
   const buttonText = useMemo(() => {
-  const sellAmountNum = parseFloat(sellAmount);
-  const buyAmountNum = parseFloat(buyAmount);
-  const hasValidAmounts = Boolean(
-    sellAmount && buyAmount
-      && !isNaN(sellAmountNum) && !isNaN(buyAmountNum)
-      && sellAmountNum > 0 && buyAmountNum > 0,
-  );
-  const hasValidTokens = Boolean(
-    sellToken && buyToken
-      && sellToken !== buyToken
-      && tokensLoaded,
-  );
-  const hasPriceData = Boolean(
-    tokenData.sellPrice && tokenData.buyPrice,
-  );
-  
-  const showInsufficientBalance = Boolean(
-    balanceValidation.isBalanceLoaded
-      && balanceValidation.hasInsufficientBalance,
-  );
-  
-  if (showInsufficientBalance) {
-    return `Insufficient ${sellToken} balance`;
-  } else if (!hasValidTokens) {
-    return 'Select tokens';
-  } else if (!hasValidAmounts) {
-    return 'Enter amount';
-  } else if (!hasPriceData) {
-    return 'Price unavailable - Try anyway?';
-  } else return 'Swap';
-}, [
-  sellAmount,
-  buyAmount,
-  sellToken,
-  buyToken,
-  tokensLoaded,
-  tokenData.sellPrice,
-  tokenData.buyPrice,
-  balanceValidation
-]);
+    const sellAmountNum = parseFloat(sellAmount);
+    const buyAmountNum = parseFloat(buyAmount);
+    const hasValidAmounts = Boolean(
+      sellAmount && buyAmount
+        && !isNaN(sellAmountNum) && !isNaN(buyAmountNum)
+        && sellAmountNum > 0 && buyAmountNum > 0,
+    );
+    const hasValidTokens = Boolean(
+      sellToken && buyToken
+        && sellToken !== buyToken
+        && tokensLoaded,
+    );
+    const hasPriceData = Boolean(
+      tokenData.sellPrice && tokenData.buyPrice,
+    );
+
+    const showInsufficientBalance = Boolean(
+      balanceValidation.isBalanceLoaded
+        && balanceValidation.hasInsufficientBalance,
+    );
+
+    if (showInsufficientBalance) {
+      return `Insufficient ${sellToken} balance`;
+    } else if (!hasValidTokens) {
+      return 'Select tokens';
+    } else if (!hasValidAmounts) {
+      return 'Enter amount';
+    } else if (!hasPriceData) {
+      return 'Price unavailable - Try anyway?';
+    } else return 'Swap';
+  }, [
+    sellAmount,
+    buyAmount,
+    sellToken,
+    buyToken,
+    tokensLoaded,
+    tokenData.sellPrice,
+    tokenData.buyPrice,
+    balanceValidation,
+  ]);
 
   // Loading states
   if (!tokensLoaded) {
     return (
       <div className='min-h-screen bg-background text-foreground flex flex-col'>
         <main className='flex-1 flex items-center justify-center'>
-          <img src="/zoro_logo_with_outline.svg" alt="Zoro Hat" className="w-24 h-24 animate-pulse opacity-25" />
+          <img
+            src='/zoro_logo_with_outline.svg'
+            alt='Zoro Hat'
+            className='w-24 h-24 animate-pulse opacity-25'
+          />
         </main>
       </div>
     );
@@ -375,8 +382,8 @@ const handleSwap = useCallback(async () => {
       <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-4'>
         <div className='w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6'>
           <div>
-
-            {/* SWAP/LIMIT TAB
+            {
+              /* SWAP/LIMIT TAB
               <div className='flex bg-muted rounded-full p-0.5 sm:p-1'>
               {(['Swap', 'Limit'] as const).map((tab) => (
                 <Button
@@ -393,7 +400,8 @@ const handleSwap = useCallback(async () => {
                   {tab}
                 </Button>
               ))}
-            </div> */}
+            </div> */
+            }
             <div className='flex gap-1 sm:gap-2 justify-end'>
               <SwapSettings slippage={slippage} onSlippageChange={setSlippage} />
               <ModeToggle />
@@ -411,8 +419,7 @@ const handleSwap = useCallback(async () => {
                         ref={sellInputRef}
                         type='number'
                         value={sellAmount}
-                        onChange={(e) =>
-                          handleSellAmountChange(e.target.value)}
+                        onChange={(e) => handleSellAmountChange(e.target.value)}
                         onFocus={handleInputFocus}
                         placeholder='0'
                         className={`border-none text-3xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner ${
@@ -469,7 +476,8 @@ const handleSwap = useCallback(async () => {
                   size='icon'
                   className='h-8 w-8 sm:h-10 sm:w-10 rounded-full border dark:text-white text-black hover:text-black dark:hover:bg-gray-500/10 hover:bg-gray-500/10 dark:hover:text-white'
                   onClick={handleReplaceTokens}
-                  disabled={!sellToken || !buyToken || isCreatingNote || connecting || isSwapping}
+                  disabled={!sellToken || !buyToken || isCreatingNote || connecting
+                    || isSwapping}
                 >
                   <ArrowUpDown className='w-3 h-3 sm:w-4 sm:h-4' />
                 </Button>
@@ -519,14 +527,14 @@ const handleSwap = useCallback(async () => {
                   </CardContent>
                 </Card>
               </div>
-          
+
               {/* Main Action Button */}
               <div className='w-full h-12 sm:h-16 mt-4 sm:mt-6'>
                 {connected
                   ? (
                     <Button
                       onClick={handleSwap}
-                      disabled={connecting || isCreatingNote || !client }
+                      disabled={connecting || isCreatingNote || !client}
                       variant='outline'
                       className='w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
                     >
@@ -555,7 +563,6 @@ const handleSwap = useCallback(async () => {
                   )
                   : (
                     <div className='relative w-full h-full'>
-
                       {connecting && (
                         <Button
                           disabled
@@ -565,11 +572,9 @@ const handleSwap = useCallback(async () => {
                           <Loader2 className='w-10 h-10 animate-spin' />
                         </Button>
                       )}
-                      
+
                       <div className={connecting ? 'invisible' : 'visible'}>
-                        <WalletMultiButton
-                          className='!p-5 !w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-muted-foreground animate-pulse hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center'
-                        >
+                        <WalletMultiButton className='!p-5 !w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-muted-foreground animate-pulse hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center'>
                           Connect wallet
                         </WalletMultiButton>
                       </div>

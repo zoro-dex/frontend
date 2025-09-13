@@ -1,4 +1,9 @@
-import type { AccountId, WebClient } from '@demox-labs/miden-sdk';
+import {
+  type AccountId,
+  Address,
+  NetworkId,
+  type WebClient,
+} from '@demox-labs/miden-sdk';
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -31,4 +36,15 @@ export const safeAccountImport = async (client: WebClient, accountId: AccountId)
       console.warn(e);
     }
   }
+};
+
+export const accountIdToBech32 = (
+  accountId: AccountId,
+  networkId: NetworkId = NetworkId.Testnet,
+) => {
+  return Address.fromAccountId(accountId, 'Unspecified').toBech32(networkId);
+};
+
+export const bech32ToAccountId = (bech32str: string) => {
+  return Address.fromBech32(bech32str).accountId();
 };

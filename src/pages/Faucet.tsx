@@ -1,10 +1,11 @@
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { initializeTokenConfig, TOKENS, type TokenSymbol } from '@/lib/config';
 import { type FaucetMintResult, mintFromFaucet } from '@/services/faucet';
 import { useWallet } from '@demox-labs/miden-wallet-adapter';
-import { CheckCircle, Loader2, XCircle } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -16,11 +17,7 @@ interface MintStatus {
 
 type TokenMintStatuses = Record<TokenSymbol, MintStatus>;
 
-interface SkeletonCardProps {
-  readonly index: number;
-}
-
-function SkeletonCard({ index }: SkeletonCardProps): JSX.Element {
+function SkeletonCard(): JSX.Element {
   return (
     <Card className='rounded-xl animate-pulse'>
       <CardContent className='p-4 sm:p-6'>
@@ -47,7 +44,7 @@ function FaucetSkeleton(): JSX.Element {
         <div className='w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6'>
           <div className='space-y-4 mb-14'>
             {[0, 1].map((index) => (
-              <SkeletonCard key={index} index={index} />
+              <SkeletonCard key={index} />
             ))}
           </div>
         </div>
@@ -60,9 +57,7 @@ function Faucet(): JSX.Element {
   const { wallet, connected } = useWallet();
   const [tokensLoaded, setTokensLoaded] = useState<boolean>(false);
   const [availableTokens, setAvailableTokens] = useState<TokenSymbol[]>([]);
-  const [mintStatuses, setMintStatuses] = useState<TokenMintStatuses>(
-    {} as TokenMintStatuses,
-  );
+  const [mintStatuses, setMintStatuses] = useState<TokenMintStatuses>({} as TokenMintStatuses);
 
   useEffect(() => {
     const loadTokens = async (): Promise<void> => {
@@ -71,7 +66,7 @@ function Faucet(): JSX.Element {
         const tokenSymbols = Object.keys(TOKENS) as TokenSymbol[];
         setAvailableTokens(tokenSymbols);
 
-        const initialStatuses: TokenMintStatuses = {} as TokenMintStatuses;
+        const initialStatuses: Partial<TokenMintStatuses> = {};
         for (const symbol of tokenSymbols) {
           initialStatuses[symbol] = {
             isLoading: false,
@@ -79,8 +74,7 @@ function Faucet(): JSX.Element {
             lastAttempt: 0,
           };
         }
-        setMintStatuses(initialStatuses);
-
+        setMintStatuses(initialStatuses as TokenMintStatuses);
         setTokensLoaded(true);
       } catch (error) {
         setTokensLoaded(true);
@@ -149,19 +143,10 @@ function Faucet(): JSX.Element {
       return null;
     }
 
-    if (status.lastResult.success) {
-      return <CheckCircle className='w-4 h-4 text-green-500' />;
-    } else {
-      return <XCircle className='w-4 h-4 text-red-500' />;
-    }
   };
 
   const getButtonText = (tokenSymbol: TokenSymbol, status: MintStatus): string => {
-    if (status.isLoading) {
-      return `Minting ${tokenSymbol}...`;
-    }
-
-    return `Request ${tokenSymbol}`;
+    return status.isLoading ? `Minting ${tokenSymbol}...` : `Request ${tokenSymbol}`;
   };
 
   const isButtonDisabled = (status: MintStatus): boolean => {
@@ -192,8 +177,8 @@ function Faucet(): JSX.Element {
     <div className='min-h-screen bg-background text-foreground flex flex-col'>
       <Header />
 
-      <main className='flex-1 flex items-center justify-center p-3 sm:p-4'>
-        <div className='w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6'>
+      <main className='flex-1 flex items-center justify-center p-3'>
+        <div className='w-full max-w-sm sm:max-w-md space-y-4'>
           {!connected && (
             <Card className='rounded-xl border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20'>
               <CardContent className='p-4 text-center'>
@@ -229,8 +214,9 @@ function Faucet(): JSX.Element {
                         <h3 className='text-lg sm:text-xl font-semibold'>
                           Test {token.name}
                         </h3>
-                        <div className='text-xs text-muted-foreground font-mono'>
-                          {token.faucetId}
+                        <div className='text-xs text-muted-foreground font-mono overflow-hidden'>
+                          <span className='hidden sm:inline'>{token.faucetId}</span>
+                          <span className='sm:hidden break-all'>{token.faucetId}</span>
                         </div>
                       </div>
                       {getStatusIcon(status)}
@@ -247,7 +233,7 @@ function Faucet(): JSX.Element {
                         >
                           {status.lastResult.message}
                           {status.lastResult.transactionId && (
-                            <div className='mt-1 font-mono text-xs opacity-75'>
+                            <div className='mt-1 font-mono text-xs opacity-75 break-all'>
                               TX: {status.lastResult.transactionId}
                             </div>
                           )}
@@ -257,8 +243,7 @@ function Faucet(): JSX.Element {
                       <Button
                         onClick={() => requestTokens(tokenSymbol)}
                         disabled={isButtonDisabled(status)}
-                        className='w-full bg-pink-500 hover:bg-pink-600 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
-                        variant='ghost'
+                        className='w-full bg-teal-700 hover:bg-teal-400 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
                       >
                         {status.isLoading && (
                           <Loader2 className='w-4 h-4 mr-2 animate-spin' />
@@ -285,6 +270,7 @@ function Faucet(): JSX.Element {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }
