@@ -41,13 +41,22 @@ function Swap() {
   const [sellToken, setSellToken] = useState<TokenSymbol | undefined>(undefined);
   const [buyToken, setBuyToken] = useState<TokenSymbol | undefined>(undefined);
   const [slippage, setSlippage] = useState<number>(UI.defaultSlippage);
-  const [lastEditedField, setLastEditedField] = useState<'sell' | 'buy'>('sell');
   const [isSwapping, setIsSwapping] = useState<boolean>(false);
+  const [swapError, setSwapError] = useState<string | null>(null);
+  
+  // Convert and cache the accountId to prevent corruption
   const accountId = useMemo(() => {
     if (rawAccountId != null) {
-      return bech32ToAccountId(rawAccountId);
-    } else return undefined;
+      try {
+        return bech32ToAccountId(rawAccountId);
+      } catch (error) {
+        console.error('Failed to convert account ID:', error);
+        return undefined;
+      }
+    }
+    return undefined;
   }, [rawAccountId]);
+  
   const [tokensLoaded, setTokensLoaded] = useState<boolean>(false);
   const [availableTokens, setAvailableTokens] = useState<TokenSymbol[]>([]);
   const [swapResult, setSwapResult] = useState<{ txId: string; noteId: string } | null>(
@@ -66,6 +75,7 @@ function Swap() {
 
   // Refs for stable calculations
   const sellInputRef = useRef<HTMLInputElement>(null);
+  const clientMutex = useRef<boolean>(false);
 
   // Initialize tokens
   useTokenInitialization(
@@ -75,50 +85,86 @@ function Swap() {
     setBuyToken,
   );
 
-  // Balance parameters
-  const sellBalanceParams = useMemo(() => ({
-    accountId,
-    faucetId: sellToken && TOKENS[sellToken]
-      ? bech32ToAccountId(TOKENS[sellToken].faucetId)
-      : undefined,
-  }), [accountId, sellToken]);
-
-  const buyBalanceParams = useMemo(() => ({
-    accountId,
-    faucetId: buyToken && TOKENS[buyToken]
-      ? bech32ToAccountId(TOKENS[buyToken].faucetId)
-      : undefined,
-  }), [accountId, buyToken]);
-
-  useEffect(() => {
-    if (
-      client == null && accountId != null
-      && sellBalanceParams.faucetId != null
-      && buyBalanceParams.faucetId != null
-    ) {
-      (async () => {
-        const client = await instantiateClient({
-          accountsToImport: [
-            accountId,
-            // sellBalanceParams.faucetId as AccountId,
-            // buyBalanceParams.faucetId as AccountId,
-            // poolAccountId,
-          ],
-        });
-        setClient(client);
-      })();
+  // Safely create faucet IDs with error handling
+  const sellBalanceParams = useMemo(() => {
+    try {
+      return {
+        accountId,
+        faucetId: sellToken && TOKENS[sellToken]
+          ? bech32ToAccountId(TOKENS[sellToken].faucetId)
+          : undefined,
+      };
+    } catch (error) {
+      console.error('Error creating sell balance params:', error);
+      return { accountId: undefined, faucetId: undefined };
     }
+  }, [accountId, sellToken]);
+
+  const buyBalanceParams = useMemo(() => {
+    try {
+      return {
+        accountId,
+        faucetId: buyToken && TOKENS[buyToken]
+          ? bech32ToAccountId(TOKENS[buyToken].faucetId)
+          : undefined,
+      };
+    } catch (error) {
+      console.error('Error creating buy balance params:', error);
+      return { accountId: undefined, faucetId: undefined };
+    }
+  }, [accountId, buyToken]);
+
+  // Client creation with mutex protection
+  useEffect(() => {
+    console.log('🔄 Client creation effect triggered:', {
+      clientExists: !!client,
+      accountIdExists: !!accountId,
+      sellFaucetId: sellBalanceParams.faucetId?.toString(),
+      buyFaucetId: buyBalanceParams.faucetId?.toString(),
+      mutexLocked: clientMutex.current
+    });
+
+    if (
+      clientMutex.current || 
+      client != null || 
+      accountId == null ||
+      sellBalanceParams.faucetId == null ||
+      buyBalanceParams.faucetId == null
+    ) {
+      return;
+    }
+
+    clientMutex.current = true;
+    
+    (async () => {
+      try {
+        console.log('📞 Calling instantiateClient with accountId:', accountId.toString());
+        const newClient = await instantiateClient({
+          accountsToImport: [accountId],
+        });
+        
+        // Add delay to prevent immediate re-render conflicts
+        setTimeout(() => {
+          setClient(newClient);
+        }, 100);
+        
+      } catch (error) {
+        console.error('💥 Client creation failed:', error);
+      } finally {
+        clientMutex.current = false;
+      }
+    })();
   }, [accountId, sellBalanceParams.faucetId, buyBalanceParams.faucetId]);
 
-  // Balance hooks
+  // Balance hooks with safe parameters
   const { balance: sellBalance } = useBalance({
-    accountId,
+    accountId: sellBalanceParams.accountId,
     faucetId: sellBalanceParams.faucetId,
     client,
   });
 
   const { balance: buyBalance } = useBalance({
-    accountId,
+    accountId: buyBalanceParams.accountId,
     faucetId: buyBalanceParams.faucetId,
     client,
   });
@@ -132,6 +178,7 @@ function Swap() {
     if (!sellToken || !buyToken || !tokensLoaded) return [];
     return [TOKENS[sellToken]?.priceId, TOKENS[buyToken]?.priceId].filter(Boolean);
   }, [sellToken, buyToken, tokensLoaded]);
+  
   const prices = useNablaAntennaPrices(priceIds);
 
   // Derived data
@@ -182,7 +229,6 @@ function Swap() {
 
   const handleSellAmountChange = useCallback((value: string): void => {
     setSellAmount(value);
-    setLastEditedField('sell');
 
     if (!value) {
       setBuyAmount('');
@@ -195,7 +241,6 @@ function Swap() {
 
   const handleBuyAmountChange = useCallback((value: string): void => {
     setBuyAmount(value);
-    setLastEditedField('buy');
 
     if (!value) {
       setSellAmount('');
@@ -223,8 +268,6 @@ function Swap() {
     buyToken,
     buyAmount,
     sellAmount,
-    lastEditedField,
-    isSwapping,
   ]);
 
   const handleMaxClick = useCallback((): void => {
@@ -238,10 +281,25 @@ function Swap() {
   }, [sellBalance, sellToken, handleSellAmountChange]);
 
   const handleSwap = useCallback(async () => {
-    if (!sellToken || !buyToken || !canSwap || !client) return;
+    
+    if (!sellToken || !buyToken || !canSwap || !client) {
+      console.log('❌ Early exit from handleSwap:', {
+        sellToken: !!sellToken,
+        buyToken: !!buyToken,
+        canSwap,
+        client: !!client
+      });
+      return;
+    }
+    
+    setSwapError(null);
+    
     const minAmountOutValue = calculateMinAmountOut(buyAmount, slippage);
+    
     await refreshPrices(assetIds, true);
+    
     setIsCreatingNote(true);
+    
     try {
       const swapParams: SwapParams = {
         sellToken,
@@ -252,8 +310,10 @@ function Swap() {
         userAccountId: accountId,
         requestTransaction: requestTransaction || (async () => ''),
       };
-
+      
       const result = await compileZoroSwapNote(swapParams, client);
+
+      console.log('✅ compileZoroSwapNote completed successfully:', result);
 
       setSwapResult(result);
       setSwapDetails({
@@ -263,7 +323,14 @@ function Swap() {
         buyAmount,
       });
       setShowSuccessModal(true);
+      
+    } catch (error) {
+      console.error('💥 handleSwap caught error:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setSwapError(errorMessage);
+      
     } finally {
+      console.log('🏁 handleSwap finally block - setting isCreatingNote to false');
       setIsCreatingNote(false);
     }
   }, [
@@ -382,31 +449,34 @@ function Swap() {
       <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-4'>
         <div className='w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6'>
           <div>
-            {
-              /* SWAP/LIMIT TAB
-              <div className='flex bg-muted rounded-full p-0.5 sm:p-1'>
-              {(['Swap', 'Limit'] as const).map((tab) => (
-                <Button
-                  key={tab}
-                  variant={activeTab === tab ? 'secondary' : 'ghost'}
-                  size='sm'
-                  onClick={() => setActiveTab(tab)}
-                  className={`rounded-full text-xs sm:text-sm font-medium px-3 sm:px-4 py-1.5 sm:py-2 ${
-                    activeTab === tab
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {tab}
-                </Button>
-              ))}
-            </div> */
-            }
             <div className='flex gap-1 sm:gap-2 justify-end'>
               <SwapSettings slippage={slippage} onSlippageChange={setSlippage} />
               <ModeToggle />
             </div>
           </div>
+          
+          {/* Error Display */}
+          {swapError && (
+            <Card className='border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-950/20'>
+              <CardContent className='p-4'>
+                <div className='text-red-800 dark:text-red-200 text-sm space-y-2'>
+                  <div className='font-semibold'>Swap Failed</div>
+                  <div className='text-xs font-mono bg-red-100 dark:bg-red-900/30 p-2 rounded overflow-x-auto'>
+                    {swapError}
+                  </div>
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    onClick={() => setSwapError(null)}
+                    className='text-xs'
+                  >
+                    Dismiss
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
           <Card className='border rounded-xl sm:rounded-2xl'>
             <CardContent className='p-3 sm:p-4 space-y-3 sm:space-y-4'>
               {/* Sell Section */}
