@@ -403,7 +403,7 @@ function Swap() {
               <ModeToggle />
             </div>
           </div>
-          <Card className='border rounded-xl sm:rounded-2xl'>
+          <Card className='border rounded-xl sm:rounded-2xl hover:border-green-200/10'>
             <CardContent className='p-3 sm:p-4 space-y-3 sm:space-y-4'>
               {/* Sell Section */}
               <div className='space-y-2'>
@@ -454,7 +454,7 @@ function Swap() {
                             balanceValidation.isBalanceLoaded
                               && balanceValidation.hasInsufficientBalance
                               ? 'text-orange-600 hover:text-destructive'
-                              : 'text-green-700 hover:text-green-600 dark:text-green-200 dark:hover:text-green-300'
+                              : 'text-green-800 hover:text-green-600 dark:text-teal-200 dark:hover:text-green-200'
                           }`}
                         >
                           {formattedSellBalance || 'Loading...'} {sellToken}

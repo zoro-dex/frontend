@@ -190,7 +190,7 @@ function Faucet() {
               return (
                 <Card
                   key={tokenSymbol}
-                  className='rounded-xl hover:shadow-lg transition-all duration-200'
+                  className='rounded-xl hover:shadow-lg transition-all duration-200 hover:border-green-200/10'
                 >
                   <CardContent className='p-4 sm:p-6'>
                     <div className='flex items-center gap-4 mb-4'>
@@ -227,8 +227,8 @@ function Faucet() {
                                 : '-translate-y-2 scale-95'
                             } ${
                               status.lastResult.success
-                                ? 'bg-green-50 text-green-800 dark:bg-green-950/20 dark:text-green-200'
-                                : 'bg-red-50 text-red-800 dark:bg-red-950/20 dark:text-red-200'
+                                ? 'bg-transparent text-teal-800 dark:text-teal-200'
+                                : 'bg-transparent text-red-800 dark:text-red-200'
                             }`}
                           >
                             {status.lastResult.message}
