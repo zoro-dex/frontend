@@ -9,6 +9,7 @@ import { Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Skeleton } from "@/components/ui/skeleton"
+import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter';
 
 interface MintStatus {
   readonly isLoading: boolean;
@@ -139,7 +140,7 @@ function Faucet() {
   };
 
   const getButtonText = (tokenSymbol: TokenSymbol, status: MintStatus): string => {
-    return status.isLoading ? `Minting ${tokenSymbol}...` : `Request ${tokenSymbol}`;
+      return status.isLoading ? `Minting ${tokenSymbol}...` : `Request ${tokenSymbol}`;
   };
 
   const isButtonDisabled = (status: MintStatus): boolean => {
@@ -150,10 +151,10 @@ function Faucet() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen space-y-5">
         <div className="flex flex-col">
-          <Skeleton className="h-[160px] w-[350px] rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-teal-200 dark:border-teal-600" />
+          <Skeleton className="h-[160px] w-[350px] rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-teal-200 dark:border-teal-600/75" />
         </div>
         <div className="flex flex-col">
-          <Skeleton className="h-[160px] w-[350px] rounded-xl mb-8 transition-all duration-400 ease-out opacity-20 border-2 border-teal-200 dark:border-teal-600" />
+          <Skeleton className="h-[160px] w-[350px] rounded-xl mb-8 transition-all duration-400 ease-out opacity-20 border-2 border-teal-200 dark:border-teal-600/75" />
         </div>
       </div>
     );
@@ -179,15 +180,6 @@ function Faucet() {
       <Header />
       <main className='flex-1 flex items-center justify-center p-3'>
         <div className='w-full max-w-sm sm:max-w-md space-y-4'>
-          {!connected && (
-            <Card className='rounded-xl border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20'>
-              <CardContent className='p-4 text-center'>
-                <div className='text-amber-800 dark:text-amber-200 text-sm'>
-                  Connect your wallet to request test tokens
-                </div>
-              </CardContent>
-            </Card>
-          )}
           <div className='space-y-4'>
             {availableTokens.map((tokenSymbol) => {
               const token = TOKENS[tokenSymbol];
@@ -248,17 +240,23 @@ function Faucet() {
                           </div>
                         )}
                       </div>
-
-                      <Button
-                        onClick={() => requestTokens(tokenSymbol)}
-                        disabled={isButtonDisabled(status)}
-                        className='w-full bg-teal-800 hover:bg-teal-900 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
-                      >
-                        {status.isLoading && (
-                          <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-                        )}
-                        {getButtonText(tokenSymbol, status)}
-                      </Button>
+                      {connected && (
+                        <Button
+                          onClick={() => requestTokens(tokenSymbol)}
+                          disabled={isButtonDisabled(status)}
+                          className='w-full bg-teal-800 hover:bg-teal-900 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+                        >
+                          {status.isLoading && (
+                            <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                          )}
+                          {getButtonText(tokenSymbol, status)}
+                        </Button>
+                      )}
+                      {!connected && (
+                        <WalletMultiButton className='!p-5 !w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-muted-foreground animate-pulse hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center'>
+                          Connect
+                        </WalletMultiButton>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

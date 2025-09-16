@@ -352,7 +352,7 @@ function Swap() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <div className="flex flex-col space-y-3">
-          <Skeleton className="h-[375px] w-[350px] rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-green-200 dark:border-green-600" />
+          <Skeleton className="h-[375px] w-[350px] rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-green-200 dark:border-green-600/75" />
         </div>
       </div>
   );
