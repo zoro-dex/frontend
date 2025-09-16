@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { useBalance } from '@/hooks/useBalance.ts';
 import { useTokenInitialization } from '@/hooks/useTokenInitialization.ts';
 import { getAssetIds, TOKENS, type TokenSymbol, UI } from '@/lib/config';
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   calculateMinAmountOut,
   calculateTokenPrice,
@@ -347,20 +348,15 @@ function Swap() {
     balanceValidation,
   ]);
 
-  // Loading states
-  if (!tokensLoaded) {
+  if (!tokensLoaded) 
     return (
-      <div className='min-h-screen bg-background text-foreground flex flex-col'>
-        <main className='flex-1 flex items-center justify-center'>
-          <img
-            src='/zoro_logo_with_outline.svg'
-            alt='Zoro Hat'
-            className='w-24 h-24 animate-pulse opacity-25'
-          />
-        </main>
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <div className="flex flex-col space-y-3">
+          <Skeleton className="h-[375px] w-[350px] rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-green-200 dark:border-green-600" />
+        </div>
       </div>
-    );
-  }
+  );
+  
 
   if (availableTokens.length === 0) {
     return (

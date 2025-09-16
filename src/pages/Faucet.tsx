@@ -8,6 +8,7 @@ import { useWallet } from '@demox-labs/miden-wallet-adapter';
 import { Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface MintStatus {
   readonly isLoading: boolean;
@@ -17,40 +18,6 @@ interface MintStatus {
 }
 
 type TokenMintStatuses = Record<TokenSymbol, MintStatus>;
-
-function SkeletonCard() {
-  return (
-    <Card className='rounded-xl animate-pulse'>
-      <CardContent className='p-4 sm:p-6'>
-        <div className='flex items-center gap-4 mb-4'>
-          <div className='w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-muted' />
-          <div className='flex-1 space-y-2'>
-            <div className='h-5 sm:h-6 bg-muted rounded w-24 sm:w-32' />
-            <div className='h-3 bg-muted rounded w-32 sm:w-40' />
-          </div>
-        </div>
-        <div className='space-y-3'>
-          <div className='h-8 sm:h-9 bg-muted rounded-md w-full' />
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function FaucetSkeleton() {
-  return (
-    <div className='min-h-screen bg-background text-foreground flex flex-col'>
-      <Header />
-      <main className='flex-1 flex items-center justify-center p-3 sm:p-4'>
-        <div className='w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6'>
-          <div className='space-y-4 mb-14'>
-            {[0, 1].map((index) => <SkeletonCard key={index} />)}
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-}
 
 function Faucet() {
   const { wallet, connected } = useWallet();
@@ -125,14 +92,12 @@ function Faucet() {
         showMessage: false,
       });
 
-      // Trigger smooth transition after a brief delay
       setTimeout(() => {
         updateMintStatus(tokenSymbol, {
           showMessage: true,
         });
       }, 100);
 
-      // Auto-hide message after 5 seconds with smooth transition
       setTimeout(() => {
         updateMintStatus(tokenSymbol, {
           showMessage: false,
@@ -181,9 +146,17 @@ function Faucet() {
     return status.isLoading || !connected;
   };
 
-  if (!tokensLoaded) {
-    return <FaucetSkeleton />;
-  }
+  if (!tokensLoaded) 
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen space-y-5">
+        <div className="flex flex-col">
+          <Skeleton className="h-[160px] w-[350px] rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-teal-200 dark:border-teal-600" />
+        </div>
+        <div className="flex flex-col">
+          <Skeleton className="h-[160px] w-[350px] rounded-xl mb-8 transition-all duration-400 ease-out opacity-20 border-2 border-teal-200 dark:border-teal-600" />
+        </div>
+      </div>
+    );
 
   if (availableTokens.length === 0) {
     return (
@@ -204,7 +177,6 @@ function Faucet() {
   return (
     <div className='min-h-screen bg-background text-foreground flex flex-col'>
       <Header />
-
       <main className='flex-1 flex items-center justify-center p-3'>
         <div className='w-full max-w-sm sm:max-w-md space-y-4'>
           {!connected && (
@@ -216,7 +188,6 @@ function Faucet() {
               </CardContent>
             </Card>
           )}
-
           <div className='space-y-4'>
             {availableTokens.map((tokenSymbol) => {
               const token = TOKENS[tokenSymbol];
@@ -281,7 +252,7 @@ function Faucet() {
                       <Button
                         onClick={() => requestTokens(tokenSymbol)}
                         disabled={isButtonDisabled(status)}
-                        className='w-full bg-teal-700 hover:bg-teal-400 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+                        className='w-full bg-teal-800 hover:bg-teal-900 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
                       >
                         {status.isLoading && (
                           <Loader2 className='w-4 h-4 mr-2 animate-spin' />
