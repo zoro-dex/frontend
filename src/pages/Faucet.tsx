@@ -13,10 +13,10 @@ interface MintStatus {
   readonly isLoading: boolean;
   readonly lastResult: FaucetMintResult | null;
   readonly lastAttempt: number;
+  readonly showMessage: boolean;
 }
 
 type TokenMintStatuses = Record<TokenSymbol, MintStatus>;
-
 
 function SkeletonCard() {
   return (
@@ -71,6 +71,7 @@ function Faucet() {
             isLoading: false,
             lastResult: null,
             lastAttempt: 0,
+            showMessage: false,
           };
         }
         setMintStatuses(initialStatuses as TokenMintStatuses);
@@ -112,6 +113,7 @@ function Faucet() {
     updateMintStatus(tokenSymbol, {
       isLoading: true,
       lastAttempt: Date.now(),
+      showMessage: false,
     });
 
     try {
@@ -120,15 +122,46 @@ function Faucet() {
       updateMintStatus(tokenSymbol, {
         isLoading: false,
         lastResult: result,
+        showMessage: false,
       });
+
+      // Trigger smooth transition after a brief delay
+      setTimeout(() => {
+        updateMintStatus(tokenSymbol, {
+          showMessage: true,
+        });
+      }, 100);
+
+      // Auto-hide message after 5 seconds with smooth transition
+      setTimeout(() => {
+        updateMintStatus(tokenSymbol, {
+          showMessage: false,
+        });
+      }, 5100);
+
     } catch (error) {
+      const errorResult: FaucetMintResult = {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error',
+      };
+
       updateMintStatus(tokenSymbol, {
         isLoading: false,
-        lastResult: {
-          success: false,
-          message: error instanceof Error ? error.message : 'Unknown error',
-        },
+        lastResult: errorResult,
+        showMessage: false,
       });
+
+      setTimeout(() => {
+        updateMintStatus(tokenSymbol, {
+          showMessage: true,
+        });
+      }, 100);
+
+      setTimeout(() => {
+        updateMintStatus(tokenSymbol, {
+          showMessage: false,
+        });
+      }, 5100);
     }
   }, [connected, wallet?.adapter?.accountId, updateMintStatus]);
 
@@ -137,10 +170,7 @@ function Faucet() {
       return <Loader2 className='w-4 h-4 animate-spin text-blue-500' />;
     }
 
-    if (!status.lastResult) {
-      return null;
-    }
-
+    return null;
   };
 
   const getButtonText = (tokenSymbol: TokenSymbol, status: MintStatus): string => {
@@ -219,22 +249,34 @@ function Faucet() {
                     </div>
 
                     <div className='space-y-3'>
-                      {status.lastResult && (
-                        <div
-                          className={`text-xs p-2 rounded-md ${
-                            status.lastResult.success
-                              ? 'bg-green-50 text-green-800 dark:bg-green-950/20 dark:text-green-200'
-                              : 'bg-red-50 text-red-800 dark:bg-red-950/20 dark:text-red-200'
-                          }`}
-                        >
-                          {status.lastResult.message}
-                          {status.lastResult.transactionId && (
-                            <div className='mt-1 font-mono text-xs opacity-75 break-all'>
-                              TX: {status.lastResult.transactionId}
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      <div 
+                        className={`overflow-hidden transition-all duration-300 ease-out ${
+                          status.lastResult && status.showMessage 
+                            ? 'max-h-20 opacity-100 mb-3' 
+                            : 'max-h-0 opacity-0 mb-0'
+                        }`}
+                      >
+                        {status.lastResult && (
+                          <div
+                            className={`text-xs p-2 rounded-md transform transition-all duration-300 ease-out ${
+                              status.showMessage 
+                                ? 'translate-y-0 scale-100' 
+                                : '-translate-y-2 scale-95'
+                            } ${
+                              status.lastResult.success
+                                ? 'bg-green-50 text-green-800 dark:bg-green-950/20 dark:text-green-200'
+                                : 'bg-red-50 text-red-800 dark:bg-red-950/20 dark:text-red-200'
+                            }`}
+                          >
+                            {status.lastResult.message}
+                            {status.lastResult.transactionId && (
+                              <div className='mt-1 font-mono text-xs opacity-75 break-all'>
+                                TX: {status.lastResult.transactionId}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
 
                       <Button
                         onClick={() => requestTokens(tokenSymbol)}
