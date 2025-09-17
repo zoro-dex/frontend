@@ -445,20 +445,22 @@ function Swap() {
                     </div>
                     <div className='flex items-center justify-between text-xs h-5'>
                       <div>{usdValues.sellUsdValue || usdValues.priceFor1}</div>
-                      <div className='flex items-center gap-1'>
-                        <button
-                          onClick={handleMaxClick}
-                          disabled={sellBalance === null || sellBalance === BigInt(0)}
-                          className={`hover:text-foreground transition-colors cursor-pointer mr-1 ${
-                            balanceValidation.isBalanceLoaded
-                              && balanceValidation.hasInsufficientBalance
-                              ? 'text-orange-600 hover:text-destructive'
-                              : 'text-green-800 hover:text-green-600 dark:text-teal-200 dark:hover:text-green-200'
-                          }`}
-                        >
-                          {formattedSellBalance || 'Loading...'} {sellToken}
-                        </button>
-                      </div>
+                      {connected && (
+                        <div className='flex items-center gap-1'>
+                          <button
+                            onClick={handleMaxClick}
+                            disabled={sellBalance === null || sellBalance === BigInt(0)}
+                            className={`hover:text-foreground transition-colors cursor-pointer mr-1 ${
+                              balanceValidation.isBalanceLoaded
+                                && balanceValidation.hasInsufficientBalance
+                                ? 'text-orange-600 hover:text-destructive'
+                                : 'text-green-800 hover:text-green-600 dark:text-teal-100 dark:hover:text-green-100'
+                            }`}
+                          >
+                            {formattedSellBalance || 'Loading...'} {sellToken}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -480,7 +482,7 @@ function Swap() {
 
               {/* Buy Section */}
               <div className='space-y-2'>
-                <div className='text-xs sm:text-sm'>Get</div>
+                <div className='text-xs sm:text-sm'>Buy</div>
                 <Card className='bg-gradient-to-b from-muted/10 from-10% to-muted/30 to-50% border-none'>
                   <CardContent className='p-3 sm:p-4 space-y-2 sm:space-y-3'>
                     <div className='flex items-center justify-between gap-2'>
@@ -513,7 +515,7 @@ function Swap() {
                     </div>
                     <div className='flex items-center justify-between text-xs h-5'>
                       <div>{usdValues.buyUsdValue || usdValues.priceFor1Buy}</div>
-                      {buyBalance !== null && buyBalance > BigInt(0) && (
+                      {connected && buyBalance !== null && buyBalance > BigInt(0) && (
                         <div>
                           {formattedBuyBalance} {buyToken}
                         </div>
