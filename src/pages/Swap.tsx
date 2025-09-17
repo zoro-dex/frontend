@@ -361,12 +361,13 @@ function Swap() {
     return (
       <div className='min-h-screen bg-background text-foreground flex flex-col'>
         <Header />
-        <div className='flex-1 flex items-center justify-center mb-20'>
+        <div className='flex-1 flex items-center justify-center mb-10'>
           <div className='text-center space-y-4'>
             <img src= "/zorosmoking.png" alt="Zoro smoking." className="w-[250px] h-auto" />
             <div className='text-orange-600'>maintenance, come back in a bit.<span className="animate-pulse">..</span></div>
           </div>
         </div>
+        <Footer />
       </div>
     );
 
