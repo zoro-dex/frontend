@@ -185,6 +185,8 @@ end
 #! Outputs: [P2ID_RECIPIENT]
 #!
 proc.build_p2id_recipient_hash
+
+    debug.stack.8
  
     padw hmerge
     # => [SERIAL_NUM_HASH, SCRIPT_HASH]
@@ -203,6 +205,7 @@ proc.build_p2id_recipient_hash
     # => [INPUTS_HASH, SERIAL_SCRIPT_HASH]
     hmerge
     # => [P2ID_RECIPIENT]
+    debug.stack
 end
 
 # input: [SERIAL_NUM,...]
@@ -251,7 +254,8 @@ proc.create_p2id_reverse_note
 end
 
 proc.store_p2id_script_hash
-    push.14355791738953101471.16880376862595469307.4399717636953729920.18023939233288492685
+    push.8365110555382206798.12243624803742845558.9978343142123786225.5105407001527225633
+    # push.14355791738953101471.16880376862595469307.4399717636953729920.18023939233288492685
     mem_storew.P2ID_SCRIPT_ROOT_WORD dropw
 end
 
