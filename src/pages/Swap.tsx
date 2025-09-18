@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { useBalance } from '@/hooks/useBalance.ts';
 import { useTokenInitialization } from '@/hooks/useTokenInitialization.ts';
 import { getAssetIds, TOKENS, type TokenSymbol, UI } from '@/lib/config';
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   calculateMinAmountOut,
   calculateTokenPrice,
@@ -347,34 +348,28 @@ function Swap() {
     balanceValidation,
   ]);
 
-  // Loading states
-  if (!tokensLoaded) {
+  if (!tokensLoaded) 
     return (
-      <div className='min-h-screen bg-background text-foreground flex flex-col'>
-        <main className='flex-1 flex items-center justify-center'>
-          <img
-            src='/zoro_logo_with_outline.svg'
-            alt='Zoro Hat'
-            className='w-24 h-24 animate-pulse opacity-25'
-          />
-        </main>
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <div className="flex flex-col space-y-3">
+          <Skeleton className="h-[375px] w-[350px] rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-green-200 dark:border-green-600/75" />
+        </div>
       </div>
-    );
-  }
+  );
 
-  if (availableTokens.length === 0) {
+  if (availableTokens.length === 0)
     return (
       <div className='min-h-screen bg-background text-foreground flex flex-col'>
         <Header />
-        <main className='flex-1 flex items-center justify-center'>
+        <div className='flex-1 flex items-center justify-center mb-10'>
           <div className='text-center space-y-4'>
-            <div className='text-orange-600'>Server is down, come again in a bit</div>
-            <Button onClick={() => window.location.reload()}>Retry</Button>
+            <img src= "/zorosmoking.png" alt="Zoro smoking." className="w-[250px] h-auto" />
+            <div className='text-orange-600'>maintenance, come back in a bit.<span className="animate-pulse">..</span></div>
           </div>
-        </main>
+        </div>
+        <Footer />
       </div>
     );
-  }
 
   return (
     <div className='min-h-screen bg-background text-foreground flex flex-col'>
@@ -407,7 +402,7 @@ function Swap() {
               <ModeToggle />
             </div>
           </div>
-          <Card className='border rounded-xl sm:rounded-2xl'>
+          <Card className='border rounded-xl sm:rounded-2xl hover:border-green-200/10'>
             <CardContent className='p-3 sm:p-4 space-y-3 sm:space-y-4'>
               {/* Sell Section */}
               <div className='space-y-2'>
@@ -450,20 +445,22 @@ function Swap() {
                     </div>
                     <div className='flex items-center justify-between text-xs h-5'>
                       <div>{usdValues.sellUsdValue || usdValues.priceFor1}</div>
-                      <div className='flex items-center gap-1'>
-                        <button
-                          onClick={handleMaxClick}
-                          disabled={sellBalance === null || sellBalance === BigInt(0)}
-                          className={`hover:text-foreground transition-colors cursor-pointer mr-1 ${
-                            balanceValidation.isBalanceLoaded
-                              && balanceValidation.hasInsufficientBalance
-                              ? 'text-orange-600 hover:text-destructive'
-                              : 'text-green-700 hover:text-green-600 dark:text-green-200 dark:hover:text-green-300'
-                          }`}
-                        >
-                          {formattedSellBalance || 'Loading...'} {sellToken}
-                        </button>
-                      </div>
+                      {connected && (
+                        <div className='flex items-center gap-1'>
+                          <button
+                            onClick={handleMaxClick}
+                            disabled={sellBalance === null || sellBalance === BigInt(0)}
+                            className={`hover:text-foreground transition-colors cursor-pointer mr-1 ${
+                              balanceValidation.isBalanceLoaded
+                                && balanceValidation.hasInsufficientBalance
+                                ? 'text-orange-600 hover:text-destructive'
+                                : 'text-green-800 hover:text-green-600 dark:text-teal-100 dark:hover:text-green-100'
+                            }`}
+                          >
+                            {formattedSellBalance || 'Loading...'} {sellToken}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -474,7 +471,7 @@ function Swap() {
                 <Button
                   variant='outline'
                   size='icon'
-                  className='h-8 w-8 sm:h-10 sm:w-10 rounded-full border dark:text-white text-black hover:text-black dark:hover:bg-gray-500/10 hover:bg-gray-500/10 dark:hover:text-white'
+                  className='h-8 w-8 sm:h-10 sm:w-10 rounded-full border dark:hover:border-teal-200 dark:text-white text-black hover:text-black dark:hover:bg-gray-500/10 hover:bg-gray-100/10 dark:hover:text-white'
                   onClick={handleReplaceTokens}
                   disabled={!sellToken || !buyToken || isCreatingNote || connecting
                     || isSwapping}
@@ -485,7 +482,7 @@ function Swap() {
 
               {/* Buy Section */}
               <div className='space-y-2'>
-                <div className='text-xs sm:text-sm'>Get</div>
+                <div className='text-xs sm:text-sm'>Buy</div>
                 <Card className='bg-gradient-to-b from-muted/10 from-10% to-muted/30 to-50% border-none'>
                   <CardContent className='p-3 sm:p-4 space-y-2 sm:space-y-3'>
                     <div className='flex items-center justify-between gap-2'>
@@ -518,7 +515,7 @@ function Swap() {
                     </div>
                     <div className='flex items-center justify-between text-xs h-5'>
                       <div>{usdValues.buyUsdValue || usdValues.priceFor1Buy}</div>
-                      {buyBalance !== null && buyBalance > BigInt(0) && (
+                      {connected && buyBalance !== null && buyBalance > BigInt(0) && (
                         <div>
                           {formattedBuyBalance} {buyToken}
                         </div>
@@ -536,7 +533,7 @@ function Swap() {
                       onClick={handleSwap}
                       disabled={connecting || isCreatingNote || !client}
                       variant='outline'
-                      className='w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
+                      className='w-full h-full hover:border-teal-200/20 rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
                     >
                       {connecting
                         ? (

@@ -59,7 +59,7 @@ export async function mintFromFaucet(
 
     return {
       success: true,
-      message: result.message || "Ka-ching! Claim the tokens in your wallet in a sec.",
+      message: result.message || "Requested. Claim the tokens in your wallet!",
       transactionId: result.transaction_id,
     };
 

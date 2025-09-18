@@ -44,6 +44,7 @@ export const accountIdToBech32 = (
 ) => {
   return Address.fromAccountId(accountId, 'Unspecified').toBech32(networkId);
 };
+
 export const bech32ToAccountId = (bech32str: string) => {
   return Address.fromBech32(bech32str).accountId();
 };
