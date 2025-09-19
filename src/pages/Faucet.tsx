@@ -244,7 +244,7 @@ function Faucet() {
                         <Button
                           onClick={() => requestTokens(tokenSymbol)}
                           disabled={isButtonDisabled(status)}
-                          className='w-full bg-teal-800 hover:bg-teal-900 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+                          className='w-full bg-teal-800 hover:bg-teal-700 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
                         >
                           {status.isLoading && (
                             <Loader2 className='w-4 h-4 mr-2 animate-spin' />
