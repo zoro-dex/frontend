@@ -21,7 +21,6 @@ export interface ExtendedPoolInfo extends PoolInfo {
   readonly icon?: string;
   readonly iconClass?: string;
   readonly isActive?: boolean;
-  readonly lastUpdated?: number;
 }
 
 export interface PoolsResponse {

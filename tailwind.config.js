@@ -20,6 +20,7 @@ export default {
     extend: {
       fontFamily: {
         'cal-sans': ['Cal Sans', 'system-ui', 'sans-serif'],
+        'chancery': ['"Apple Chancery"', '"Brush Script MT"', '"Lucida Handwriting"', 'cursive'],
       },
       fontSize: {
         xs: ['0.875rem', { lineHeight: '1.25rem' }],

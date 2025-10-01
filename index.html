@@ -41,11 +41,109 @@
     <!-- Canonical URL (update with your actual domain) -->
     <link rel="canonical" href="https://zoroswap.com" />
     
-    <!-- Preload critical fonts -->
+    <!-- Preload fonts and images -->
     <link rel="preload" href="/fonts/CalSans/CalSans-Regular.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="preload" as="image" href="/zorosmoking.png">
   </head>
   <body>
+   <style>
+      #splash-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        background-color: #1A1A1A;
+        z-index: 9999;
+      }
+      
+      #splash-screen.hidden {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease-out;
+      }
+      
+      #splash-screen img {
+        width: 250px;
+        height: auto;
+      }
+      
+      #splash-screen #loading-text {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        font-family: "Apple Chancery", "Brush Script MT", "Lucida Handwriting", cursive;
+        font-size: 2rem;
+        color: #a3a3a3;
+        opacity: 0;
+        transition: opacity 0.3s ease-in;
+      }
+      
+      #splash-screen.loaded #loading-text {
+        opacity: 1;
+      }
+      
+      @keyframes pulse {
+        0%, 100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+    </style>
+
+    <div id="splash-screen">
+      <img src="/zorosmoking.png" alt="Loading" id="splash-image" />
+      <div id="loading-text">...loading</div>
+    </div>
+
     <div id="root"></div>
+
+    <script>
+      const expressions = [
+        "..prepping",
+        "..power nap over",
+        "..sharpening blades",
+        "..coming at ya",
+        "..ready to go, almost",
+        "..almost there",
+        "..time to trade",
+        "..loading with class",
+        "..giddying up",
+        "..breaking free",
+        "..getting ready",
+        "..going dark",
+      ];
+      
+      const loadingText = document.getElementById('loading-text');
+      const splashImage = document.getElementById('splash-image');
+      const splash = document.getElementById('splash-screen');
+      
+      if (loadingText) {
+        loadingText.textContent = expressions[Math.floor(Math.random() * expressions.length)];
+      }
+      
+      if (splashImage) {
+        splashImage.onload = () => {
+          splash?.classList.add('loaded');
+        };
+        if (splashImage.complete) {
+          splash?.classList.add('loaded');
+        }
+      }
+      
+      window.addEventListener('load', () => {
+        if (splash) {
+          splash.classList.add('hidden');
+          setTimeout(() => splash.remove(), 300);
+        }
+      });
+    </script>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

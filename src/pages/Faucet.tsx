@@ -147,17 +147,15 @@ function Faucet() {
     return status.isLoading || !connected;
   };
 
-  if (!tokensLoaded) 
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen space-y-5">
-        <div className="flex flex-col">
-          <Skeleton className="h-[160px] w-[350px] rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-teal-200 dark:border-teal-600/75" />
-        </div>
-        <div className="flex flex-col">
-          <Skeleton className="h-[160px] w-[350px] rounded-xl mb-8 transition-all duration-400 ease-out opacity-20 border-2 border-teal-200 dark:border-teal-600/75" />
-        </div>
+  if (!tokensLoaded)
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen p-3 pb-10">
+      <div className="w-full max-w-sm sm:max-w-md space-y-4">
+        <Skeleton className="h-[160px] w-full rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-teal-200 dark:border-teal-600/75" />
+        <Skeleton className="h-[160px] w-full rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-teal-200 dark:border-teal-600/75" />
       </div>
-    );
+    </div>
+  );
 
   if (availableTokens.length === 0) {
     return (
@@ -253,7 +251,7 @@ function Faucet() {
                         </Button>
                       )}
                       {!connected && (
-                        <WalletMultiButton className='!p-5 !w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-muted-foreground animate-pulse hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center'>
+                        <WalletMultiButton className='!p-5 !w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-teal-800 dark:!text-teal-200 animate-pulse hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center'>
                           Connect
                         </WalletMultiButton>
                       )}
