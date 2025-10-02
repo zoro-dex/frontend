@@ -6,18 +6,18 @@ import { SwapSuccess } from '@/components/SwapSuccess.tsx';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useBalance } from '@/hooks/useBalance.ts';
 import { useTokenInitialization } from '@/hooks/useTokenInitialization.ts';
 import { getAssetIds, TOKENS, type TokenSymbol, UI } from '@/lib/config';
-import { Skeleton } from "@/components/ui/skeleton"
 import {
   calculateMinAmountOut,
   calculateTokenPrice,
   calculateUsdValues,
   canPerformSwap,
   extractTokenData,
+  formatBalance,
   getBalanceValidation,
-  formatBalance
 } from '@/lib/swapHelpers';
 import { bech32ToAccountId, instantiateClient } from '@/lib/utils.ts';
 import {
@@ -117,7 +117,7 @@ function Swap() {
     client,
   });
 
-  const buyBalance  = useBalance({
+  const buyBalance = useBalance({
     accountId,
     faucetId: buyBalanceParams.faucetId,
     client,
@@ -171,8 +171,12 @@ function Swap() {
     balanceValidation,
   ]);
 
-const formattedSellBalance = !sellToken || sellBalance === null ? '0' : formatBalance(sellBalance, sellToken);
-const formattedBuyBalance = !buyToken || buyBalance === null ? '0' : formatBalance(buyBalance, buyToken);
+  const formattedSellBalance = !sellToken || sellBalance === null
+    ? '0'
+    : formatBalance(sellBalance, sellToken);
+  const formattedBuyBalance = !buyToken || buyBalance === null
+    ? '0'
+    : formatBalance(buyBalance, buyToken);
 
   const handleSellAmountChange = useCallback((value: string): void => {
     setSellAmount(value);
@@ -341,30 +345,31 @@ const formattedBuyBalance = !buyToken || buyBalance === null ? '0' : formatBalan
     balanceValidation,
   ]);
 
-  if (!tokensLoaded) 
+  if (!tokensLoaded) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <div className="w-full max-w-sm sm:max-w-md px-3 sm:px-0">
-          <Skeleton className="h-[375px] sm:h-[475px] w-full rounded-xl sm:rounded-2xl transition-all duration-400 ease-out opacity-20 border-2 border-green-200 dark:border-green-600/75" />
+      <div className='flex flex-col items-center justify-center min-h-screen'>
+        <div className='w-full max-w-sm sm:max-w-md px-3 sm:px-0'>
+          <Skeleton className='h-[375px] sm:h-[475px] w-full rounded-xl sm:rounded-2xl transition-all duration-400 ease-out opacity-20 border-2 border-green-200 dark:border-green-600/75' />
         </div>
       </div>
-  );
+    );
+  }
 
-  if (availableTokens.length === 0)
+  if (availableTokens.length === 0) {
     return (
       <div className='min-h-screen bg-background text-foreground flex flex-col'>
         <Header />
         <main className='flex-1 flex items-center justify-center p-4'>
           <div className='text-center space-y-6'>
-            <img 
-              src="/zorosmoking.png" 
-              alt="Zoro smoking a cigarette." 
-              className="w-64 h-auto mx-auto -mb-4" 
+            <img
+              src='/zoro_logo_with_outline.svg'
+              alt='Zoro logo'
+              className='w-64 h-auto mx-auto -mb-4'
             />
-            <div className='space-y-2 font-chancery'>
+            <div className='space-y-2 font-cal-sans'>
               <h1 className='text-5xl font-bold'>BRB</h1>
               <p className='text-xl'>
-                <span className="animate-pulse">..</span>.server down
+                <span className='animate-pulse'>..</span>.server down
               </p>
             </div>
           </div>
@@ -372,6 +377,7 @@ const formattedBuyBalance = !buyToken || buyBalance === null ? '0' : formatBalan
         <Footer />
       </div>
     );
+  }
 
   return (
     <div className='min-h-screen bg-background text-foreground flex flex-col'>
@@ -593,7 +599,6 @@ const formattedBuyBalance = !buyToken || buyBalance === null ? '0' : formatBalan
               </Button>
             </Link>
           </div>
-
         </div>
       </main>
       <Footer />
