@@ -148,6 +148,7 @@ export async function compileZoroSwapNote(
 
     const tx = new CustomTransaction(
       accountIdToBech32(swapParams.userAccountId),
+      accountIdToBech32(poolAccountId),
       transactionRequest,
       [],
       [],

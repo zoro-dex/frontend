@@ -6,10 +6,10 @@ import { SwapSuccess } from '@/components/SwapSuccess.tsx';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useBalance } from '@/hooks/useBalance.ts';
 import { useTokenInitialization } from '@/hooks/useTokenInitialization.ts';
 import { getAssetIds, TOKENS, type TokenSymbol, UI } from '@/lib/config';
-import { Skeleton } from "@/components/ui/skeleton"
 import {
   calculateMinAmountOut,
   calculateTokenPrice,
@@ -111,14 +111,13 @@ function Swap() {
     }
   }, [accountId, sellBalanceParams.faucetId, buyBalanceParams.faucetId]);
 
-  // Balance hooks
-  const { balance: sellBalance } = useBalance({
+  const sellBalance = useBalance({
     accountId,
     faucetId: sellBalanceParams.faucetId,
     client,
   });
 
-  const { balance: buyBalance } = useBalance({
+  const buyBalance = useBalance({
     accountId,
     faucetId: buyBalanceParams.faucetId,
     client,
@@ -133,6 +132,7 @@ function Swap() {
     if (!sellToken || !buyToken || !tokensLoaded) return [];
     return [TOKENS[sellToken]?.priceId, TOKENS[buyToken]?.priceId].filter(Boolean);
   }, [sellToken, buyToken, tokensLoaded]);
+
   const prices = useNablaAntennaPrices(priceIds);
 
   // Derived data
@@ -171,15 +171,12 @@ function Swap() {
     balanceValidation,
   ]);
 
-  const formattedSellBalance = useMemo(() => {
-    if (!sellToken || sellBalance === null) return '0';
-    return formatBalance(sellBalance, sellToken);
-  }, [sellBalance, sellToken]);
-
-  const formattedBuyBalance = useMemo(() => {
-    if (!buyToken || buyBalance === null) return '0';
-    return formatBalance(buyBalance, buyToken);
-  }, [buyBalance, buyToken]);
+  const formattedSellBalance = !sellToken || sellBalance === null
+    ? '0'
+    : formatBalance(sellBalance, sellToken);
+  const formattedBuyBalance = !buyToken || buyBalance === null
+    ? '0'
+    : formatBalance(buyBalance, buyToken);
 
   const handleSellAmountChange = useCallback((value: string): void => {
     setSellAmount(value);
@@ -348,28 +345,39 @@ function Swap() {
     balanceValidation,
   ]);
 
-  if (!tokensLoaded) 
+  if (!tokensLoaded) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <div className="flex flex-col space-y-3">
-          <Skeleton className="h-[375px] w-[350px] rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-green-200 dark:border-green-600/75" />
+      <div className='flex flex-col items-center justify-center min-h-screen'>
+        <div className='w-full max-w-sm sm:max-w-md px-3 sm:px-0'>
+          <Skeleton className='h-[375px] sm:h-[475px] w-full rounded-xl sm:rounded-2xl transition-all duration-400 ease-out opacity-20 border-2 border-green-200 dark:border-green-600/75' />
         </div>
       </div>
-  );
+    );
+  }
 
-  if (availableTokens.length === 0)
+  if (availableTokens.length === 0) {
     return (
       <div className='min-h-screen bg-background text-foreground flex flex-col'>
         <Header />
-        <div className='flex-1 flex items-center justify-center mb-10'>
-          <div className='text-center space-y-4'>
-            <img src= "/zorosmoking.png" alt="Zoro smoking." className="w-[250px] h-auto" />
-            <div className='text-orange-600'>maintenance, come back in a bit.<span className="animate-pulse">..</span></div>
+        <main className='flex-1 flex items-center justify-center p-4'>
+          <div className='text-center space-y-6'>
+            <img
+              src='/zoro_logo_with_outline.svg'
+              alt='Zoro logo'
+              className='w-64 h-auto mx-auto -mb-4'
+            />
+            <div className='space-y-2 font-cal-sans'>
+              <h1 className='text-5xl font-bold'>BRB</h1>
+              <p className='text-xl'>
+                <span className='animate-pulse'>..</span>.server down
+              </p>
+            </div>
           </div>
-        </div>
+        </main>
         <Footer />
       </div>
     );
+  }
 
   return (
     <div className='min-h-screen bg-background text-foreground flex flex-col'>
@@ -445,7 +453,7 @@ function Swap() {
                     </div>
                     <div className='flex items-center justify-between text-xs h-5'>
                       <div>{usdValues.sellUsdValue || usdValues.priceFor1}</div>
-                      {connected && (
+                      {connected && sellBalance !== null && sellBalance > BigInt(0) && (
                         <div className='flex items-center gap-1'>
                           <button
                             onClick={handleMaxClick}
@@ -457,7 +465,7 @@ function Swap() {
                                 : 'text-green-800 hover:text-green-600 dark:text-teal-100 dark:hover:text-green-100'
                             }`}
                           >
-                            {formattedSellBalance || 'Loading...'} {sellToken}
+                            {formattedSellBalance} {sellToken}
                           </button>
                         </div>
                       )}
@@ -571,7 +579,7 @@ function Swap() {
                       )}
 
                       <div className={connecting ? 'invisible' : 'visible'}>
-                        <WalletMultiButton className='!p-5 !w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-muted-foreground animate-pulse hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center'>
+                        <WalletMultiButton className='!p-5 !w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-teal-800 dark:!text-teal-200 !text-muted-foreground animate-pulse hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center'>
                           Connect wallet
                         </WalletMultiButton>
                       </div>
@@ -580,8 +588,6 @@ function Swap() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Faucet Link */}
           <div className='text-center'>
             <Link to='/faucet'>
               <Button
