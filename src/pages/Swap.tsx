@@ -573,7 +573,7 @@ const formattedBuyBalance = !buyToken || buyBalance === null ? '0' : formatBalan
                       )}
 
                       <div className={connecting ? 'invisible' : 'visible'}>
-                        <WalletMultiButton className='!p-5 !w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-teal-800 dark:!text-teal-200 !text-muted-foreground animate-pulse hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center'>
+                        <WalletMultiButton className='!p-5 !w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-foreground-muted !text-muted-foreground animate-pulse hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center'>
                           Connect wallet
                         </WalletMultiButton>
                       </div>
