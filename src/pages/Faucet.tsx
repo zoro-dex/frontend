@@ -66,7 +66,7 @@ function Faucet() {
   }, []);
 
   const requestTokens = useCallback(async (tokenSymbol: TokenSymbol): Promise<void> => {
-    if (!connected || !wallet?.adapter?.accountId) {
+    if (!connected || !wallet?.adapter?.address) {
       return;
     }
 
@@ -75,7 +75,7 @@ function Faucet() {
       return;
     }
 
-    const accountId = wallet.adapter.accountId;
+    const address = wallet.adapter.address;
     const faucetId = token.faucetId;
 
     updateMintStatus(tokenSymbol, {
@@ -85,7 +85,7 @@ function Faucet() {
     });
 
     try {
-      const result = await mintFromFaucet(accountId, faucetId);
+      const result = await mintFromFaucet(address, faucetId);
 
       updateMintStatus(tokenSymbol, {
         isLoading: false,
@@ -129,7 +129,7 @@ function Faucet() {
         });
       }, 5100);
     }
-  }, [connected, wallet?.adapter?.accountId, updateMintStatus]);
+  }, [connected, wallet?.adapter?.address, updateMintStatus]);
 
   const getStatusIcon = (status: MintStatus): React.ReactNode => {
     if (status.isLoading) {

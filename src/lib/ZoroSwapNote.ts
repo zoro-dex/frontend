@@ -4,6 +4,7 @@ import {
   Felt,
   FeltArray,
   FungibleAsset,
+  MidenArrays,
   Note,
   NoteAssets,
   NoteExecutionHint,
@@ -13,7 +14,6 @@ import {
   NoteTag,
   NoteType,
   OutputNote,
-  OutputNotesArray,
   TransactionRequestBuilder,
   WebClient,
   Word,
@@ -94,7 +94,8 @@ export async function compileZoroSwapNote(
       Math.floor(minAmountOutNum * Math.pow(10, buyTokenConfig.decimals)),
     );
 
-    const script = client.compileNoteScript(ZOROSWAP_SCRIPT);
+    let builder = client.createScriptBuilder();
+    const script = builder.compileNoteScript(ZOROSWAP_SCRIPT);
     const noteType = NoteType.Public;
 
     const offeredAsset = new FungibleAsset(sellFaucetId, sellAmountBigInt);
@@ -143,7 +144,7 @@ export async function compileZoroSwapNote(
     const noteId = note.id().toString();
 
     let transactionRequest = new TransactionRequestBuilder()
-      .withOwnOutputNotes(new OutputNotesArray([OutputNote.full(note)]))
+      .withOwnOutputNotes(new MidenArrays.OutputNoteArray([OutputNote.full(note)]))
       .build();
 
     const tx = new CustomTransaction(

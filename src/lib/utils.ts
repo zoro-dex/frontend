@@ -42,7 +42,7 @@ export const accountIdToBech32 = (
   accountId: AccountId,
   networkId: NetworkId = NetworkId.Testnet,
 ) => {
-  return Address.fromAccountId(accountId, 'Unspecified').toBech32(networkId);
+  return Address.fromAccountId(accountId, 'BasicWallet').toBech32(networkId);
 };
 
 export const bech32ToAccountId = (bech32str: string) => {
