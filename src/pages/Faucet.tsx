@@ -1,15 +1,16 @@
-import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { initializeTokenConfig, TOKENS, type TokenSymbol } from '@/lib/config';
+import { Skeleton } from '@/components/ui/skeleton';
+import { accountIdToBech32 } from '@/lib/utils';
+import { ZoroContext } from '@/providers/ZoroContext';
 import { type FaucetMintResult, mintFromFaucet } from '@/services/faucet';
 import { useWallet } from '@demox-labs/miden-wallet-adapter';
-import { Loader2 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Skeleton } from "@/components/ui/skeleton"
 import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter';
+import { Loader2 } from 'lucide-react';
+import { useCallback, useContext, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 interface MintStatus {
   readonly isLoading: boolean;
@@ -18,42 +19,16 @@ interface MintStatus {
   readonly showMessage: boolean;
 }
 
-type TokenMintStatuses = Record<TokenSymbol, MintStatus>;
+type TokenMintStatuses = Record<string, MintStatus>;
 
 function Faucet() {
-  const { wallet, connected } = useWallet();
-  const [tokensLoaded, setTokensLoaded] = useState<boolean>(false);
-  const [availableTokens, setAvailableTokens] = useState<TokenSymbol[]>([]);
-  const [mintStatuses, setMintStatuses] = useState<TokenMintStatuses>({} as TokenMintStatuses);
-
-  useEffect(() => {
-    const loadTokens = async (): Promise<void> => {
-      try {
-        await initializeTokenConfig();
-        const tokenSymbols = Object.keys(TOKENS) as TokenSymbol[];
-        setAvailableTokens(tokenSymbols);
-
-        const initialStatuses: Partial<TokenMintStatuses> = {};
-        for (const symbol of tokenSymbols) {
-          initialStatuses[symbol] = {
-            isLoading: false,
-            lastResult: null,
-            lastAttempt: 0,
-            showMessage: false,
-          };
-        }
-        setMintStatuses(initialStatuses as TokenMintStatuses);
-        setTokensLoaded(true);
-      } catch (error) {
-        setTokensLoaded(true);
-      }
-    };
-
-    loadTokens();
-  }, []);
-
+  const { connected } = useWallet();
+  const [mintStatuses, setMintStatuses] = useState<TokenMintStatuses>(
+    {} as TokenMintStatuses,
+  );
+  const { tokens, tokensLoading, accountId } = useContext(ZoroContext);
   const updateMintStatus = useCallback((
-    tokenSymbol: TokenSymbol,
+    tokenSymbol: string,
     updates: Partial<MintStatus>,
   ): void => {
     setMintStatuses(prev => ({
@@ -65,19 +40,29 @@ function Faucet() {
     }));
   }, []);
 
-  const requestTokens = useCallback(async (tokenSymbol: TokenSymbol): Promise<void> => {
-    if (!connected || !wallet?.adapter?.accountId) {
+  useEffect(() => {
+    for (const token of Object.values(tokens)) {
+      // init token states
+      if (!mintStatuses[token.symbol]) {
+        updateMintStatus(token.symbol, {
+          isLoading: false,
+          lastAttempt: 0,
+          lastResult: null,
+          showMessage: false,
+        });
+      }
+    }
+  }, [tokens, mintStatuses, setMintStatuses, updateMintStatus]);
+
+  const requestTokens = useCallback(async (tokenSymbol: string): Promise<void> => {
+    if (!connected || !accountId) {
       return;
     }
-
-    const token = TOKENS[tokenSymbol];
+    const token = tokens[tokenSymbol];
     if (!token) {
       return;
     }
-
-    const accountId = wallet.adapter.accountId;
     const faucetId = token.faucetId;
-
     updateMintStatus(tokenSymbol, {
       isLoading: true,
       lastAttempt: Date.now(),
@@ -85,51 +70,47 @@ function Faucet() {
     });
 
     try {
-      const result = await mintFromFaucet(accountId, faucetId);
-
+      const result = await mintFromFaucet(
+        accountIdToBech32(accountId),
+        accountIdToBech32(faucetId),
+      );
       updateMintStatus(tokenSymbol, {
         isLoading: false,
         lastResult: result,
         showMessage: false,
       });
-
       setTimeout(() => {
         updateMintStatus(tokenSymbol, {
           showMessage: true,
         });
       }, 100);
-
       setTimeout(() => {
         updateMintStatus(tokenSymbol, {
           showMessage: false,
         });
       }, 5100);
-
     } catch (error) {
       const errorResult: FaucetMintResult = {
         success: false,
         message: error instanceof Error ? error.message : 'Unknown error',
       };
-
       updateMintStatus(tokenSymbol, {
         isLoading: false,
         lastResult: errorResult,
         showMessage: false,
       });
-
       setTimeout(() => {
         updateMintStatus(tokenSymbol, {
           showMessage: true,
         });
       }, 100);
-
       setTimeout(() => {
         updateMintStatus(tokenSymbol, {
           showMessage: false,
         });
       }, 5100);
     }
-  }, [connected, wallet?.adapter?.accountId, updateMintStatus]);
+  }, [connected, accountId, updateMintStatus, tokens]);
 
   const getStatusIcon = (status: MintStatus): React.ReactNode => {
     if (status.isLoading) {
@@ -139,25 +120,26 @@ function Faucet() {
     return null;
   };
 
-  const getButtonText = (tokenSymbol: TokenSymbol, status: MintStatus): string => {
-      return status.isLoading ? `Minting ${tokenSymbol}...` : `Request ${tokenSymbol}`;
+  const getButtonText = (tokenSymbol: string, status: MintStatus): string => {
+    return status.isLoading ? `Minting ${tokenSymbol}...` : `Request ${tokenSymbol}`;
   };
 
   const isButtonDisabled = (status: MintStatus): boolean => {
     return status.isLoading || !connected;
   };
 
-  if (!tokensLoaded)
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-3 pb-10">
-      <div className="w-full max-w-sm sm:max-w-md space-y-4">
-        <Skeleton className="h-[160px] w-full rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-teal-200 dark:border-teal-600/75" />
-        <Skeleton className="h-[160px] w-full rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-teal-200 dark:border-teal-600/75" />
+  if (tokensLoading) {
+    return (
+      <div className='flex flex-col items-center justify-center min-h-screen p-3 pb-10'>
+        <div className='w-full max-w-sm sm:max-w-md space-y-4'>
+          <Skeleton className='h-[160px] w-full rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-teal-200 dark:border-teal-600/75' />
+          <Skeleton className='h-[160px] w-full rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-teal-200 dark:border-teal-600/75' />
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 
-  if (availableTokens.length === 0) {
+  if (Object.keys(tokens).length === 0) {
     return (
       <div className='min-h-screen bg-background text-foreground flex flex-col'>
         <Header />
@@ -179,15 +161,14 @@ function Faucet() {
       <main className='flex-1 flex items-center justify-center p-3'>
         <div className='w-full max-w-sm sm:max-w-md space-y-4'>
           <div className='space-y-4'>
-            {availableTokens.map((tokenSymbol) => {
-              const token = TOKENS[tokenSymbol];
-              const status = mintStatuses[tokenSymbol];
+            {Object.values(tokens).map((token) => {
+              const status = mintStatuses[token.symbol];
 
               if (!token || !status) return null;
 
               return (
                 <Card
-                  key={tokenSymbol}
+                  key={token.symbol}
                   className='rounded-xl hover:shadow-lg transition-all duration-200 hover:border-green-200/10'
                 >
                   <CardContent className='p-4 sm:p-6'>
@@ -202,26 +183,30 @@ function Faucet() {
                           Test {token.name}
                         </h3>
                         <div className='text-xs text-muted-foreground font-mono overflow-hidden'>
-                          <span className='hidden sm:inline'>{token.faucetId}</span>
-                          <span className='sm:hidden break-all'>{token.faucetId}</span>
+                          <span className='hidden sm:inline'>
+                            {accountIdToBech32(token.faucetId)}
+                          </span>
+                          <span className='sm:hidden break-all'>
+                            {accountIdToBech32(token.faucetId)}
+                          </span>
                         </div>
                       </div>
                       {getStatusIcon(status)}
                     </div>
 
                     <div className='space-y-3'>
-                      <div 
+                      <div
                         className={`overflow-hidden transition-all duration-300 ease-out ${
-                          status.lastResult && status.showMessage 
-                            ? 'max-h-20 opacity-100 mb-3' 
+                          status.lastResult && status.showMessage
+                            ? 'max-h-20 opacity-100 mb-3'
                             : 'max-h-0 opacity-0 mb-0'
                         }`}
                       >
                         {status.lastResult && (
                           <div
                             className={`text-xs p-2 rounded-md transform transition-all duration-300 ease-out ${
-                              status.showMessage 
-                                ? 'translate-y-0 scale-100' 
+                              status.showMessage
+                                ? 'translate-y-0 scale-100'
                                 : '-translate-y-2 scale-95'
                             } ${
                               status.lastResult.success
@@ -240,14 +225,14 @@ function Faucet() {
                       </div>
                       {connected && (
                         <Button
-                          onClick={() => requestTokens(tokenSymbol)}
+                          onClick={() => requestTokens(token.symbol)}
                           disabled={isButtonDisabled(status)}
                           className='w-full bg-teal-800 hover:bg-teal-700 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
                         >
                           {status.isLoading && (
                             <Loader2 className='w-4 h-4 mr-2 animate-spin' />
                           )}
-                          {getButtonText(tokenSymbol, status)}
+                          {getButtonText(token.symbol, status)}
                         </Button>
                       )}
                       {!connected && (

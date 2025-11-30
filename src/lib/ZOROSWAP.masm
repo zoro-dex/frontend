@@ -1,6 +1,6 @@
-use.miden::note
+use.miden::active_note
 use.miden::contracts::wallets::basic->wallet
-use.miden::tx
+use.miden::output_note
 use.std::crypto::hashes::rpo
 use.std::sys
 
@@ -81,7 +81,7 @@ const.ZOROSWAP_CREATOR_ID_PREFIX = CREATOR_ID_WORD + 3  # 0x001B
 
 # EMPTY  5WORDS 0X001C- 0x00
 
-# argument memory 4 WORDS 
+# argument memory 4 WORDS
 # 0x0040 - 0x004F
 # ====================================================
 
@@ -109,7 +109,7 @@ const.POOL1_STATE_WORD = ARGS_WORD_2  # 0x0048
 
 # [amount_out, empty, empty, empty]
 const.AMOUNT_OUT = AMOUNT_OUT_WORD
-# 3 empty felts 
+# 3 empty felts
 
 # [pool0_liabilities, pool0_reserve, pool0_reserve_with_slippage, empty]
 const.POOL0_LIABILITIES = POOL0_STATE_WORD  # 0x0044
@@ -154,18 +154,18 @@ const.P2ID_SCRIPT_ROOT_WORD = 0x0080
 #! Outputs: []
 #!
 proc.add_first_asset_to_account
-    mem_loadw.IN_ASSET_WORD
+    mem_loadw_be.IN_ASSET_WORD
     call.wallet::receive_asset
 end
 
 proc.store_asset_in_to_memory
-    push.IN_ASSET_WORD exec.note::get_assets assert.err=ERR_ZOROSWAP_WRONG_NUMBER_OF_ASSETS 
-    drop    
+    push.IN_ASSET_WORD exec.active_note::get_assets assert.err=ERR_ZOROSWAP_WRONG_NUMBER_OF_ASSETS
+    drop
 end
 
 proc.store_inputs_to_memory
     # store note inputs into memory starting at address 0
-    push.INPUTS_POINTER exec.note::get_inputs
+    push.INPUTS_POINTER exec.active_note::get_inputs
     # => [num_inputs, inputs_ptr]
     # make sure the number of inputs is N
     eq.NUMBER_OF_INPUTS assert.err=ERR_ZOROSWAP_WRONG_NUMBER_OF_INPUTS
@@ -175,7 +175,7 @@ proc.store_inputs_to_memory
 end
 # @note TODO: pool stats will likely need to go through the advice stack
 proc.store_args_to_memory
-    mem_storew.AMOUNT_OUT_WORD dropw
+    mem_storew_be.AMOUNT_OUT_WORD dropw
 end
 
 
@@ -187,7 +187,7 @@ end
 proc.build_p2id_recipient_hash
 
     debug.stack.8
- 
+
     padw hmerge
     # => [SERIAL_NUM_HASH, SCRIPT_HASH]
     swapw hmerge
@@ -196,8 +196,8 @@ proc.build_p2id_recipient_hash
     mem_load.ZOROSWAP_CREATOR_ID_SUFFIX mem_load.ZOROSWAP_CREATOR_ID_PREFIX
     push.0.0
 
-    push.4000 mem_storew dropw
-    push.4004 mem_storew dropw
+    push.4000 mem_storew_be dropw
+    push.4004 mem_storew_be dropw
 
     push.8.4000
     # => [ptr, elements]
@@ -222,11 +222,11 @@ end
 proc.create_p2id_reverse_note
     # @dev prepad to not to destroy ASSET_TO_BE_SENT by note creation
     # @dev if doesnt work, use memory for ASSET_TO_BE_SENT
-    padw padw 
+    padw padw
     # => [pad(8), ASSET_TO_BE_SENT]
-    padw mem_loadw.P2ID_SCRIPT_ROOT_WORD
+    padw mem_loadw_be.P2ID_SCRIPT_ROOT_WORD
     # => [P2ID_SCRIPT_HASH, pad(8), ASSET_TO_BE_SENT]
-    exec.note::get_serial_number
+    exec.active_note::get_serial_number
     # => [P2ID_SERIAL_NUM, , P2ID_SCRIPT_HASH, pad(8), ASSET_TO_BE_SENT]
     exec.get_p2id_serial_num
     # => [P2ID_SERIAL_NUM, P2ID_SCRIPT_HASH, pad(8), ASSET_TO_BE_SENT]
@@ -243,9 +243,9 @@ proc.create_p2id_reverse_note
     mem_load.P2ID_TAG
     # => [tag, aux, public_note, execution_hint_always, P2ID_RECIPIENT, pad(8), ASSET_TO_BE_SENT]
     # => [tag, aux, note_type, execution_hint, RECIPIENT, pad(8), ASSET_TO_BE_SENT]
-    call.tx::create_note
+    call.output_note::create
     # => [note_idx, pad(15), ASSET_TO_BE_SENT]
-    swapw.2 dropw swapw.3  
+    swapw.2 dropw swapw.3
     # => [ASSET, note_idx, pad(11)]
     call.wallet::move_asset_to_note
     # => [ASSET, note_idx, pad(11)]
@@ -254,13 +254,12 @@ proc.create_p2id_reverse_note
 end
 
 proc.store_p2id_script_hash
-    push.8365110555382206798.12243624803742845558.9978343142123786225.5105407001527225633
-    # push.14355791738953101471.16880376862595469307.4399717636953729920.18023939233288492685
-    mem_storew.P2ID_SCRIPT_ROOT_WORD dropw
+    push.15783632360113277539.7403765918285273520.15691985194755641846.10399643920503194563
+    mem_storew_be.P2ID_SCRIPT_ROOT_WORD dropw
 end
 
 proc.execute_ZOROSWAP
-    #mem_loadw.IN_ASSET_WORD
+    #mem_loadw_be.IN_ASSET_WORD
     #exec.create_p2id_reverse_note
     mem_load.AMOUNT_OUT
     mem_load.MIN_AMOUNT_OUT
@@ -268,7 +267,7 @@ proc.execute_ZOROSWAP
 
     # min amount out is not met
     if.true
-        mem_loadw.IN_ASSET_WORD
+        mem_loadw_be.IN_ASSET_WORD
     else
         mem_load.AMOUNT_OUT push.0 mem_load.OUT_TOKEN_ID_SUFFIX mem_load.OUT_TOKEN_ID_PREFIX
     end

@@ -1,45 +1,7 @@
-/**
- * Environment configuration for Zoro AMM
- * Centralizes all environment variables with type safety and validation
- */
-
-import { AccountId } from '@demox-labs/miden-sdk';
-import { bech32ToAccountId } from './utils';
-
-export interface PoolInfo {
-  readonly decimals: number;
-  readonly faucet_id: string;
-  readonly name: string;
-  readonly oracle_id: string;
-  readonly symbol: string;
-}
-
-/**
- * Extended pool information with additional metadata
- */
-export interface ExtendedPoolInfo extends PoolInfo {
-  readonly icon?: string;
-  readonly iconClass?: string;
-  readonly isActive?: boolean;
-}
-
-export interface PoolsResponse {
-  readonly liquidity_pools: PoolInfo[];
-}
-
-export interface TokenConfig {
-  readonly symbol: string;
-  readonly name: string;
-  readonly priceId: string;
-  readonly icon: string;
-  readonly iconClass?: string;
-  readonly decimals: number;
-  readonly faucetId: string;
-}
+import { NetworkId } from '@demox-labs/miden-sdk';
 
 export interface NetworkConfig {
   readonly rpcEndpoint: string;
-  readonly txProverEndpoint: string;
 }
 
 export interface OracleConfig {
@@ -82,11 +44,7 @@ function getNumericEnvVar(key: string, fallback: number): number {
 
 // Network Configuration
 export const NETWORK: NetworkConfig = {
-  rpcEndpoint: getEnvVar('VITE_RPC_ENDPOINT', 'https://rpc.testnet.miden.io:443'),
-  txProverEndpoint: getEnvVar(
-    'VITE_TX_PROVER_ENDPOINT',
-    'https://tx-prover.testnet.miden.io',
-  ),
+  rpcEndpoint: getEnvVar('VITE_RPC_ENDPOINT'),
 } as const;
 
 // Oracle Configuration
@@ -104,17 +62,10 @@ export const API: ApiConfig = {
 } as const;
 
 // UI Configuration
-export const UI: UiConfig = {
-  defaultSlippage: getNumericEnvVar('VITE_DEFAULT_SLIPPAGE', 0.5),
-} as const;
-
-// UI Configuration
-export const poolAccountId: AccountId = bech32ToAccountId(
-  getEnvVar('VITE_POOL_ID'),
-);
+export const DEFAULT_SLIPPAGE = getNumericEnvVar('VITE_DEFAULT_SLIPPAGE', 0.5);
 
 // Token icon mapping - only includes the two supported tokens
-const TOKEN_ICONS: Record<string, { icon: string; iconClass?: string }> = {
+export const TOKEN_ICONS: Record<string, { icon: string; iconClass?: string }> = {
   BTC: {
     icon: '/BTC.svg',
     iconClass: '',
@@ -125,100 +76,22 @@ const TOKEN_ICONS: Record<string, { icon: string; iconClass?: string }> = {
   },
 } as const;
 
-/**
- * Build token configuration from server pool data
- * Only processes tokens that have icon configurations
- */
-export function buildTokenConfigFromPools(
-  pools: PoolInfo[],
-): Record<string, TokenConfig> {
-  const tokens: Record<string, TokenConfig> = {};
-
-  for (const pool of pools) {
-    const iconConfig = TOKEN_ICONS[pool.symbol];
-
-    if (!iconConfig) {
-      continue;
-    }
-
-    tokens[pool.symbol] = {
-      symbol: pool.symbol,
-      name: pool.name,
-      priceId: pool.oracle_id,
-      decimals: pool.decimals,
-      faucetId: pool.faucet_id,
-      ...iconConfig,
-    };
-  }
-
-  return tokens;
-}
-
-// Will be populated dynamically from server
-export let TOKENS: Record<string, TokenConfig> = {};
-
-// Token Symbol Type - will be updated when tokens are loaded
-export type TokenSymbol = keyof typeof TOKENS;
-
-/**
- * Initialize token configuration from server
- * Only loads tokens that match our supported icon configurations
- */
-export async function initializeTokenConfig(): Promise<void> {
-  try {
-    const { fetchPoolInfo } = await import('../services/pool');
-    const pools = await fetchPoolInfo();
-
-    // Filter pools to only those we have icons for
-    const supportedPools = pools.filter(pool => TOKEN_ICONS[pool.symbol]);
-
-    if (supportedPools.length === 0) {
-      throw new Error('No supported tokens found in pool info');
-    }
-
-    TOKENS = buildTokenConfigFromPools(supportedPools);
-  } catch (error) {
-    throw error; // Don't use fallback - fail fast if server is unavailable
-  }
-}
-
-/**
- * Check if tokens have been initialized
- */
-export function areTokensInitialized(): boolean {
-  return Object.keys(TOKENS).length > 0;
-}
-
-// Derived configurations - these will be computed after TOKENS is populated
-export function getAssetIds(): readonly string[] {
-  return Object.values(TOKENS).map(token => token.priceId);
-}
-
-export function getSupportedAssetIds(): Record<string, string> {
-  return Object.fromEntries(
-    Object.entries(TOKENS).map(([_key, token]) => [token.priceId, `${token.symbol}/USD`]),
-  );
-}
-
-export function getFaucets(): Record<string, string> {
-  return Object.fromEntries(
-    Object.entries(TOKENS).map(([symbol, token]) => [symbol, token.faucetId]),
-  );
-}
+export const NETWORK_ID = import.meta.env.VITE_NETWORK_ID === 'mainnet'
+  ? NetworkId.Mainnet
+  : NetworkId.Testnet;
 
 /**
  * Validate all configurations on module load
  */
 function validateConfig(): void {
   // Validate slippage bounds
-  if (UI.defaultSlippage < 0 || UI.defaultSlippage > 50) {
-    throw new Error(`Invalid slippage configuration: default=${UI.defaultSlippage}`);
+  if (DEFAULT_SLIPPAGE < 0 || DEFAULT_SLIPPAGE > 100) {
+    throw new Error(`Invalid slippage configuration: default=${DEFAULT_SLIPPAGE}`);
   }
 
   // Validate URLs
   const urlFields = [
     NETWORK.rpcEndpoint,
-    NETWORK.txProverEndpoint,
     ORACLE.endpoint,
     API.endpoint,
   ];

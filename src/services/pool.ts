@@ -1,46 +1,60 @@
 import { API } from '@/lib/config';
-import type { PoolsResponse, PoolInfo } from '@/lib/config';
+import { bech32ToAccountId } from '@/lib/utils';
+import type { PoolInfo, RawPoolInfo } from '@/providers/ZoroProvider';
+import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
-/**
- * Fetch pool information from the Zoro backend
- */
-export async function fetchPoolInfo(): Promise<PoolInfo[]> {
+export const usePoolsInfo = () => {
+  const info = useQuery({
+    queryKey: ['pool-info'],
+    queryFn: fetchPoolInfo,
+    staleTime: 3600000,
+  });
+  const res = useMemo(() => {
+    if (info.data) {
+      return ({
+        ...info,
+        data: {
+          poolAccountId: info.data.pool_account_id,
+          liquidityPools: info.data.liquidity_pools.map(
+            p => ({ ...p, faucet_id: bech32ToAccountId(p.faucet_id) } as PoolInfo),
+          ),
+        } as PoolsInfo,
+      });
+    }
+  }, [info]);
+  return res;
+};
+
+export interface PoolsInfo {
+  poolAccountId: string;
+  liquidityPools: PoolInfo[];
+}
+
+export interface PoolsResponse {
+  pool_account_id: string;
+  liquidity_pools: RawPoolInfo[];
+}
+
+export async function fetchPoolInfo() {
   try {
     const response = await fetch(`${API.endpoint}/pools/info`);
-    
     if (!response.ok) {
-      throw new Error(`Failed to fetch pool info: ${response.status} ${response.statusText}`);
+      throw new Error(
+        `Failed to fetch pool info: ${response.status} ${response.statusText}`,
+      );
     }
-    
     const data: PoolsResponse = await response.json();
-    return data.liquidity_pools;
+    return data;
   } catch (error) {
     console.error('Error fetching pool info:', error);
     throw error;
   }
 }
 
-/**
- * Find pool by symbol
- */
-export function findPoolBySymbol(pools: PoolInfo[], symbol: string): PoolInfo | undefined {
+export function findPoolBySymbol(
+  pools: PoolInfo[],
+  symbol: string,
+): PoolInfo | undefined {
   return pools.find(pool => pool.symbol === symbol);
-}
-
-/**
- * Validate pool configuration against server data
- */
-export function validatePoolConfig(localConfig: Record<string, any>, serverPools: PoolInfo[]): boolean {
-  const serverSymbols = new Set(serverPools.map(pool => pool.symbol));
-  const localSymbols = new Set(Object.keys(localConfig));
-  
-  // Check if all local symbols exist on server
-  for (const symbol of localSymbols) {
-    if (!serverSymbols.has(symbol)) {
-      console.warn(`Local symbol ${symbol} not found on server`);
-      return false;
-    }
-  }
-  
-  return true;
 }

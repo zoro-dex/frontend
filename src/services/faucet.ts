@@ -4,7 +4,7 @@
  */
 
 export interface FaucetMintRequest {
-  readonly account_id: string;
+  readonly address: string;
   readonly faucet_id: string;
 }
 
@@ -26,11 +26,11 @@ export interface FaucetMintResult {
  * The server handles rate limiting (5 second guard) and queuing (up to 100 requests)
  */
 export async function mintFromFaucet(
-  accountId: string, 
+  address: string,
   faucetId: string
 ): Promise<FaucetMintResult> {
   const request: FaucetMintRequest = {
-    account_id: accountId,
+    address: address,
     faucet_id: faucetId,
   };
 

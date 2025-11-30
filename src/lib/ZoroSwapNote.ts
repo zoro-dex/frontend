@@ -1,9 +1,9 @@
-import { poolAccountId, TOKENS, type TokenSymbol } from '@/lib/config';
 import {
   AccountId,
   Felt,
   FeltArray,
   FungibleAsset,
+  MidenArrays,
   Note,
   NoteAssets,
   NoteExecutionHint,
@@ -13,31 +13,27 @@ import {
   NoteTag,
   NoteType,
   OutputNote,
-  OutputNotesArray,
   TransactionRequestBuilder,
   WebClient,
   Word,
 } from '@demox-labs/miden-sdk';
-import {
-  CustomTransaction,
-  type MidenTransaction,
-  TransactionType,
-} from '@demox-labs/miden-wallet-adapter';
+import { CustomTransaction } from '@demox-labs/miden-wallet-adapter';
 import { Buffer } from 'buffer';
 
 window.Buffer = Buffer;
 
-import { accountIdToBech32, bech32ToAccountId } from './utils';
+import type { TokenConfig } from '@/providers/ZoroProvider';
+import { accountIdToBech32 } from './utils';
 import ZOROSWAP_SCRIPT from './ZOROSWAP.masm?raw';
 
 export interface SwapParams {
-  readonly sellToken: TokenSymbol;
-  readonly buyToken: TokenSymbol;
-  readonly sellAmount: string;
-  readonly buyAmount: string;
-  readonly minAmountOut: string;
-  readonly userAccountId?: AccountId;
-  readonly requestTransaction: (tx: MidenTransaction) => Promise<string>;
+  poolAccountId: AccountId;
+  sellToken: TokenConfig;
+  buyToken: TokenConfig;
+  amount: bigint;
+  minAmountOut: bigint;
+  userAccountId: AccountId;
+  client: WebClient;
 }
 
 export interface SwapResult {
@@ -54,57 +50,28 @@ function generateRandomSerialNumber(): Word {
   ]);
 }
 
-export async function compileZoroSwapNote(
-  swapParams: SwapParams,
-  client: WebClient,
-): Promise<SwapResult> {
-  // Validate tokens exist in configuration
-  const sellTokenConfig = TOKENS[swapParams.sellToken];
-  const buyTokenConfig = TOKENS[swapParams.buyToken];
-
-  if (!swapParams.userAccountId) throw new Error(`No userAccount.`);
-  if (!sellTokenConfig || !buyTokenConfig) {
-    throw new Error(
-      `Token configuration not found for ${swapParams.sellToken} or ${swapParams.buyToken}`,
-    );
-  }
-
+export async function compileSwapTransaction({
+  poolAccountId,
+  buyToken,
+  sellToken,
+  amount,
+  minAmountOut,
+  userAccountId,
+  client,
+}: SwapParams) {
   try {
     await client.syncState();
-
-    const sellFaucetId = bech32ToAccountId(sellTokenConfig.faucetId);
-    const buyFaucetId = bech32ToAccountId(buyTokenConfig.faucetId);
-
-    const sellAmountNum = parseFloat(swapParams.sellAmount);
-    const minAmountOutNum = parseFloat(swapParams.minAmountOut);
-
-    if (
-      isNaN(sellAmountNum) || isNaN(minAmountOutNum)
-      || sellAmountNum <= 0 || minAmountOutNum <= 0
-    ) {
-      throw new Error(
-        `Invalid swap amounts: sell=${swapParams.sellAmount}, expectedBuy=${swapParams.minAmountOut}`,
-      );
-    }
-
-    const sellAmountBigInt = BigInt(
-      Math.floor(sellAmountNum * Math.pow(10, sellTokenConfig.decimals)),
-    );
-    const minAmountOutBigInt = BigInt(
-      Math.floor(minAmountOutNum * Math.pow(10, buyTokenConfig.decimals)),
-    );
-
-    const script = client.compileNoteScript(ZOROSWAP_SCRIPT);
+    const builder = client.createScriptBuilder();
+    const script = builder.compileNoteScript(ZOROSWAP_SCRIPT);
     const noteType = NoteType.Public;
-
-    const offeredAsset = new FungibleAsset(sellFaucetId, sellAmountBigInt);
+    const offeredAsset = new FungibleAsset(sellToken.faucetId, amount);
 
     // Note should only contain the offered asset
     const noteAssets = new NoteAssets([offeredAsset]);
     const noteTag = NoteTag.fromAccountId(poolAccountId);
 
     const metadata = new NoteMetadata(
-      swapParams.userAccountId,
+      userAccountId,
       noteType,
       noteTag,
       NoteExecutionHint.always(),
@@ -114,23 +81,23 @@ export async function compileZoroSwapNote(
     const deadline = Date.now() + 120_000; // 2 min from now
 
     // Use the AccountId for p2id tag
-    const p2idTag = NoteTag.fromAccountId(swapParams.userAccountId).asU32();
+    const p2idTag = NoteTag.fromAccountId(userAccountId).asU32();
 
     // Following the pattern: [asset_id_prefix, asset_id_suffix, 0, min_amount_out]
     const inputs = new NoteInputs(
       new FeltArray([
-        new Felt(minAmountOutBigInt),
+        new Felt(minAmountOut),
         new Felt(BigInt(0)),
-        buyFaucetId.suffix(),
-        buyFaucetId.prefix(),
+        buyToken.faucetId.suffix(),
+        buyToken.faucetId.prefix(),
         new Felt(BigInt(deadline)),
         new Felt(BigInt(p2idTag)),
         new Felt(BigInt(0)),
         new Felt(BigInt(0)),
         new Felt(BigInt(0)),
         new Felt(BigInt(0)),
-        swapParams.userAccountId.suffix(),
-        swapParams.userAccountId.prefix(),
+        userAccountId.suffix(),
+        userAccountId.prefix(),
       ]),
     );
 
@@ -142,28 +109,20 @@ export async function compileZoroSwapNote(
 
     const noteId = note.id().toString();
 
-    let transactionRequest = new TransactionRequestBuilder()
-      .withOwnOutputNotes(new OutputNotesArray([OutputNote.full(note)]))
+    const transactionRequest = new TransactionRequestBuilder()
+      .withOwnOutputNotes(new MidenArrays.OutputNoteArray([OutputNote.full(note)]))
       .build();
 
     const tx = new CustomTransaction(
-      accountIdToBech32(swapParams.userAccountId),
+      accountIdToBech32(userAccountId),
       accountIdToBech32(poolAccountId),
       transactionRequest,
       [],
       [],
     );
 
-    // Submit transaction and get transaction ID
-    const txId = await swapParams.requestTransaction({
-      type: TransactionType.Custom,
-      payload: tx,
-    });
-
-    await client.syncState();
-
     return {
-      txId,
+      tx,
       noteId,
     };
   } catch (error) {
