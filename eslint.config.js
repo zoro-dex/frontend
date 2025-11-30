@@ -1,23 +1,66 @@
-import js from '@eslint/js'
-import globals from 'globals'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
-import tseslint from 'typescript-eslint'
-import { globalIgnores } from 'eslint/config'
+import css from '@eslint/css';
+import js from '@eslint/js';
+import json from '@eslint/json';
+import markdown from '@eslint/markdown';
+import pluginReact from 'eslint-plugin-react';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
+import { defineConfig } from 'eslint/config';
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
 
-export default tseslint.config([
-  globalIgnores(['dist']),
+export default defineConfig([
   {
-    files: ['**/*.{ts,tsx}'],
+    files: ['**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    plugins: { js, 'react': pluginReact, 'react-hooks': reactHooks },
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
       reactHooks.configs['recommended-latest'],
       reactRefresh.configs.vite,
     ],
-    languageOptions: {
-      ecmaVersion: 2020,
-      globals: globals.browser,
-    },
+    languageOptions: { globals: globals.browser },
   },
-])
+  tseslint.configs.recommended,
+  {
+    files: ['**/*.json'],
+    plugins: { json },
+    language: 'json/json',
+    extends: ['json/recommended'],
+  },
+  {
+    files: ['**/*.md'],
+    plugins: { markdown },
+    language: 'markdown/gfm',
+    extends: ['markdown/recommended'],
+  },
+  {
+    files: ['**/*.css'],
+    plugins: { css },
+    language: 'css/css',
+    extends: ['css/recommended'],
+  },
+]);
+
+// import js from '@eslint/js';
+// import reactHooks from 'eslint-plugin-react-hooks';
+// import { globalIgnores } from 'eslint/config';
+// import globals from 'globals';
+// import tseslint from 'typescript-eslint';
+
+// export default tseslint.config([
+//   globalIgnores(['dist']),
+//   {
+//     files: ['**/*.{ts,tsx}'],
+//     extends: [
+//       js.configs.recommended,
+//       tseslint.configs.recommended,
+//       reactHooks.configs['recommended-latest'],
+//       reactRefresh.configs.vite,
+//     ],
+//     languageOptions: {
+//       ecmaVersion: 2020,
+//       globals: globals.browser,
+//     },
+//   },
+// ]);

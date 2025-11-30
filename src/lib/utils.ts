@@ -1,11 +1,12 @@
 import {
   type AccountId,
+  AccountInterface,
   Address,
-  NetworkId,
   type WebClient,
 } from '@demox-labs/miden-sdk';
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { NETWORK, NETWORK_ID } from './config';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -17,21 +18,23 @@ export const instantiateClient = async (
   const { WebClient } = await import(
     '@demox-labs/miden-sdk'
   );
-  const nodeEndpoint = 'https://rpc.testnet.miden.io:443';
-  const client = await WebClient.createClient(nodeEndpoint);
+  const client = await WebClient.createClient(NETWORK.rpcEndpoint);
   for (const acc of accountsToImport) {
     try {
       await safeAccountImport(client, acc);
-    } catch {}
+    } catch (e) {
+      console.error(e);
+    }
   }
   await client.syncState();
   return client;
 };
 
 export const safeAccountImport = async (client: WebClient, accountId: AccountId) => {
-  if (await client.getAccount(accountId) == null) {
+  const existingAccount = await client.getAccount(accountId);
+  if (existingAccount == null) {
     try {
-      client.importAccountById(accountId);
+      await client.importAccountById(accountId);
     } catch (e) {
       console.warn(e);
     }
@@ -40,11 +43,11 @@ export const safeAccountImport = async (client: WebClient, accountId: AccountId)
 
 export const accountIdToBech32 = (
   accountId: AccountId,
-  networkId: NetworkId = NetworkId.Testnet,
 ) => {
-  return Address.fromAccountId(accountId, 'BasicWallet').toBech32(networkId);
+  return accountId.toBech32(NETWORK_ID, AccountInterface.BasicWallet).split('_')[0];
 };
 
-export const bech32ToAccountId = (bech32str: string) => {
+export const bech32ToAccountId = (bech32str?: string) => {
+  if (bech32str == null) return undefined;
   return Address.fromBech32(bech32str).accountId();
 };
