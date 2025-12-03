@@ -160,8 +160,8 @@ function Swap() {
     const [setString, setOtherString] = [setStringSell, setStringBuy];
     const [setRaw, setOtherRaw] = [setRawSell, setRawBuy];
     const setError = setSellInputError;
-    const sellDecimals = selectedAssetSell?.decimals || 6;
-    const buyDecimals = selectedAssetBuy?.decimals || 6;
+    const decimalsSell = selectedAssetSell?.decimals || 6;
+    const decimalsBuy = selectedAssetBuy?.decimals || 6;
     setString(val);
     if (val === '' || val === '.') {
       setError(undefined);
@@ -170,21 +170,20 @@ function Swap() {
       setOtherRaw(BigInt(0));
       return;
     }
-    const parsed = parseUnits(val, sellDecimals);
-    const validationError = validateValue(parsed, balanceSell ?? BigInt(0));
+    const newSell = parseUnits(val, decimalsSell);
+    const validationError = validateValue(newSell, balanceSell ?? BigInt(0));
     if (validationError) {
       setError(validationError);
     } else {
       setError(undefined);
-      setRaw(parseUnits(val, sellDecimals));
+      setRaw(newSell);
     }
-    const newValBuy = (assetsPriceRatio ?? 0) * Number(val);
-    const newValBuyRaw = parseUnits(
-      roundDown(newValBuy.toString(), 8).toString(),
-      buyDecimals,
-    );
-    setOtherString(roundDown(newValBuy.toString(), 6).toString());
-    setOtherRaw(newValBuyRaw);
+    // set bigints
+    const newBuy = BigInt(Math.floor((assetsPriceRatio ?? 1) * 1e12)) * newSell
+      / BigInt(10 ** (decimalsSell - decimalsBuy + 12));
+    setOtherRaw(newBuy);
+    // set strings
+    setOtherString(formatUnits(newBuy, decimalsBuy));
   }, [
     selectedAssetBuy?.decimals,
     selectedAssetSell?.decimals,
