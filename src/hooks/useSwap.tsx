@@ -35,7 +35,7 @@ export const useSwap = () => {
         poolAccountId,
         buyToken,
         sellToken,
-        minAmountOut: minAmountOut + BigInt('100000000000000000000000000000000000000'),
+        minAmountOut: minAmountOut,
         userAccountId: accountId,
         client,
       });
