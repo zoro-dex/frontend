@@ -15,7 +15,7 @@ import {
 } from '@/providers/NablaAntennaProvider';
 import { ZoroContext } from '@/providers/ZoroContext';
 import { type TokenConfig } from '@/providers/ZoroProvider.tsx';
-import { formalNumberFormat, formatTokenAmount, roundDown } from '@/utils/format.ts';
+import { formalNumberFormat, formatTokenAmount } from '@/utils/format.ts';
 import { emptyFn } from '@/utils/shared';
 import { useWallet, WalletMultiButton } from '@demox-labs/miden-wallet-adapter';
 import { ArrowUpDown, Loader2 } from 'lucide-react';
