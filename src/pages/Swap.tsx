@@ -281,7 +281,7 @@ function Swap() {
          }}>
       <Header />
       <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-4'>
-        <div className='w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6'>
+        <div className='w-full max-w-xs sm:max-w-sm space-y-4 sm:space-y-6'>
           <div>
             <div className='flex gap-1 sm:gap-2 justify-end'>
               <SwapSettings slippage={slippage} onSlippageChange={setSlippage} />

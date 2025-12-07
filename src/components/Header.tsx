@@ -12,11 +12,11 @@ export function Header() {
 
       {/* Centered logo and title */}
       <Link to="/" className="flex flex-col items-center gap-2">
-        <div className="p-3 sm:p-4 rounded-xl">
+        <div className="p-1 sm:p-2 rounded-xl">
           <img
             src="/zoro-orange.svg"
             alt="Zoro"
-            className="h-8 w-8 sm:h-10 sm:w-10"
+            className="h-12 w-12 sm:h-16 sm:w-16"
           />
         </div>
         <h1 className="font-cal-sans text-2xl sm:text-3xl font-bold text-foreground">
