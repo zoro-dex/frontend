@@ -276,78 +276,75 @@ function Swap() {
   return (
     <div className='min-h-screen bg-background text-foreground flex flex-col relative'
          style={{
-           backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.06) 1px, transparent 1px)',
+           backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.13) 1px, transparent 1px)',
            backgroundSize: '20px 20px'
          }}>
       <Header />
       <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-4'>
-        <div className='w-full max-w-xs sm:max-w-sm space-y-4 sm:space-y-6'>
-          <div>
-            <div className='flex gap-1 sm:gap-2 justify-end'>
-              <SwapSettings slippage={slippage} onSlippageChange={setSlippage} />
-              <ModeToggle />
-            </div>
-          </div>
+        <div className='w-full max-w-xs sm:max-w-sm space-y-1 sm:space-y-1'>
           <Card className='border rounded-xl sm:rounded-2xl shadow-sm'>
             <CardContent className='p-3 sm:p-4 space-y-3 sm:space-y-4'>
               <div className='space-y-2'>
+                <div className='flex gap-1 sm:gap-2 justify-end float-right'>
+                  <SwapSettings slippage={slippage} onSlippageChange={setSlippage}/>
+                </div>
                 <div className='text-xs sm:text-sm text-primary font-medium'>Sell</div>
                 <Card className='bg-gradient-to-b from-muted/10 from-10% to-muted/30 to-50% border-none'>
-                  <CardContent className='p-3 sm:p-4 space-y-2 sm:space-y-3'>
+                  <CardContent className='p-2 sm:p-3 space-y-1 sm:space-y-2'>
                     <div className='flex items-center justify-between gap-2'>
                       <Input
-                        value={stringSell}
-                        onChange={(e) => onInputChange(e.target.value)}
-                        placeholder='0'
-                        aria-errormessage={sellInputError}
-                        className={`border-none text-3xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner ${
-                          sellInputError
-                            ? 'text-orange-600 placeholder:text-destructive/50'
-                            : ''
-                        }`}
+                          value={stringSell}
+                          onChange={(e) => onInputChange(e.target.value)}
+                          placeholder='0'
+                          aria-errormessage={sellInputError}
+                          className={`border-none text-xl sm:text-2xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner ${
+                              sellInputError
+                                  ? 'text-orange-600 placeholder:text-destructive/50'
+                                  : ''
+                          }`}
                       />
                       <Button
-                        variant='outline'
-                        size='sm'
-                        className='border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background'
+                          variant='outline'
+                          size='sm'
+                          className='border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background'
                       >
                         {selectedAssetSell && (
-                          <>
-                            <img
-                              src={selectedAssetSell.icon}
-                              alt='sell token logo'
-                              className={`w-8 h-8 -ml-2 ${
-                                selectedAssetSell.iconClass || ''
-                              }`}
-                            />
-                            {selectedAssetSell.symbol}
-                          </>
+                            <>
+                              <img
+                                  src={selectedAssetSell.icon}
+                                  alt='sell token logo'
+                                  className={`w-8 h-8 -ml-2 ${
+                                      selectedAssetSell.iconClass || ''
+                                  }`}
+                              />
+                              {selectedAssetSell.symbol}
+                            </>
                         )}
                       </Button>
                     </div>
                     {sellInputError && (
-                      <p className='text-xs text-orange-600'>
-                        {sellInputError}
-                      </p>
+                        <p className='text-xs text-orange-600'>
+                          {sellInputError}
+                        </p>
                     )}
                     <div className='flex items-center justify-between text-xs h-5'>
                       <div>{usdValueSell ? `$${usdValueSell}` : ''}</div>
                       {accountId && balanceSell
-                        && (
-                          <div className='flex items-center gap-1'>
-                            <button
-                              onClick={handleMaxClick}
-                              disabled={balanceSell === BigInt(0)}
-                              className={`hover:text-foreground transition-colors cursor-pointer mr-1 ${
-                                sellInputError
-                                  ? 'text-orange-600 hover:text-destructive'
-                                  : 'text-muted-foreground hover:text-foreground'
-                              }`}
-                            >
-                              {balanceSellFmt} {selectedAssetSell?.symbol ?? ''}
-                            </button>
-                          </div>
-                        )}
+                          && (
+                              <div className='flex items-center gap-1'>
+                                <button
+                                    onClick={handleMaxClick}
+                                    disabled={balanceSell === BigInt(0)}
+                                    className={`hover:text-foreground transition-colors cursor-pointer mr-1 ${
+                                        sellInputError
+                                            ? 'text-orange-600 hover:text-destructive'
+                                            : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                                >
+                                  {balanceSellFmt} {selectedAssetSell?.symbol ?? ''}
+                                </button>
+                              </div>
+                          )}
                     </div>
                   </CardContent>
                 </Card>
@@ -356,8 +353,8 @@ function Swap() {
               {/* Swap Button */}
               <div className='flex justify-center -my-1'>
                 <Button
-                  variant='outline'
-                  size='icon'
+                    variant='outline'
+                    size='icon'
                   className='h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-primary/20 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary/30'
                   onClick={swapPairs}
                   disabled={isLoadingSwap}
@@ -370,7 +367,7 @@ function Swap() {
               <div className='space-y-2'>
                 <div className='text-xs sm:text-sm text-primary font-medium'>Buy</div>
                 <Card className='bg-gradient-to-b from-muted/10 from-10% to-muted/30 to-50% border-none'>
-                  <CardContent className='p-3 sm:p-4 space-y-2 sm:space-y-3'>
+                  <CardContent className='p-2 sm:p-3 space-y-1 sm:space-y-2'>
                     <div className='flex items-center justify-between gap-2'>
                       <Input
                         type='number'
@@ -378,7 +375,7 @@ function Swap() {
                         onChange={emptyFn}
                         disabled
                         placeholder='0'
-                        className='border-none text-3xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner bg-transparent'
+                        className='border-none text-xl sm:text-2xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner bg-transparent'
                       />
                       <Button
                         variant='outline'
