@@ -10,7 +10,7 @@ function NotFound() {
       <main className='flex-1 flex items-center justify-center p-4 mt-10'>
         <div className='text-center space-y-6'>
           <img
-            src='/zoro_logo_with_outline.svg'
+            src='/zoro-orange.svg'
             alt='Zoro logo'
             className='w-64 h-auto mx-auto -mb-4'
           />
