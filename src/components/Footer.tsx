@@ -1,6 +1,6 @@
 export function Footer() {
   return (
-    <footer className="flex flex-col items-center justify-center gap-4 p-6 pb-8 bg-footer mt-8">
+    <footer className="flex flex-col items-center justify-center gap-2 p-4 pb-4 bg-footer mt-8">
       {/* Social Icons */}
       <div className="flex items-center gap-3">
         <a
