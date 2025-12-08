@@ -23,7 +23,6 @@ import { Link } from 'react-router-dom';
 import { formatUnits, parseUnits } from 'viem';
 
 const validateValue = (val: bigint, max: bigint) => {
-  console.log("max: " + max);
   return val > max
     ? 'Amount too large'
     : val === BigInt(0)
@@ -253,7 +252,7 @@ function Swap() {
     if (showInsufficientBalance) {
       return `Insufficient ${selectedAssetSell?.symbol} balance`;
     } else if (loadingPrice) {
-      return 'Loading price';
+      return 'Loading price…';
     } else return 'Swap';
   }, [
     rawSell,
@@ -277,11 +276,12 @@ function Swap() {
     <div className='min-h-screen bg-background text-foreground flex flex-col relative dotted-bg'>
       <Header />
       <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-4'>
-        <div className='w-full max-w-xs sm:max-w-sm space-y-1 sm:space-y-1'>
-          <Card className='border rounded-xl sm:rounded-2xl shadow-sm'>
+        <div className='w-full max-w-xs sm:max-w-sm space-y-4 sm:space-y-4'>
+          {/* Sell Card */}
+          <Card className='border rounded-sm sm:rounded-2sm'>
             <CardContent className='p-3 sm:p-4 space-y-3 sm:space-y-4'>
-              <div className='space-y-2'>
-                <div className='flex gap-1 sm:gap-2 justify-end float-right'>
+              <div className='space-y-1'>
+                <div className='flex justify-end float-right'>
                   <SwapSettings slippage={slippage} onSlippageChange={setSlippage}/>
                 </div>
                 <div className='text-xs sm:text-sm text-primary font-medium'>Sell</div>
@@ -345,22 +345,26 @@ function Swap() {
                   </CardContent>
                 </Card>
               </div>
+            </CardContent>
+          </Card>
 
-              {/* Swap Button */}
-              <div className='flex justify-center -my-1'>
-                <Button
-                    variant='outline'
-                    size='icon'
-                  className='h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-primary/20 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary/30'
-                  onClick={swapPairs}
-                  disabled={isLoadingSwap}
-                >
-                  <ArrowUpDown className='w-3 h-3 sm:w-4 sm:h-4' />
-                </Button>
-              </div>
+          {/* Swap Button */}
+          <div className='flex justify-center -my-1'>
+            <Button
+                variant='outline'
+                size='icon'
+              className='h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-primary/20 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary/30'
+              onClick={swapPairs}
+              disabled={isLoadingSwap}
+            >
+              <ArrowUpDown className='w-3 h-3 sm:w-4 sm:h-4' />
+            </Button>
+          </div>
 
-              {/* Buy Section */}
-              <div className='space-y-2'>
+          {/* Buy Card */}
+          <Card className='border rounded-sm sm:rounded-2sm'>
+            <CardContent className='p-3 sm:p-4 space-y-3 sm:space-y-4'>
+              <div className='space-y-1'>
                 <div className='text-xs sm:text-sm text-primary font-medium'>Buy</div>
                 <Card className='bg-gradient-to-b from-muted/10 from-10% to-muted/30 to-50% border-none'>
                   <CardContent className='p-2 sm:p-3 space-y-1 sm:space-y-2'>
@@ -403,67 +407,67 @@ function Swap() {
                   </CardContent>
                 </Card>
               </div>
-
-              {/* Main Action Button */}
-              <div className='w-full h-12 sm:h-16 mt-4 sm:mt-6'>
-                {connected
-                  ? (
-                    <Button
-                      onClick={onSwap}
-                      disabled={connecting || isLoadingSwap || !client
-                        || stringSell === '' || !!sellInputError}
-                      variant='outline'
-                      className={`w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors disabled:pointer-events-none disabled:opacity-50 ${
-                        buttonText === 'Swap'
-                          ? 'bg-primary text-primary-foreground hover:bg-primary/90 border-primary'
-                          : 'hover:border-orange-200/20 hover:bg-accent hover:text-accent-foreground'
-                      }`}
-                    >
-                      {connecting
-                        ? (
-                          <>
-                            <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-                            Connecting...
-                          </>
-                        )
-                        : isLoadingSwap
-                        ? (
-                          <>
-                            <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-                            Creating Note...
-                          </>
-                        )
-                        : !client
-                        ? (
-                          <>
-                            <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-                          </>
-                        )
-                        : buttonText}
-                    </Button>
-                  )
-                  : (
-                    <div className='relative w-full h-full'>
-                      {connecting && (
-                        <Button
-                          disabled
-                          variant='outline'
-                          className='w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
-                        >
-                          <Loader2 className='w-10 h-10 animate-spin' />
-                        </Button>
-                      )}
-
-                      <div className={connecting ? 'invisible' : 'visible'}>
-                        <WalletMultiButton className='!p-5 !w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-primary !text-primary-foreground hover:!bg-primary/90 !border-none !text-center !flex !items-center !justify-center'>
-                          Connect Wallet
-                        </WalletMultiButton>
-                      </div>
-                    </div>
-                  )}
-              </div>
             </CardContent>
           </Card>
+
+          {/* Main Action Button */}
+          <div className='w-full h-12 sm:h-16 mt-4 sm:mt-6'>
+            {connected
+              ? (
+                <Button
+                  onClick={onSwap}
+                  disabled={connecting || isLoadingSwap || !client
+                    || stringSell === '' || !!sellInputError}
+                  variant='outline'
+                  className={`w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors disabled:pointer-events-none disabled:opacity-50 ${
+                    buttonText === 'Swap'
+                      ? 'bg-primary text-primary-foreground hover:bg-primary/90 border-primary'
+                      : 'hover:border-orange-200/20 hover:bg-accent hover:text-accent-foreground'
+                  }`}
+                >
+                  {connecting
+                    ? (
+                      <>
+                        <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                        Connecting...
+                      </>
+                    )
+                    : isLoadingSwap
+                    ? (
+                      <>
+                        <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                        Creating Note...
+                      </>
+                    )
+                    : !client
+                    ? (
+                      <>
+                        <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                      </>
+                    )
+                    : buttonText}
+                </Button>
+              )
+              : (
+                <div className='relative w-full h-full'>
+                  {connecting && (
+                    <Button
+                      disabled
+                      variant='outline'
+                      className='w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
+                    >
+                      <Loader2 className='w-10 h-10 animate-spin' />
+                    </Button>
+                  )}
+
+                  <div className={connecting ? 'invisible' : 'visible'}>
+                    <WalletMultiButton className='!p-5 !w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-primary !text-primary-foreground hover:!bg-primary/90 !border-none !text-center !flex !items-center !justify-center'>
+                      Connect Wallet
+                    </WalletMultiButton>
+                  </div>
+                </div>
+              )}
+          </div>
           {selectedAssetBuy && selectedAssetSell && assetsPriceRatio
             ? (
               <p className='text-xs text-center opacity-40'>
@@ -472,15 +476,14 @@ function Swap() {
               </p>
             )
             : null}
-          <div className='absolute top-12 left-4'>
+          <div className='absolute top-14 left-4'>
             <Link to='/faucet'>
               <Button
                 variant='ghost'
                 size='sm'
-                className='text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors mt-4'
+                className='text-left text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors mt-4'
               >
-                Thirsty for test tokens?<br/>
-                Visit the Faucet →
+                Thirsty for test tokens?<br/>→ Visit the Faucet
               </Button>
             </Link>
           </div>

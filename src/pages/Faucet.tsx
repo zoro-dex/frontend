@@ -169,7 +169,7 @@ function Faucet() {
               return (
                 <Card
                   key={token.symbol}
-                  className='rounded-xl hover:shadow-lg transition-all duration-200 hover:border-green-200/10'
+                  className='rounded-xl transition-all duration-200 hover:border-orange-200/10'
                 >
                   <CardContent className='p-4 sm:p-6'>
                     <div className='flex items-center gap-4 mb-4'>
