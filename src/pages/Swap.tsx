@@ -411,7 +411,7 @@ function Swap() {
           </Card>
 
           {/* Main Action Button */}
-          <div className='w-full h-12 sm:h-16 mt-4 sm:mt-6'>
+          <div className='w-full h-8 sm:h-12 mt-4 sm:mt-6'>
             {connected
               ? (
                 <Button
