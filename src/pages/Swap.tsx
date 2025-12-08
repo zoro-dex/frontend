@@ -416,7 +416,7 @@ function Swap() {
                       disabled={connecting || isLoadingSwap || !client
                         || stringSell === '' || !!sellInputError}
                       variant='outline'
-                      className='w-full h-full hover:border-teal-200/20 rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
+                      className='w-full h-full hover:border-orange-200/20 rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
                     >
                       {connecting
                         ? (
