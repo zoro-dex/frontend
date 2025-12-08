@@ -472,14 +472,15 @@ function Swap() {
               </p>
             )
             : null}
-          <div className='text-center'>
+          <div className='absolute top-12 left-4'>
             <Link to='/faucet'>
               <Button
                 variant='ghost'
                 size='sm'
                 className='text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors mt-4'
               >
-                Thirsty for test tokens? Visit the Faucet →
+                Thirsty for test tokens?<br/>
+                Visit the Faucet →
               </Button>
             </Link>
           </div>
