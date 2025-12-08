@@ -281,10 +281,10 @@ function Swap() {
           <Card className='border rounded-sm sm:rounded-2sm'>
             <CardContent className='p-3 sm:p-4 space-y-3 sm:space-y-4'>
               <div className='space-y-1'>
-                <div className='flex justify-end float-right'>
+                <div className='flex justify-between items-center'>
+                  <div className='text-xs sm:text-sm text-primary font-medium'>Sell</div>
                   <SwapSettings slippage={slippage} onSlippageChange={setSlippage}/>
                 </div>
-                <div className='text-xs sm:text-sm text-primary font-medium'>Sell</div>
                 <Card className='bg-gradient-to-b from-muted/10 from-10% to-muted/30 to-50% border-none'>
                   <CardContent className='p-2 sm:p-3 space-y-1 sm:space-y-2'>
                     <div className='flex items-center justify-between gap-2'>
