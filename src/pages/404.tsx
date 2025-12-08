@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 
 function NotFound() {
   return (
-    <div className='min-h-screen bg-background text-foreground flex flex-col'>
+    <div className='min-h-screen bg-background text-foreground flex flex-col dotted-bg'>
       <Header />
       <main className='flex-1 flex items-center justify-center p-4 mt-10'>
         <div className='text-center space-y-6'>

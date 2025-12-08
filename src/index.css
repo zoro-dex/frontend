@@ -90,3 +90,8 @@
     @apply bg-background text-foreground;
   }
 }
+
+.dotted-bg {
+  background-image: radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.13) 1px, transparent 1px);
+  background-size: 20px 20px;
+}

@@ -23,6 +23,7 @@ import { Link } from 'react-router-dom';
 import { formatUnits, parseUnits } from 'viem';
 
 const validateValue = (val: bigint, max: bigint) => {
+  console.log("max: " + max);
   return val > max
     ? 'Amount too large'
     : val === BigInt(0)
@@ -273,11 +274,7 @@ function Swap() {
   }, [noteId]);
 
   return (
-    <div className='min-h-screen bg-background text-foreground flex flex-col relative'
-         style={{
-           backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.13) 1px, transparent 1px)',
-           backgroundSize: '20px 20px'
-         }}>
+    <div className='min-h-screen bg-background text-foreground flex flex-col relative dotted-bg'>
       <Header />
       <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-4'>
         <div className='w-full max-w-xs sm:max-w-sm space-y-1 sm:space-y-1'>

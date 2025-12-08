@@ -58,8 +58,7 @@ export const ORACLE: OracleConfig = {
 
 // API Configuration
 export const API: ApiConfig = {
-  //endpoint: getEnvVar('VITE_API_ENDPOINT', 'https://api.zoroswap.com'),
-  endpoint: getEnvVar('VITE_API_ENDPOINT', 'http://localhost:3000'),
+  endpoint: getEnvVar('VITE_API_ENDPOINT', 'https://api.zoroswap.com'),
 } as const;
 
 // UI Configuration

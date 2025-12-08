@@ -141,7 +141,7 @@ function Faucet() {
 
   if (Object.keys(tokens).length === 0) {
     return (
-      <div className='min-h-screen bg-background text-foreground flex flex-col'>
+      <div className='min-h-screen bg-background text-foreground flex flex-col dotted-bg'>
         <Header />
         <main className='flex-1 flex items-center justify-center'>
           <div className='text-center space-y-4'>
@@ -156,7 +156,7 @@ function Faucet() {
   }
 
   return (
-    <div className='min-h-screen bg-background text-foreground flex flex-col'>
+    <div className='min-h-screen bg-background text-foreground flex flex-col dotted-bg'>
       <Header />
       <main className='flex-1 flex items-center justify-center p-3'>
         <div className='w-full max-w-sm sm:max-w-md space-y-4'>
@@ -210,7 +210,7 @@ function Faucet() {
                                 : '-translate-y-2 scale-95'
                             } ${
                               status.lastResult.success
-                                ? 'bg-transparent text-orange-800 dark:text-orange-200'
+                                ? 'bg-transparent text-orange-600 dark:text-orange-200'
                                 : 'bg-transparent text-red-800 dark:text-red-200'
                             }`}
                           >
@@ -227,7 +227,7 @@ function Faucet() {
                         <Button
                           onClick={() => requestTokens(token.symbol)}
                           disabled={isButtonDisabled(status)}
-                          className='w-full bg-orange-800 hover:bg-orange-700 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+                          className='w-full bg-primary hover:bg-orange-700 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
                         >
                           {status.isLoading && (
                             <Loader2 className='w-4 h-4 mr-2 animate-spin' />
