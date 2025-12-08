@@ -318,30 +318,32 @@ function Swap() {
                         )}
                       </Button>
                     </div>
-                    {sellInputError && (
-                        <p className='text-xs text-orange-600'>
-                          {sellInputError}
-                        </p>
-                    )}
                     <div className='flex items-center justify-between text-xs h-5'>
-                      <div>{usdValueSell ? `$${usdValueSell}` : ''}</div>
-                      {accountId && balanceSell
-                          && (
-                              <div className='flex items-center gap-1'>
-                                <button
-                                    onClick={handleMaxClick}
-                                    disabled={balanceSell === BigInt(0)}
-                                    className={`hover:text-foreground transition-colors cursor-pointer mr-1 ${
-                                        sellInputError
-                                            ? 'text-orange-600 hover:text-destructive'
-                                            : 'text-muted-foreground hover:text-foreground'
-                                    }`}
-                                >
-                                  {balanceSellFmt} {selectedAssetSell?.symbol ?? ''}
-                                </button>
-                              </div>
-                          )}
+                      {sellInputError && (
+                          <p className='text-xs text-orange-600'>
+                            {sellInputError}
+                          </p>
+                      )}
                     </div>
+                      <div className='flex items-center justify-between text-xs h-5'>
+                        <div>{usdValueSell ? `$${usdValueSell}` : ''}</div>
+                        {accountId && balanceSell
+                            && (
+                                <div className='flex items-center gap-1'>
+                                  <button
+                                      onClick={handleMaxClick}
+                                      disabled={balanceSell === BigInt(0)}
+                                      className={`hover:text-foreground transition-colors cursor-pointer mr-1 ${
+                                          sellInputError
+                                              ? 'text-orange-600 hover:text-destructive'
+                                              : 'text-muted-foreground hover:text-foreground'
+                                      }`}
+                                  >
+                                    {balanceSellFmt} {selectedAssetSell?.symbol ?? ''}
+                                  </button>
+                                </div>
+                            )}
+                      </div>
                   </CardContent>
                 </Card>
               </div>
