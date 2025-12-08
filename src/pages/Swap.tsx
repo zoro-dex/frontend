@@ -1,6 +1,5 @@
 import { Footer } from '@/components/Footer';
 import { Header } from '@/components/Header';
-import { ModeToggle } from '@/components/ModeToggle';
 import { SwapSettings } from '@/components/SwapSettings';
 import { SwapSuccess } from '@/components/SwapSuccess';
 import { Button } from '@/components/ui/button';
