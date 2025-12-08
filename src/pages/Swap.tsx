@@ -413,7 +413,11 @@ function Swap() {
                       disabled={connecting || isLoadingSwap || !client
                         || stringSell === '' || !!sellInputError}
                       variant='outline'
-                      className='w-full h-full hover:border-orange-200/20 rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
+                      className={`w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors disabled:pointer-events-none disabled:opacity-50 ${
+                        buttonText === 'Swap'
+                          ? 'bg-primary text-primary-foreground hover:bg-primary/90 border-primary'
+                          : 'hover:border-orange-200/20 hover:bg-accent hover:text-accent-foreground'
+                      }`}
                     >
                       {connecting
                         ? (
