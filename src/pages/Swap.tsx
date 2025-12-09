@@ -286,7 +286,7 @@ function Swap() {
                   <SwapSettings slippage={slippage} onSlippageChange={setSlippage}/>
                 </div>
                 <Card className='bg-gradient-to-b from-muted/10 from-10% to-muted/30 to-50% border-none'>
-                  <CardContent className='px-3 py-2 sm:px-4 sm:py-3 space-y-1'>
+                  <CardContent className='pl-0 pr-3 py-2 sm:pl-0 sm:pr-4 sm:py-3 space-y-1'>
                     <div className='flex items-center justify-between gap-2'>
                       <Input
                           value={stringSell}
@@ -374,7 +374,7 @@ function Swap() {
               <div className='space-y-1'>
                 <div className='text-xs sm:text-sm text-primary font-medium'>Buy</div>
                 <Card className='bg-gradient-to-b from-muted/10 from-10% to-muted/30 to-50% border-none'>
-                  <CardContent className='px-3 py-2 sm:px-4 sm:py-3 space-y-1'>
+                  <CardContent className='pl-0 pr-3 py-2 sm:pl-0 sm:pr-4 sm:py-3 space-y-1'>
                     <div className='flex items-center justify-between gap-2'>
                       <Input
                           type='number'
