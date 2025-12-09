@@ -21,7 +21,6 @@ export const instantiateClient = async (
   const client = await WebClient.createClient(NETWORK.rpcEndpoint);
   for (const acc of accountsToImport) {
     try {
-      console.log("importing " + acc);
       await safeAccountImport(client, acc);
     } catch (e) {
       console.error(e);
