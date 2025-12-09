@@ -406,7 +406,7 @@ function Swap() {
                     <div className='flex items-center justify-between text-xs h-5'>
                       <div>{usdValueBuy ? `$${usdValueBuy}` : ''}</div>
                       {balancebuy !== null && balancebuy > BigInt(0) && (
-                        <div>
+                        <div className='text-muted-foreground mr-1'>
                           {balanceBuyFmt} {selectedAssetBuy?.symbol ?? ''}
                         </div>
                       )}
