@@ -483,12 +483,12 @@ function Swap() {
               </p>
             )
             : null}
-          <div className='absolute top-14 left-4'>
+          <div className='absolute top-8 left-4'>
             <Link to='/faucet'>
               <Button
                 variant='ghost'
                 size='sm'
-                className='text-left text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors mt-4'
+                className='text-left text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors mt-4 h-auto whitespace-normal py-2'
               >
                 Thirsty for test tokens?<br/>→ Visit the Faucet
               </Button>
