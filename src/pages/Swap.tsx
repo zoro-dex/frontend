@@ -468,7 +468,7 @@ function Swap() {
                   )}
 
                   <div className={connecting ? 'invisible' : 'visible'}>
-                    <WalletMultiButton className='!p-5 !w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-primary !text-primary-foreground hover:!bg-primary/90 !border-none !text-center !flex !items-center !justify-center'>
+                    <WalletMultiButton className='!p-5 w-full h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-primary !text-primary-foreground hover:!bg-primary/90 !border-none !text-center !flex !items-center !justify-center'>
                       Connect Wallet
                     </WalletMultiButton>
                   </div>
