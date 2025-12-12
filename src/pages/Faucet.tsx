@@ -132,8 +132,8 @@ function Faucet() {
     return (
       <div className='flex flex-col items-center justify-center min-h-screen p-3 pb-10'>
         <div className='w-full max-w-sm sm:max-w-md space-y-4'>
-          <Skeleton className='h-[160px] w-full rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-teal-200 dark:border-teal-600/75' />
-          <Skeleton className='h-[160px] w-full rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-teal-200 dark:border-teal-600/75' />
+          <Skeleton className='h-[160px] w-full rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-orange-200 dark:border-orange-600/75' />
+          <Skeleton className='h-[160px] w-full rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-orange-200 dark:border-orange-600/75' />
         </div>
       </div>
     );
@@ -141,7 +141,7 @@ function Faucet() {
 
   if (Object.keys(tokens).length === 0) {
     return (
-      <div className='min-h-screen bg-background text-foreground flex flex-col'>
+      <div className='min-h-screen bg-background text-foreground flex flex-col dotted-bg'>
         <Header />
         <main className='flex-1 flex items-center justify-center'>
           <div className='text-center space-y-4'>
@@ -156,7 +156,7 @@ function Faucet() {
   }
 
   return (
-    <div className='min-h-screen bg-background text-foreground flex flex-col'>
+    <div className='min-h-screen bg-background text-foreground flex flex-col dotted-bg'>
       <Header />
       <main className='flex-1 flex items-center justify-center p-3'>
         <div className='w-full max-w-sm sm:max-w-md space-y-4'>
@@ -169,7 +169,7 @@ function Faucet() {
               return (
                 <Card
                   key={token.symbol}
-                  className='rounded-xl hover:shadow-lg transition-all duration-200 hover:border-green-200/10'
+                  className='rounded-xl transition-all duration-200 hover:border-orange-200/10'
                 >
                   <CardContent className='p-4 sm:p-6'>
                     <div className='flex items-center gap-4 mb-4'>
@@ -210,7 +210,7 @@ function Faucet() {
                                 : '-translate-y-2 scale-95'
                             } ${
                               status.lastResult.success
-                                ? 'bg-transparent text-teal-800 dark:text-teal-200'
+                                ? 'bg-transparent text-black dark:text-orange-200'
                                 : 'bg-transparent text-red-800 dark:text-red-200'
                             }`}
                           >
@@ -227,7 +227,7 @@ function Faucet() {
                         <Button
                           onClick={() => requestTokens(token.symbol)}
                           disabled={isButtonDisabled(status)}
-                          className='w-full bg-teal-800 hover:bg-teal-700 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+                          className='w-full bg-primary hover:bg-orange-700 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
                         >
                           {status.isLoading && (
                             <Loader2 className='w-4 h-4 mr-2 animate-spin' />
@@ -236,7 +236,7 @@ function Faucet() {
                         </Button>
                       )}
                       {!connected && (
-                        <WalletMultiButton className='!p-5 !w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-teal-800 dark:!text-teal-200 animate-pulse hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center'>
+                        <WalletMultiButton className='!p-5 !w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-orange-800 dark:!text-orange-200 animate-pulse hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center'>
                           Connect
                         </WalletMultiButton>
                       )}
