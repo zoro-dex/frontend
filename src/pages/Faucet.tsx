@@ -210,7 +210,7 @@ function Faucet() {
                                 : '-translate-y-2 scale-95'
                             } ${
                               status.lastResult.success
-                                ? 'bg-transparent text-orange-600 dark:text-orange-200'
+                                ? 'bg-transparent text-black dark:text-orange-200'
                                 : 'bg-transparent text-red-800 dark:text-red-200'
                             }`}
                           >

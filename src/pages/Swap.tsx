@@ -296,7 +296,7 @@ function Swap() {
                           className={`border-none text-xl sm:text-2xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner ${
                               sellInputError
                                   ? 'text-orange-600 placeholder:text-destructive/50'
-                                  : ''
+                                  : 'text-black'
                           }`}
                       />
                       <Button
