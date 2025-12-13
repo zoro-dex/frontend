@@ -81,14 +81,9 @@ export function SwapSuccess({
           }`}
         >
           <div className='bg-background border border-border rounded-2xl shadow-xl p-4'>
-            <div className='flex items-center justify-between mb-3'>
-              <div className='flex items-center gap-2'>
-                <img
-                  src='/zoro-orange.svg'
-                  alt='Zoro'
-                  className='w-8 h-8 -mt-1'
-                />
-                <span className='font-semibold text-sm'>Swap note created.</span>
+            <div className='flex mb-3'>
+              <div className='flex flex-grow font-semibold text-sm text-center'>
+                Swap note created
               </div>
               <Button
                 variant='ghost'
@@ -99,18 +94,16 @@ export function SwapSuccess({
                 <X className='h-3 w-3' />
               </Button>
             </div>
-
             {swapDetails && (
               <div className='mb-4'>
-                <div className='text-xs mb-3'>Order sent:</div>
-                <div className='flex items-center justify-between px-3 text-sm'>
+                <div className='flex gap-2 text-sm p-2 bg-muted/50 rounded-md'>
                   <div className='dark:text-red-200 text-red-700'>
                     {formalBigIntFormat({
                       val: swapDetails.sellAmount ?? BigInt(0),
                       expo: swapDetails.sellToken?.decimals || 6,
                     })} {swapDetails?.sellToken?.symbol}
                   </div>
-                  <span className='text-muted-foreground text-xs'>for</span>
+                  <span className='text-muted-foreground text-xs'>→</span>
                   <div className='dark:text-green-200 text-green-700'>
                     {formalBigIntFormat({
                       val: swapDetails.buyAmount ?? BigInt(0),
@@ -121,7 +114,7 @@ export function SwapSuccess({
               </div>
             )}
             <div className='text-xs text-left mb-4'>
-              You can claim your tokens in the wallet.
+              Claim your tokens in the wallet.
             </div>
             <div className='space-y-2'>
               <div>
@@ -154,7 +147,7 @@ export function SwapSuccess({
                 </div>
                 <Button
                   onClick={handleClose}
-                  className='mt-5 w-full h-full opacity-90 hover:opacity-100'
+                  className='mt-5 w-full h-full'
                   variant='secondary'
                 >
                   OK

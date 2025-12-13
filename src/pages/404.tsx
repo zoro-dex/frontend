@@ -9,11 +9,6 @@ function NotFound() {
       <Header />
       <main className='flex-1 flex items-center justify-center p-4 mt-10'>
         <div className='text-center space-y-6'>
-          <img
-            src='/zoro-orange.svg'
-            alt='Zoro logo'
-            className='w-64 h-auto mx-auto -mb-4'
-          />
           <div className='space-y-2 font-cal-sans'>
             <h1 className='text-6xl font-bold'>404</h1>
             <p className='text-xl'>
