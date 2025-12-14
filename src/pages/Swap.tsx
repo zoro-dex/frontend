@@ -293,35 +293,33 @@ function Swap() {
                         className={`border-none text-xl sm:text-2xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner ${
                           sellInputError
                             ? 'text-orange-600 placeholder:text-destructive/50'
-                            : 'text-black'
+                            : ''
                         }`}
                       />
                       <Button
                         variant='outline'
                         size='sm'
-                        className='border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background'
+                        className='h-auto border-1 rounded-xl px-3 py-2 text-xs sm:text-sm bg-background cursor-default hover:bg-background'
                       >
                         {selectedAssetSell && (
                           <>
                             <img
                               src={selectedAssetSell.icon}
                               alt='sell token logo'
-                              className={`w-8 h-8 -ml-2 ${
-                                selectedAssetSell.iconClass || ''
-                              }`}
+                              className={`${selectedAssetSell.iconClass || ''}`}
                             />
                             {selectedAssetSell.symbol}
                           </>
                         )}
                       </Button>
                     </div>
-                    <div className='flex items-center justify-between text-xs h-5'>
-                      {sellInputError && (
+                    {sellInputError && (
+                      <div className='flex items-center justify-between text-xs h-5'>
                         <p className='text-xs text-orange-600'>
                           {sellInputError}
                         </p>
-                      )}
-                    </div>
+                      </div>
+                    )}
                     <div className='flex items-center justify-between text-xs h-5'>
                       <div>{usdValueSell ? `$${usdValueSell}` : ''}</div>
                       {accountId && balanceSell
@@ -418,16 +416,14 @@ function Swap() {
                       <Button
                         variant='outline'
                         size='sm'
-                        className='border-b-0 border-l-0 rounded-full pl-0 text-xs sm:text-sm bg-background cursor-default hover:bg-background'
+                        className='h-auto border-1 rounded-xl px-3 py-2 text-xs sm:text-sm bg-background cursor-default hover:bg-background'
                       >
                         {selectedAssetBuy && (
                           <>
                             <img
                               src={selectedAssetBuy.icon}
                               alt='buy token logo'
-                              className={`w-8 h-8 -ml-2 ${
-                                selectedAssetBuy.iconClass || ''
-                              }`}
+                              className={`${selectedAssetBuy.iconClass || ''}`}
                             />
                             {selectedAssetBuy.symbol}
                           </>
