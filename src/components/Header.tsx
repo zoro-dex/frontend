@@ -1,14 +1,16 @@
 import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter';
 import { Link } from 'react-router-dom';
+import { ModeToggle } from './ModeToggle';
 
 export function Header() {
   return (
     <div className='flex items-start justify-center p-4 relative'>
       {/* Testnet badge - top left */}
-      <div className='absolute left-4 top-4'>
+      <div className='absolute left-4 top-4 flex gap-2'>
         <div className='bg-muted/60 text-muted-foreground px-3 py-2 rounded-lg text-xs font-medium border border-border/50'>
           testnet 0.12.5
         </div>
+        <ModeToggle />
       </div>
 
       {/* Centered logo and title */}
@@ -18,7 +20,13 @@ export function Header() {
             src='/zoro-logo-full.svg'
             alt='Zoro logo'
             title='ZoroSwap'
-            className='h-16 w-16 sm:h-20 sm:w-20'
+            className='h-16 w-16 sm:h-20 sm:w-20 dark:hidden'
+          />
+          <img
+            src='/zoro-logo-full-white.svg'
+            alt='Zoro logo'
+            title='ZoroSwap'
+            className='h-16 w-16 sm:h-20 sm:w-20 dark:block hidden'
           />
         </h1>
       </Link>

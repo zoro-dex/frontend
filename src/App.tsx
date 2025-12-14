@@ -44,7 +44,7 @@ function App() {
         <WalletModalProvider>
           <NablaAntennaProvider>
             <ZoroProvider>
-              <ThemeProvider defaultTheme='dark' storageKey='vite-ui-theme'>
+              <ThemeProvider storageKey='vite-ui-theme'>
                 <AppRouter />
                 <ToastContainer
                   position='top-center'

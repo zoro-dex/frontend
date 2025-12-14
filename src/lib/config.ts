@@ -72,7 +72,7 @@ export const TOKEN_ICONS: Record<string, { icon: string; iconClass?: string }> =
   },
   ETH: {
     icon: '/ETH.svg',
-    iconClass: 'dark:invert',
+    iconClass: '',
   },
 } as const;
 
