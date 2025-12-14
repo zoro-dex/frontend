@@ -276,7 +276,7 @@ function Swap() {
     <div className='min-h-screen bg-background text-foreground flex flex-col relative dotted-bg'>
       <Header />
       <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-4'>
-        <div className='w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6'>
+        <div className='w-full max-w-sm sm:max-w-md space-y-2 sm:space-y-4'>
           {/* Sell Card */}
           <Card className='border rounded-sm sm:rounded-2sm'>
             <CardContent className='p-3 sm:p-4 space-y-2 sm:space-y-3'>
