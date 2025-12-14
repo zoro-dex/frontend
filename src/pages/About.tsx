@@ -8,12 +8,12 @@ function About() {
   return (
     <div className='min-h-screen bg-background text-foreground flex flex-col dotted-bg'>
       <Helmet>
-          <title>Zoro Swap – DeFi on Miden</title>
-          <meta name="description" content="About the Zoro Swap DEX." />
+          <title>About Zoro DEX: Next-Gen AMM on Miden</title>
+          <meta name="description" content="About the Zoro Swap AMM: Zero MEV, minimal slippage, complete privacy." />
           <meta property="og:title" content="Zoro Swap – DeFi on Miden" />
-          <meta property="og:description" content="About the Zoro Swap DEX." />
+          <meta property="og:description" content="About the Zoro Swap AMM: Zero MEV, minimal slippage, complete privacy." />
           <meta name="twitter:title" content="Zoro Swap – DeFi on Miden" />
-          <meta name="twitter:description" content="About the Zoro Swap DEX." />
+          <meta name="twitter:description" content="About the Zoro Swap AMM: Zero MEV, minimal slippage, complete privacy." />
       </Helmet>
       <Header />
       <main className='flex-1 flex items-center justify-center p-4 mt-10'>
