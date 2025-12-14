@@ -6,6 +6,7 @@ import {
 } from '@demox-labs/miden-wallet-adapter';
 import { useMemo } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import About from './pages/about';
 import NotFound from './pages/404';
 import FaucetPage from './pages/Faucet';
@@ -41,32 +42,34 @@ function App() {
     [],
   );
   return (
-    <QueryClientProvider client={queryClient}>
-      <WalletProvider wallets={wallets} autoConnect>
-        <WalletModalProvider>
-          <NablaAntennaProvider>
-            <ZoroProvider>
-              <ThemeProvider defaultTheme='dark' storageKey='vite-ui-theme'>
-                <AppRouter />
-                <ToastContainer
-                  position='top-center'
-                  autoClose={5000}
-                  hideProgressBar={false}
-                  newestOnTop={false}
-                  closeOnClick={false}
-                  rtl={false}
-                  pauseOnFocusLoss
-                  draggable
-                  pauseOnHover
-                  theme='dark'
-                  transition={Bounce}
-                />
-              </ThemeProvider>
-            </ZoroProvider>
-          </NablaAntennaProvider>
-        </WalletModalProvider>
-      </WalletProvider>
-    </QueryClientProvider>
+    <HelmetProvider>
+      <QueryClientProvider client={queryClient}>
+        <WalletProvider wallets={wallets} autoConnect>
+          <WalletModalProvider>
+            <NablaAntennaProvider>
+              <ZoroProvider>
+                <ThemeProvider defaultTheme='dark' storageKey='vite-ui-theme'>
+                  <AppRouter />
+                  <ToastContainer
+                    position='top-center'
+                    autoClose={5000}
+                    hideProgressBar={false}
+                    newestOnTop={false}
+                    closeOnClick={false}
+                    rtl={false}
+                    pauseOnFocusLoss
+                    draggable
+                    pauseOnHover
+                    theme='dark'
+                    transition={Bounce}
+                  />
+                </ThemeProvider>
+              </ZoroProvider>
+            </NablaAntennaProvider>
+          </WalletModalProvider>
+        </WalletProvider>
+      </QueryClientProvider>
+    </HelmetProvider>
   );
 }
 
