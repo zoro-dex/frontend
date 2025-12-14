@@ -277,6 +277,7 @@ function Swap() {
       <Header />
       <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-4'>
         <div className='w-full max-w-sm sm:max-w-md space-y-2 sm:space-y-4'>
+          <h1 className='sr-only'>Swap Tokens</h1>
           {/* Sell Card */}
           <Card className='border rounded-sm sm:rounded-2sm'>
             <CardContent className='p-3 sm:p-4 space-y-2 sm:space-y-3'>
