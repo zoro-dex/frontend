@@ -6,6 +6,7 @@ import {
 } from '@demox-labs/miden-wallet-adapter';
 import { useMemo } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import About from './pages/about';
 import NotFound from './pages/404';
 import FaucetPage from './pages/Faucet';
 import SwapPage from './pages/Swap';
@@ -23,6 +24,7 @@ function AppRouter() {
       <Routes>
         <Route path='/' element={<SwapPage />} />
         <Route path='/faucet' element={<FaucetPage />} />
+          <Route path='/about' element={<About />} />
         <Route path='*' element={<NotFound />} />
       </Routes>
     </Router>
