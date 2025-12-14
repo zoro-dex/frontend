@@ -1,5 +1,6 @@
 import { createContext } from 'react';
-import type { Theme } from 'react-toastify';
+
+export type Theme = 'dark' | 'light' | 'system';
 
 type ThemeProviderState = {
   theme: Theme;

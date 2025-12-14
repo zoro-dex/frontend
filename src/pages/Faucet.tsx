@@ -112,14 +112,6 @@ function Faucet() {
     }
   }, [connected, accountId, updateMintStatus, tokens]);
 
-  const getStatusIcon = (status: MintStatus): React.ReactNode => {
-    if (status.isLoading) {
-      return <Loader2 className='w-4 h-4 animate-spin text-blue-500' />;
-    }
-
-    return null;
-  };
-
   const getButtonText = (tokenSymbol: string, status: MintStatus): string => {
     return status.isLoading ? `Minting ${tokenSymbol}...` : `Request ${tokenSymbol}`;
   };
