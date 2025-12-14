@@ -9,7 +9,7 @@ import { type FaucetMintResult, mintFromFaucet } from '@/services/faucet';
 import { useWallet } from '@demox-labs/miden-wallet-adapter';
 import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter';
 import { Loader2 } from 'lucide-react';
-import { useCallback, useContext, useEffect, useState } from 'react';
+import { Fragment, useCallback, useContext, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 interface MintStatus {
@@ -112,14 +112,6 @@ function Faucet() {
     }
   }, [connected, accountId, updateMintStatus, tokens]);
 
-  const getStatusIcon = (status: MintStatus): React.ReactNode => {
-    if (status.isLoading) {
-      return <Loader2 className='w-4 h-4 animate-spin text-blue-500' />;
-    }
-
-    return null;
-  };
-
   const getButtonText = (tokenSymbol: string, status: MintStatus): string => {
     return status.isLoading ? `Minting ${tokenSymbol}...` : `Request ${tokenSymbol}`;
   };
@@ -132,8 +124,8 @@ function Faucet() {
     return (
       <div className='flex flex-col items-center justify-center min-h-screen p-3 pb-10'>
         <div className='w-full max-w-sm sm:max-w-md space-y-4'>
-          <Skeleton className='h-[160px] w-full rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-teal-200 dark:border-teal-600/75' />
-          <Skeleton className='h-[160px] w-full rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-teal-200 dark:border-teal-600/75' />
+          <Skeleton className='h-[160px] w-full rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-orange-200 dark:border-orange-600/75' />
+          <Skeleton className='h-[160px] w-full rounded-xl transition-all duration-400 ease-out opacity-20 border-2 border-orange-200 dark:border-orange-600/75' />
         </div>
       </div>
     );
@@ -141,7 +133,7 @@ function Faucet() {
 
   if (Object.keys(tokens).length === 0) {
     return (
-      <div className='min-h-screen bg-background text-foreground flex flex-col'>
+      <div className='min-h-screen bg-background text-foreground flex flex-col dotted-bg'>
         <Header />
         <main className='flex-1 flex items-center justify-center'>
           <div className='text-center space-y-4'>
@@ -156,105 +148,108 @@ function Faucet() {
   }
 
   return (
-    <div className='min-h-screen bg-background text-foreground flex flex-col'>
+    <div className='min-h-screen bg-background text-foreground flex flex-col dotted-bg'>
+      <title>Faucet - ZoroSwap | DeFi on Miden</title>
+      <meta name='description' content='Testnet faucet for the Zoro Swap AMM.' />
+      <meta property='og:title' content='Faucet - ZoroSwap | DeFi on Miden' />
+      <meta property='og:description' content='Testnet faucet for the Zoro Swap AMM.' />
+      <meta name='twitter:title' content='Faucet - ZoroSwap | DeFi on Miden' />
+      <meta name='twitter:description' content='Testnet faucet for the Zoro Swap AMM.' />
       <Header />
       <main className='flex-1 flex items-center justify-center p-3'>
-        <div className='w-full max-w-sm sm:max-w-md space-y-4'>
-          <div className='space-y-4'>
-            {Object.values(tokens).map((token) => {
+        <div className='w-full max-w-[495px]'>
+          <div>
+            {Object.values(tokens).map((token, index) => {
               const status = mintStatuses[token.symbol];
 
               if (!token || !status) return null;
+              const lineBetween = index > 0
+                ? <div className='border border-bottom-0 border-dashed my-6 opacity-50' />
+                : null;
 
               return (
-                <Card
-                  key={token.symbol}
-                  className='rounded-xl hover:shadow-lg transition-all duration-200 hover:border-green-200/10'
-                >
-                  <CardContent className='p-4 sm:p-6'>
-                    <div className='flex items-center gap-4 mb-4'>
+                <Fragment key={token.faucetId.toString()}>
+                  {lineBetween}
+                  <Card
+                    key={token.symbol}
+                    className='rounded-xl transition-all duration-200 hover:border-orange-200/10 mb-4'
+                  >
+                    <CardContent className='p-4 sm:p-6 flex gap-1 flex-col items-center'>
                       <img
                         src={token.icon}
                         alt={token.name}
-                        className={`w-10 h-10 sm:w-12 sm:h-12 ${token.iconClass || ''}`}
+                        className={`w-6 h-6 ${token.iconClass || ''}`}
                       />
-                      <div className='flex-1'>
-                        <h3 className='text-lg sm:text-xl font-semibold'>
-                          Test {token.name}
-                        </h3>
-                        <div className='text-xs text-muted-foreground font-mono overflow-hidden'>
-                          <span className='hidden sm:inline'>
-                            {accountIdToBech32(token.faucetId)}
-                          </span>
-                          <span className='sm:hidden break-all'>
-                            {accountIdToBech32(token.faucetId)}
-                          </span>
-                        </div>
+                      <h3 className='text-md sm:text-lg font-semibold'>
+                        Test {token.name}
+                      </h3>
+                      <div className='text-xs text-muted-foreground overflow-hidden'>
+                        <span className='hidden sm:inline'>
+                          {accountIdToBech32(token.faucetId)}
+                        </span>
+                        <span className='sm:hidden break-all'>
+                          {accountIdToBech32(token.faucetId)}
+                        </span>
                       </div>
-                      {getStatusIcon(status)}
-                    </div>
-
-                    <div className='space-y-3'>
+                    </CardContent>
+                  </Card>
+                  {connected && (
+                    <Button
+                      onClick={() => requestTokens(token.symbol)}
+                      disabled={isButtonDisabled(status)}
+                      className='w-full h-8 sm:h-12 bg-primary hover:bg-orange-700 text-white font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+                    >
+                      {status.isLoading && (
+                        <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                      )}
+                      {getButtonText(token.symbol, status)}
+                    </Button>
+                  )}
+                  {!connected && (
+                    <WalletMultiButton className='!font-bold !p-5 w-full !font-semibold !font-sans h-full !rounded-xl !text-sm sm:!text-lg !bg-primary !text-primary-foreground hover:!bg-primary/90 !border-none !text-center !flex !items-center !justify-center'>
+                      Connect
+                    </WalletMultiButton>
+                  )}
+                  <div
+                    className={`overflow-hidden transition-all duration-300 ease-out ${
+                      status.lastResult && status.showMessage
+                        ? 'max-h-20 opacity-100 mb-3'
+                        : 'max-h-0 opacity-0 mb-0'
+                    }`}
+                  >
+                    {status.lastResult && (
                       <div
-                        className={`overflow-hidden transition-all duration-300 ease-out ${
-                          status.lastResult && status.showMessage
-                            ? 'max-h-20 opacity-100 mb-3'
-                            : 'max-h-0 opacity-0 mb-0'
+                        className={`text-xs p-2 rounded-md transform transition-all duration-300 ease-out text-center ${
+                          status.showMessage
+                            ? 'translate-y-0 scale-100'
+                            : '-translate-y-2 scale-95'
+                        } ${
+                          status.lastResult.success
+                            ? 'bg-transparent text-black dark:text-green-300'
+                            : 'bg-transparent text-red-800 dark:text-red-200'
                         }`}
                       >
-                        {status.lastResult && (
-                          <div
-                            className={`text-xs p-2 rounded-md transform transition-all duration-300 ease-out ${
-                              status.showMessage
-                                ? 'translate-y-0 scale-100'
-                                : '-translate-y-2 scale-95'
-                            } ${
-                              status.lastResult.success
-                                ? 'bg-transparent text-teal-800 dark:text-teal-200'
-                                : 'bg-transparent text-red-800 dark:text-red-200'
-                            }`}
-                          >
-                            {status.lastResult.message}
-                            {status.lastResult.transactionId && (
-                              <div className='mt-1 font-mono text-xs opacity-75 break-all'>
-                                TX: {status.lastResult.transactionId}
-                              </div>
-                            )}
+                        {status.lastResult.message}
+                        {status.lastResult.transactionId && (
+                          <div className='mt-1 font-mono text-xs opacity-75 break-all'>
+                            TX: {status.lastResult.transactionId}
                           </div>
                         )}
                       </div>
-                      {connected && (
-                        <Button
-                          onClick={() => requestTokens(token.symbol)}
-                          disabled={isButtonDisabled(status)}
-                          className='w-full bg-teal-800 hover:bg-teal-700 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
-                        >
-                          {status.isLoading && (
-                            <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-                          )}
-                          {getButtonText(token.symbol, status)}
-                        </Button>
-                      )}
-                      {!connected && (
-                        <WalletMultiButton className='!p-5 !w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-teal-800 dark:!text-teal-200 animate-pulse hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center'>
-                          Connect
-                        </WalletMultiButton>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                    )}
+                  </div>
+                </Fragment>
               );
             })}
           </div>
-
-          <div className='text-center'>
+          <div className='pt-4'>
             <Link to='/'>
               <Button
-                variant='ghost'
+                variant='secondary'
                 size='sm'
                 className='text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors'
               >
-                ← Back to Zoro
+                ← Back to Swap
               </Button>
             </Link>
           </div>

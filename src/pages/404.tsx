@@ -5,15 +5,13 @@ import { Link } from 'react-router-dom';
 
 function NotFound() {
   return (
-    <div className='min-h-screen bg-background text-foreground flex flex-col'>
+    <div className='min-h-screen bg-background text-foreground flex flex-col dotted-bg'>
+      <title>Page not found | ZoroSwap</title>
+      <meta property='og:title' content='Page not found | ZoroSwap' />
+      <meta name='twitter:title' content='Page not found | ZoroSwap' />
       <Header />
       <main className='flex-1 flex items-center justify-center p-4 mt-10'>
         <div className='text-center space-y-6'>
-          <img
-            src='/zoro_logo_with_outline.svg'
-            alt='Zoro logo'
-            className='w-64 h-auto mx-auto -mb-4'
-          />
           <div className='space-y-2 font-cal-sans'>
             <h1 className='text-6xl font-bold'>404</h1>
             <p className='text-xl'>
@@ -27,7 +25,7 @@ function NotFound() {
                 size='sm'
                 className='text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors'
               >
-                ← Get back
+                ← Back to Swap
               </Button>
             </Link>
           </div>

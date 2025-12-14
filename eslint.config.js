@@ -12,7 +12,7 @@ import tseslint from 'typescript-eslint';
 export default defineConfig([
   {
     files: ['**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-    plugins: { js, 'react': pluginReact, 'react-hooks': reactHooks },
+    plugins: { js, 'react': pluginReact },
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
@@ -41,3 +41,4 @@ export default defineConfig([
     extends: ['css/recommended'],
   },
 ]);
+
