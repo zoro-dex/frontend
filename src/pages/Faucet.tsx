@@ -9,7 +9,7 @@ import { type FaucetMintResult, mintFromFaucet } from '@/services/faucet';
 import { useWallet } from '@demox-labs/miden-wallet-adapter';
 import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter';
 import { Loader2 } from 'lucide-react';
-import { useCallback, useContext, useEffect, useState } from 'react';
+import { Fragment, useCallback, useContext, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 interface MintStatus {
@@ -159,95 +159,97 @@ function Faucet() {
     <div className='min-h-screen bg-background text-foreground flex flex-col dotted-bg'>
       <Header />
       <main className='flex-1 flex items-center justify-center p-3'>
-        <div className='w-full max-w-sm sm:max-w-md space-y-4'>
-          <div className='space-y-4'>
-            {Object.values(tokens).map((token) => {
+        <div className='w-full max-w-[495px]'>
+          <div>
+            {Object.values(tokens).map((token, index) => {
               const status = mintStatuses[token.symbol];
 
               if (!token || !status) return null;
+              const lineBetween = index > 0
+                ? <div className='border border-bottom-0 border-dashed my-6 opacity-50' />
+                : null;
 
               return (
-                <Card
-                  key={token.symbol}
-                  className='rounded-xl transition-all duration-200 hover:border-orange-200/10'
-                >
-                  <CardContent className='p-4 sm:p-6'>
-                    <div className='flex items-center gap-4 mb-4'>
+                <Fragment key={token.faucetId.toString()}>
+                  {lineBetween}
+                  <Card
+                    key={token.symbol}
+                    className='rounded-xl transition-all duration-200 hover:border-orange-200/10 mb-4'
+                  >
+                    <CardContent className='p-4 sm:p-6 flex gap-1 flex-col items-center'>
                       <img
                         src={token.icon}
                         alt={token.name}
-                        className={`w-10 h-10 sm:w-12 sm:h-12 ${token.iconClass || ''}`}
+                        className={`w-6 h-6 ${token.iconClass || ''}`}
                       />
-                      <div className='flex-1'>
-                        <h3 className='text-lg sm:text-xl font-semibold'>
-                          Test {token.name}
-                        </h3>
-                        <div className='text-xs text-muted-foreground font-mono overflow-hidden'>
-                          <span className='hidden sm:inline'>
-                            {accountIdToBech32(token.faucetId)}
-                          </span>
-                          <span className='sm:hidden break-all'>
-                            {accountIdToBech32(token.faucetId)}
-                          </span>
-                        </div>
+                      <h3 className='text-md sm:text-lg font-semibold'>
+                        Test {token.name}
+                      </h3>
+                      <div className='text-xs text-muted-foreground overflow-hidden'>
+                        <span className='hidden sm:inline'>
+                          {accountIdToBech32(token.faucetId)}
+                        </span>
+                        <span className='sm:hidden break-all'>
+                          {accountIdToBech32(token.faucetId)}
+                        </span>
                       </div>
                       {getStatusIcon(status)}
-                    </div>
 
-                    <div className='space-y-3'>
-                      <div
-                        className={`overflow-hidden transition-all duration-300 ease-out ${
-                          status.lastResult && status.showMessage
-                            ? 'max-h-20 opacity-100 mb-3'
-                            : 'max-h-0 opacity-0 mb-0'
-                        }`}
-                      >
-                        {status.lastResult && (
-                          <div
-                            className={`text-xs p-2 rounded-md transform transition-all duration-300 ease-out ${
-                              status.showMessage
-                                ? 'translate-y-0 scale-100'
-                                : '-translate-y-2 scale-95'
-                            } ${
-                              status.lastResult.success
-                                ? 'bg-transparent text-black dark:text-orange-200'
-                                : 'bg-transparent text-red-800 dark:text-red-200'
-                            }`}
-                          >
-                            {status.lastResult.message}
-                            {status.lastResult.transactionId && (
-                              <div className='mt-1 font-mono text-xs opacity-75 break-all'>
-                                TX: {status.lastResult.transactionId}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      {connected && (
-                        <Button
-                          onClick={() => requestTokens(token.symbol)}
-                          disabled={isButtonDisabled(status)}
-                          className='w-full bg-primary hover:bg-orange-700 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+                      <div className='space-y-3'>
+                        <div
+                          className={`overflow-hidden transition-all duration-300 ease-out ${
+                            status.lastResult && status.showMessage
+                              ? 'max-h-20 opacity-100 mb-3'
+                              : 'max-h-0 opacity-0 mb-0'
+                          }`}
                         >
-                          {status.isLoading && (
-                            <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                          {status.lastResult && (
+                            <div
+                              className={`text-xs p-2 rounded-md transform transition-all duration-300 ease-out ${
+                                status.showMessage
+                                  ? 'translate-y-0 scale-100'
+                                  : '-translate-y-2 scale-95'
+                              } ${
+                                status.lastResult.success
+                                  ? 'bg-transparent text-black dark:text-orange-200'
+                                  : 'bg-transparent text-red-800 dark:text-red-200'
+                              }`}
+                            >
+                              {status.lastResult.message}
+                              {status.lastResult.transactionId && (
+                                <div className='mt-1 font-mono text-xs opacity-75 break-all'>
+                                  TX: {status.lastResult.transactionId}
+                                </div>
+                              )}
+                            </div>
                           )}
-                          {getButtonText(token.symbol, status)}
-                        </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  {connected && (
+                    <Button
+                      onClick={() => requestTokens(token.symbol)}
+                      disabled={isButtonDisabled(status)}
+                      className='w-full bg-primary hover:bg-orange-700 text-white font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+                    >
+                      {status.isLoading && (
+                        <Loader2 className='w-4 h-4 mr-2 animate-spin' />
                       )}
-                      {!connected && (
-                        <WalletMultiButton className='!p-5 !w-full !h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-transparent !text-orange-800 dark:!text-orange-200 animate-pulse hover:!text-foreground hover:!bg-gray-500/10 !text-center !flex !items-center !justify-center'>
-                          Connect
-                        </WalletMultiButton>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                      {getButtonText(token.symbol, status)}
+                    </Button>
+                  )}
+                  {!connected && (
+                    <WalletMultiButton className='!font-bold !p-5 w-full h-full !rounded-xl !text-sm sm:!text-lg !bg-primary !text-primary-foreground hover:!bg-primary/90 !border-none !text-center !flex !items-center !justify-center'>
+                      Connect
+                    </WalletMultiButton>
+                  )}
+                </Fragment>
               );
             })}
           </div>
 
-          <div className='text-center'>
+          <div className='text-center mt-8'>
             <Link to='/'>
               <Button
                 variant='ghost'

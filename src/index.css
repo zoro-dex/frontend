@@ -44,9 +44,9 @@
   }
 
   .dark {
-    --background: 0 0% 8%;
+    --background: 0 0% 6%;
     --foreground: 0 0% 98%;
-    --card: 0 0% 11%;
+    --card: 0 0% 8%;
     --card-foreground: 0 0% 98%;
     --popover: 0 0% 13%;
     --popover-foreground: 0 0% 98%;
@@ -68,7 +68,7 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
-    --footer: 0, 0%, 6%;
+    --footer: 0, 0%, 4%;
     --bg-dots: 310, 15%, 10%;
   }
 }
@@ -103,4 +103,13 @@
 .dotted-bg {
   background-image: radial-gradient(circle at 7px 7px, hsl(var(--bg-dots)) 1px, transparent 1px);
   background-size: 15px 15px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Cal Sans", system-ui, sans-serif;
 }

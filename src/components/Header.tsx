@@ -7,8 +7,8 @@ export function Header() {
     <div className='flex items-start justify-center p-4 relative'>
       {/* Testnet badge - top left */}
       <div className='absolute left-4 top-4 flex gap-2'>
-        <div className='bg-muted/60 text-muted-foreground px-3 py-2 rounded-lg text-xs font-medium border border-border/50'>
-          testnet 0.12.5
+        <div className='bg-muted/60 text-muted-foreground px-3 py-2 rounded-lg text-xs border border-border/50'>
+          testnet 0.12
         </div>
         <ModeToggle />
       </div>

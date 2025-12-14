@@ -273,9 +273,9 @@ function Swap() {
     <div className='min-h-screen bg-background text-foreground flex flex-col relative dotted-bg'>
       <Header />
       <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-4'>
-        <div className='w-full max-w-xs sm:max-w-sm space-y-4 sm:space-y-4 '>
+        <div className='w-full max-w-[495px] space-y-4 sm:space-y-4 '>
           {/* Sell Card */}
-          <Card className='border rounded-sm sm:rounded-2sm bg-card'>
+          <Card className='border rounded-sm sm:rounded-md'>
             <CardContent className='p-3 sm:p-4 space-y-3 sm:space-y-4'>
               <div className='space-y-1'>
                 <div className='flex justify-between items-center'>
@@ -364,7 +364,7 @@ function Swap() {
                   y='0.000152588'
                   width='56.3444'
                   height='56.3444'
-                  className='fill-[#F9F9F9] group-hover:fill-primary/30 transition-all dark:fill-[#222222]'
+                  className='group-hover:fill-primary/10 transition-all fill-card'
                 />
                 <rect
                   x='0.352153'
@@ -377,7 +377,7 @@ function Swap() {
                   className='transition-all dark:stroke-white'
                 />
 
-                <g className=' transition-all duration-300 ease hover:rotate-[180deg] active:rotate-[180deg] origin-center'>
+                <g className='transition-all duration-300 ease hover:rotate-[180deg] active:rotate-[180deg] origin-center'>
                   <rect
                     x='0'
                     y='0'
@@ -398,8 +398,8 @@ function Swap() {
           </div>
 
           {/* Buy Card */}
-          <Card className='border rounded-sm sm:rounded-2sm'>
-            <CardContent className='p-3 sm:p-4 space-y-3 sm:space-y-4 bg-card'>
+          <Card className='border rounded-sm sm:rounded-md'>
+            <CardContent className='p-3 sm:p-4 space-y-3 sm:space-y-4'>
               <div className='space-y-1'>
                 <div className='text-xs sm:text-sm text-primary font-medium'>Buy</div>
                 <Card className='border-none'>
@@ -488,28 +488,30 @@ function Swap() {
                     <Button
                       disabled
                       variant='outline'
-                      className='w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
+                      className='w-full h-full rounded-xl font-bold text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
                     >
                       <Loader2 className='w-10 h-10 animate-spin' />
                     </Button>
                   )}
 
                   <div className={connecting ? 'invisible' : 'visible'}>
-                    <WalletMultiButton className='!p-5 w-full h-full !rounded-xl !font-medium !text-sm sm:!text-lg !bg-primary !text-primary-foreground hover:!bg-primary/90 !border-none !text-center !flex !items-center !justify-center'>
+                    <WalletMultiButton className='!p-5 w-full h-full !rounded-xl !font-bold !text-sm sm:!text-lg !bg-primary !text-primary-foreground hover:!bg-primary/90 !border-none !text-center !flex !items-center !justify-center'>
                       Connect Wallet
                     </WalletMultiButton>
                   </div>
                 </div>
               )}
           </div>
-          {selectedAssetBuy && selectedAssetSell && assetsPriceRatio
-            ? (
-              <p className='text-xs text-center opacity-40'>
-                1 {selectedAssetBuy.symbol} = {assetsPriceRatio?.toPrecision(8)}{' '}
-                {selectedAssetSell.symbol}
-              </p>
-            )
-            : null}
+          <p className='text-xs text-center opacity-40 min-h-6'>
+            {selectedAssetBuy && selectedAssetSell && assetsPriceRatio
+              ? (
+                <span>
+                  1 {selectedAssetBuy.symbol} = {assetsPriceRatio?.toPrecision(8)}{' '}
+                  {selectedAssetSell.symbol}
+                </span>
+              )
+              : null}
+          </p>
           <div className='absolute top-8 left-4'>
             <Link to='/faucet'>
               <Button
