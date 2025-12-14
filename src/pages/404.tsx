@@ -22,7 +22,7 @@ function NotFound() {
                 size='sm'
                 className='text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors'
               >
-                ← Get back
+                ← Back to Swap
               </Button>
             </Link>
           </div>

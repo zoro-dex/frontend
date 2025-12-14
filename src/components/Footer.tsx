@@ -41,6 +41,13 @@ export function Footer() {
                 fill="#FF5500"/>
           </svg>
         </a>
+
+        <a
+            href="/about"
+            className="text-primary hover:text-foreground transition-colors"
+        >
+            About us
+        </a>
       </div>
     </footer>
   );

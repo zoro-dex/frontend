@@ -244,15 +244,14 @@ function Faucet() {
               );
             })}
           </div>
-
-          <div className='text-center mt-8'>
+          <div className='pt-4'>
             <Link to='/'>
               <Button
-                variant='ghost'
+                variant='secondary'
                 size='sm'
                 className='text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors'
               >
-                ← Back to Zoro
+                ← Back to Swap
               </Button>
             </Link>
           </div>

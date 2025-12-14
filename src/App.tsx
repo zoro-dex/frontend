@@ -7,6 +7,7 @@ import {
 import { useMemo } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import NotFound from './pages/404';
+import About from './pages/About';
 import FaucetPage from './pages/Faucet';
 import SwapPage from './pages/Swap';
 import { ThemeProvider } from './providers/ThemeProvider';
@@ -23,6 +24,7 @@ function AppRouter() {
       <Routes>
         <Route path='/' element={<SwapPage />} />
         <Route path='/faucet' element={<FaucetPage />} />
+        <Route path='/about' element={<About />} />
         <Route path='*' element={<NotFound />} />
       </Routes>
     </Router>
