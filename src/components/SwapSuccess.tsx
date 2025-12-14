@@ -84,7 +84,7 @@ export function SwapSuccess({
             <div className='flex items-center justify-between mb-3'>
               <div className='flex items-center gap-2'>
                 <img
-                  src='/zoro-orange.svg'
+                  src='/zoro-dex-logo.svg'
                   alt='Zoro'
                   className='w-8 h-8 -mt-1'
                 />

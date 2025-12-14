@@ -16,8 +16,8 @@ export function Header() {
           <Link to="/" className="flex flex-col items-center gap-1">
               <div className="p-1 sm:p-2 rounded-xl">
                   <img
-                      src="/zoro-orange.svg"
-                      alt="Zoro"
+                      src="/zoro-dex-logo.svg"
+                      alt="Zoro DeFi"
                       className="h-12 w-12 sm:h-16 sm:w-16"
                   />
               </div>
