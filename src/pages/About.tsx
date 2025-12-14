@@ -22,10 +22,10 @@ function About() {
         content='About ZoroSwap AMM: Zero MEV, minimal slippage, complete privacy.'
       />
       <Header />
-      <main className='flex-1 flex items-center justify-center p-4 mt-10'>
+      <main className='flex-1 flex items-center justify-center p-4 sm:mt-10'>
         <div className='w-full text-left max-w-2xl sm:max-w-2xl space-y-2 sm:space-y-4'>
-          <div className='space-y-4 '>
-            <h1 className='text-3xl font-bold'>
+          <div className='space-y-5 sm:space-y-6'>
+            <h1 className='text-2xl sm:text-3xl font-bold'>
               About Us
             </h1>
             <p>
@@ -51,7 +51,7 @@ function About() {
               in one place.
             </p>
 
-            <h2 className='text-3xl font-bold'>
+            <h2 className='text-xl sm:text-2xl font-bold'>
               High-Performance & Private
             </h2>
             <p>
@@ -65,7 +65,7 @@ function About() {
               faster execution than traditional on-chain DEXes.
             </p>
 
-            <h2 className='text-3xl font-bold'>
+            <h2 className='text-xl sm:text-2xl font-bold'>
               Efficient Liquidity
             </h2>
             <p>
@@ -74,7 +74,7 @@ function About() {
               improving long-term sustainability.
             </p>
 
-            <h2 className='text-3xl font-bold'>
+            <h2 className='text-xl sm:text-2xl font-bold'>
               Built for Miden’s DeFi Ecosystem
             </h2>
             <p>
@@ -83,7 +83,7 @@ function About() {
               drive the growth of the broader Miden ecosystem.
             </p>
           </div>
-          <div className='pt-4'>
+          <div className='pt-8 sm:pt-4 pb-2 sm:pb-0 flex sm:justify-start justify-center sm:items-start'>
             <Link to='/'>
               <Button
                 variant='secondary'

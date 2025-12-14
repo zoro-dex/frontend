@@ -516,7 +516,7 @@ function Swap() {
               )
               : null}
           </p>
-          <div className='absolute top-8 left-4'>
+          <div className='text-center sm:text-left sm:absolute top-8 left-4'>
             <Link to='/faucet'>
               <Button
                 variant='ghost'
