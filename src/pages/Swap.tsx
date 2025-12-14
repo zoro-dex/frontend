@@ -273,24 +273,24 @@ function Swap() {
     <div className='min-h-screen bg-background text-foreground flex flex-col relative dotted-bg'>
       <Header />
       <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-4'>
-        <div className='w-full max-w-[495px] space-y-4 sm:space-y-4 '>
+        <div className='w-full max-w-[495px] space-y-4 sm:space-y-6'>
           {/* Sell Card */}
           <Card className='border rounded-sm sm:rounded-md'>
             <CardContent className='p-3 sm:p-4 space-y-3 sm:space-y-4'>
-              <div className='space-y-1'>
-                <div className='flex justify-between items-center'>
+              <div className='space-y-2'>
+                <div className='flex gap-1 sm:gap-2 justify-between items-center'>
                   <div className='text-xs sm:text-sm text-primary font-medium'>Sell</div>
                   <SwapSettings slippage={slippage} onSlippageChange={setSlippage} />
                 </div>
-                <Card className=' border-none'>
-                  <CardContent className='px-0 py-2 sm:px-0 sm:py-3 space-y-1'>
+                <Card className='border-none'>
+                  <CardContent className='!sm:px-0 !px-0 p-3 sm:p-4 space-y-2 sm:space-y-3'>
                     <div className='flex items-center justify-between gap-2'>
                       <Input
                         value={stringSell}
                         onChange={(e) => onInputChange(e.target.value)}
                         placeholder='0'
                         aria-errormessage={sellInputError}
-                        className={`border-none text-xl sm:text-2xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner ${
+                        className={`border-none text-3xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner ${
                           sellInputError
                             ? 'text-orange-600 placeholder:text-destructive/50'
                             : ''
@@ -387,7 +387,6 @@ function Swap() {
                     fill='transparent'
                     className='transition-all'
                   />
-
                   <path
                     d='M42.2621 23.9345L39.639 26.5554L39.639 22.4535C39.639 20.9267 38.9111 19.535 37.8719 18.4981C36.8349 17.4589 35.4432 16.731 33.9165 16.731C32.3691 16.7081 32.3691 19.0429 33.9165 19.02C34.6787 19.02 35.576 19.4366 36.2535 20.1164C36.9334 20.794 37.35 21.6912 37.35 22.4535L37.35 26.5576L34.7268 23.9322C33.6464 22.8106 31.9846 24.4724 33.1062 25.5528L37.5857 30.03C37.6923 30.1694 37.8294 30.2825 37.9866 30.3604C38.1438 30.4384 38.3168 30.4791 38.4922 30.4796C38.6676 30.48 38.8408 30.4401 38.9984 30.363C39.156 30.2858 39.2937 30.1735 39.4009 30.0346L39.4124 30.0209L43.8828 25.5482C44.954 24.5113 43.3425 22.8151 42.2621 23.9299M22.4669 37.348C21.7047 37.348 20.8074 36.9314 20.1299 36.2515C19.4501 35.574 19.0335 34.6767 19.0335 33.9145L19.0335 29.8126L21.6589 32.4358C22.7393 33.5436 24.3371 31.8544 23.2772 30.8175L18.7977 26.3379C18.6903 26.1976 18.5518 26.0841 18.3931 26.0062C18.2345 25.9284 18.06 25.8883 17.8833 25.8892C17.7065 25.8901 17.5324 25.9319 17.3746 26.0113C17.2167 26.0908 17.0794 26.2057 16.9734 26.3471L12.5007 30.8175C11.3791 31.8979 13.0409 33.5597 14.1213 32.4358L16.7445 29.8126L16.7445 33.9168C16.7445 35.4435 17.4724 36.8352 18.5116 37.8721C19.5485 38.9113 20.9402 39.6392 22.4669 39.6392C23.9891 39.6392 23.9891 37.3502 22.4669 37.3502'
                     className='fill-[#FF5500] light:group-hover:fill-black transition-all'
@@ -400,10 +399,10 @@ function Swap() {
           {/* Buy Card */}
           <Card className='border rounded-sm sm:rounded-md'>
             <CardContent className='p-3 sm:p-4 space-y-3 sm:space-y-4'>
-              <div className='space-y-1'>
+              <div className='space-y-2'>
                 <div className='text-xs sm:text-sm text-primary font-medium'>Buy</div>
                 <Card className='border-none'>
-                  <CardContent className='px-0 py-2 sm:px-0 sm:py-3 space-y-1'>
+                  <CardContent className='!sm:px-0 !px-0 p-3 sm:p-4 space-y-2 sm:space-y-3'>
                     <div className='flex items-center justify-between gap-2'>
                       <Input
                         type='number'
@@ -411,7 +410,7 @@ function Swap() {
                         onChange={emptyFn}
                         disabled
                         placeholder='0'
-                        className='border-none text-xl sm:text-2xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner bg-transparent'
+                        className='border-none text-3xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner bg-transparent'
                       />
                       <Button
                         variant='outline'
