@@ -1,4 +1,4 @@
-import { NablaAntennaProvider } from '@/providers/NablaAntennaProvider';
+import { OracleProvider } from '@/providers/OracleProvider';
 import {
   MidenWalletAdapter,
   WalletModalProvider,
@@ -42,7 +42,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
-          <NablaAntennaProvider>
+          <OracleProvider>
             <ZoroProvider>
               <ThemeProvider storageKey='vite-ui-theme'>
                 <AppRouter />
@@ -61,7 +61,7 @@ function App() {
                 />
               </ThemeProvider>
             </ZoroProvider>
-          </NablaAntennaProvider>
+          </OracleProvider>
         </WalletModalProvider>
       </WalletProvider>
     </QueryClientProvider>

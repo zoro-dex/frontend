@@ -1,14 +1,5 @@
-import { emptyFn } from '@/utils/shared';
-import {
-  createContext,
-  type ReactNode,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { OracleContext } from './OracleContext';
 
 const MAX_AGE = 3000;
 
@@ -17,7 +8,7 @@ export interface PriceData {
   publish_time: number;
 }
 
-interface NablaAntennaResponse {
+interface OracleResponse {
   binary: {
     data: `0x${string}`[];
     encoding: 'hex';
@@ -28,33 +19,7 @@ interface NablaAntennaResponse {
   }[];
 }
 
-interface NablaAntennaContextProps {
-  refreshPrices: (ids: string[], force?: boolean) => void;
-  prices: Record<string, { age: number; priceFeed: PriceData } | undefined>;
-  getBinary: (ids?: string[]) => Promise<string[]>;
-}
-
-export const NablaAntennaContext = createContext({
-  refreshPrices: emptyFn,
-  prices: {},
-  getBinary: () => Promise.resolve([]),
-} as NablaAntennaContextProps);
-
-export const useNablaAntennaPrices = (ids: string[]) => {
-  const { prices } = useContext(NablaAntennaContext);
-  const res = useMemo(() => {
-    const r: Record<string, PriceData> = {};
-    for (const id of ids) {
-      if (prices[id]) {
-        r[id] = prices[id].priceFeed;
-      }
-    }
-    return r;
-  }, [prices, ids]);
-  return res;
-};
-
-export const NablaAntennaProvider = ({ children }: { children: ReactNode }) => {
+export const OracleProvider = ({ children }: { children: ReactNode }) => {
   const [prices, setPrices] = useState<
     Record<string, { age: number; priceFeed: PriceData } | undefined>
   >({});
@@ -84,7 +49,7 @@ export const NablaAntennaProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      const resp = await fetchNablaAntennaPrices(
+      const resp = await fetchOraclePrices(
         want,
       );
 
@@ -115,13 +80,13 @@ export const NablaAntennaProvider = ({ children }: { children: ReactNode }) => {
   );
 
   return (
-    <NablaAntennaContext.Provider value={contextValue}>
+    <OracleContext.Provider value={contextValue}>
       {children}
-    </NablaAntennaContext.Provider>
+    </OracleContext.Provider>
   );
 };
 
-const fetchNablaAntennaPrices = async (
+const fetchOraclePrices = async (
   assetIds: string[],
 ): Promise<{
   priceFeeds: Record<string, PriceData>;
@@ -132,7 +97,7 @@ const fetchNablaAntennaPrices = async (
     params.append('id[]', assetId);
   }
   try {
-    const prices: NablaAntennaResponse = await fetch(
+    const prices: OracleResponse = await fetch(
       `https://antenna.nabla.fi/v1/updates/price/latest?${params}`,
     ).then((res) => res.json());
     return {

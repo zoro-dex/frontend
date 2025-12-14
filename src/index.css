@@ -6,9 +6,11 @@
   font-display: swap;
 }
 
+/* eslint-disable css/no-invalid-at-rules */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* eslint-enable css/no-invalid-at-rules */
 
 @layer base {
   :root {
@@ -85,6 +87,7 @@
   appearance: textfield;
 }
 
+/* eslint-disable css/no-invalid-at-rules */
 @layer base {
   * {
     @apply border-border;
@@ -94,6 +97,8 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* eslint-enable css/no-invalid-at-rules */
 
 .dotted-bg {
   background-image: radial-gradient(circle at 1px 1px, hsl(var(--bg-dots)) 1px, transparent 1px);

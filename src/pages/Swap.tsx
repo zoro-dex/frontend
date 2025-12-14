@@ -8,10 +8,7 @@ import { Input } from '@/components/ui/input';
 import { useBalance } from '@/hooks/useBalance';
 import { useSwap } from '@/hooks/useSwap';
 import { DEFAULT_SLIPPAGE } from '@/lib/config';
-import {
-  NablaAntennaContext,
-  useNablaAntennaPrices,
-} from '@/providers/NablaAntennaProvider';
+import { OracleContext, useOraclePrices } from '@/providers/OracleContext';
 import { ZoroContext } from '@/providers/ZoroContext';
 import { type TokenConfig } from '@/providers/ZoroProvider.tsx';
 import { formalNumberFormat, formatTokenAmount } from '@/utils/format.ts';
@@ -33,7 +30,7 @@ const validateValue = (val: bigint, max: bigint) => {
 };
 
 function Swap() {
-  const { refreshPrices } = useContext(NablaAntennaContext);
+  const { refreshPrices } = useContext(OracleContext);
   const { tokens, client, accountId } = useContext(
     ZoroContext,
   );
@@ -66,7 +63,7 @@ function Swap() {
     ...(selectedAssetSell?.oracleId ? [selectedAssetSell.oracleId] : []),
   ], [selectedAssetBuy?.oracleId, selectedAssetSell?.oracleId]);
 
-  const prices = useNablaAntennaPrices(priceIds);
+  const prices = useOraclePrices(priceIds);
 
   useEffect(() => {
     refreshPrices(priceIds);

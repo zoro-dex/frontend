@@ -1,10 +1,10 @@
 import { Button } from '@/components/ui/button';
-import { ThemeProviderContext } from '@/providers/ThemeProvider';
+import { ThemeContext } from '@/providers/ThemeContext';
 import { Moon, Sun } from 'lucide-react';
 import { useCallback, useContext } from 'react';
 
 export function ModeToggle() {
-  const { theme, setTheme } = useContext(ThemeProviderContext);
+  const { theme, setTheme } = useContext(ThemeContext);
 
   const toggleTheme = useCallback(() => {
     setTheme(theme === 'light' ? 'dark' : 'light');

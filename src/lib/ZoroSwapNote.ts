@@ -59,73 +59,69 @@ export async function compileSwapTransaction({
   userAccountId,
   client,
 }: SwapParams) {
-  try {
-    await client.syncState();
-    const builder = client.createScriptBuilder();
-    const script = builder.compileNoteScript(ZOROSWAP_SCRIPT);
-    const noteType = NoteType.Public;
-    const offeredAsset = new FungibleAsset(sellToken.faucetId, amount);
+  await client.syncState();
+  const builder = client.createScriptBuilder();
+  const script = builder.compileNoteScript(ZOROSWAP_SCRIPT);
+  const noteType = NoteType.Public;
+  const offeredAsset = new FungibleAsset(sellToken.faucetId, amount);
 
-    // Note should only contain the offered asset
-    const noteAssets = new NoteAssets([offeredAsset]);
-    const noteTag = NoteTag.fromAccountId(poolAccountId);
+  // Note should only contain the offered asset
+  const noteAssets = new NoteAssets([offeredAsset]);
+  const noteTag = NoteTag.fromAccountId(poolAccountId);
 
-    const metadata = new NoteMetadata(
-      userAccountId,
-      noteType,
-      noteTag,
-      NoteExecutionHint.always(),
-      new Felt(BigInt(0)), // aux
-    );
+  const metadata = new NoteMetadata(
+    userAccountId,
+    noteType,
+    noteTag,
+    NoteExecutionHint.always(),
+    new Felt(BigInt(0)), // aux
+  );
 
-    const deadline = Date.now() + 120_000; // 2 min from now
+  const deadline = Date.now() + 120_000; // 2 min from now
 
-    // Use the AccountId for p2id tag
-    const p2idTag = NoteTag.fromAccountId(userAccountId).asU32();
+  // Use the AccountId for p2id tag
+  const p2idTag = NoteTag.fromAccountId(userAccountId).asU32();
 
-    // Following the pattern: [asset_id_prefix, asset_id_suffix, 0, min_amount_out]
-    const inputs = new NoteInputs(
-      new FeltArray([
-        new Felt(minAmountOut),
-        new Felt(BigInt(0)),
-        buyToken.faucetId.suffix(),
-        buyToken.faucetId.prefix(),
-        new Felt(BigInt(deadline)),
-        new Felt(BigInt(p2idTag)),
-        new Felt(BigInt(0)),
-        new Felt(BigInt(0)),
-        new Felt(BigInt(0)),
-        new Felt(BigInt(0)),
-        userAccountId.suffix(),
-        userAccountId.prefix(),
-      ]),
-    );
+  // Following the pattern: [asset_id_prefix, asset_id_suffix, 0, min_amount_out]
+  const inputs = new NoteInputs(
+    new FeltArray([
+      new Felt(minAmountOut),
+      new Felt(BigInt(0)),
+      buyToken.faucetId.suffix(),
+      buyToken.faucetId.prefix(),
+      new Felt(BigInt(deadline)),
+      new Felt(BigInt(p2idTag)),
+      new Felt(BigInt(0)),
+      new Felt(BigInt(0)),
+      new Felt(BigInt(0)),
+      new Felt(BigInt(0)),
+      userAccountId.suffix(),
+      userAccountId.prefix(),
+    ]),
+  );
 
-    const note = new Note(
-      noteAssets,
-      metadata,
-      new NoteRecipient(generateRandomSerialNumber(), script, inputs),
-    );
+  const note = new Note(
+    noteAssets,
+    metadata,
+    new NoteRecipient(generateRandomSerialNumber(), script, inputs),
+  );
 
-    const noteId = note.id().toString();
+  const noteId = note.id().toString();
 
-    const transactionRequest = new TransactionRequestBuilder()
-      .withOwnOutputNotes(new MidenArrays.OutputNoteArray([OutputNote.full(note)]))
-      .build();
+  const transactionRequest = new TransactionRequestBuilder()
+    .withOwnOutputNotes(new MidenArrays.OutputNoteArray([OutputNote.full(note)]))
+    .build();
 
-    const tx = new CustomTransaction(
-      accountIdToBech32(userAccountId),
-      accountIdToBech32(poolAccountId),
-      transactionRequest,
-      [],
-      [],
-    );
+  const tx = new CustomTransaction(
+    accountIdToBech32(userAccountId),
+    accountIdToBech32(poolAccountId),
+    transactionRequest,
+    [],
+    [],
+  );
 
-    return {
-      tx,
-      noteId,
-    };
-  } catch (error) {
-    throw error;
-  }
+  return {
+    tx,
+    noteId,
+  };
 }
