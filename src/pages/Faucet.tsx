@@ -11,6 +11,7 @@ import { WalletMultiButton } from '@demox-labs/miden-wallet-adapter';
 import { Loader2 } from 'lucide-react';
 import { useCallback, useContext, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import {Helmet} from "react-helmet-async";
 
 interface MintStatus {
   readonly isLoading: boolean;
@@ -157,6 +158,14 @@ function Faucet() {
 
   return (
     <div className='min-h-screen bg-background text-foreground flex flex-col dotted-bg'>
+      <Helmet>
+          <title>Zoro Swap – Testnet Faucet</title>
+          <meta name="description" content="Testnet faucet for the Zoro Swap AMM." />
+          <meta property="og:title" content="Zoro Swap – Testnet Faucet" />
+          <meta property="og:description" content="Testnet faucet for the Zoro Swap AMM." />
+          <meta name="twitter:title" content="Zoro Swap – Testnet Faucet" />
+          <meta name="twitter:description" content="Testnet faucet for the Zoro Swap AMM." />
+      </Helmet>
       <Header />
       <main className='flex-1 flex items-center justify-center p-3'>
         <div className='w-full max-w-sm sm:max-w-md space-y-4'>
