@@ -157,6 +157,12 @@ function Faucet() {
 
   return (
     <div className='min-h-screen bg-background text-foreground flex flex-col dotted-bg'>
+      <title>Faucet - ZoroSwap | DeFi on Miden</title>
+      <meta name='description' content='Testnet faucet for the Zoro Swap AMM.' />
+      <meta property='og:title' content='Faucet - ZoroSwap | DeFi on Miden' />
+      <meta property='og:description' content='Testnet faucet for the Zoro Swap AMM.' />
+      <meta name='twitter:title' content='Faucet - ZoroSwap | DeFi on Miden' />
+      <meta name='twitter:description' content='Testnet faucet for the Zoro Swap AMM.' />
       <Header />
       <main className='flex-1 flex items-center justify-center p-3'>
         <div className='w-full max-w-[495px]'>

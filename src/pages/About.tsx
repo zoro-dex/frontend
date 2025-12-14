@@ -6,6 +6,21 @@ import { Link } from 'react-router-dom';
 function About() {
   return (
     <div className='min-h-screen bg-background text-foreground flex flex-col dotted-bg'>
+      <title>About - ZoroSwap | DeFi on Miden</title>
+      <meta
+        name='description'
+        content='About ZoroSwap AMM: Zero MEV, minimal slippage, complete privacy.'
+      />
+      <meta property='og:title' content='About - ZoroSwap | DeFi on Miden' />
+      <meta
+        property='og:description'
+        content='About ZoroSwap AMM: Zero MEV, minimal slippage, complete privacy.'
+      />
+      <meta name='twitter:title' content='About - ZoroSwap | DeFi on Miden' />
+      <meta
+        name='twitter:description'
+        content='About ZoroSwap AMM: Zero MEV, minimal slippage, complete privacy.'
+      />
       <Header />
       <main className='flex-1 flex items-center justify-center p-4 mt-10'>
         <div className='w-full text-left max-w-2xl sm:max-w-2xl space-y-2 sm:space-y-4'>

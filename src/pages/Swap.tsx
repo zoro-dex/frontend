@@ -271,12 +271,17 @@ function Swap() {
 
   return (
     <div className='min-h-screen bg-background text-foreground flex flex-col relative dotted-bg'>
+      <title>Swap - ZoroSwap | DeFi on Miden</title>
+      <meta property='og:title' content='Swap - ZoroSwap | DeFi on Miden' />
+      <meta name='twitter:title' content='Swap - ZoroSwap | DeFi on Miden' />
+
       <Header />
       <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-4'>
         <div className='w-full max-w-[495px] space-y-4 sm:space-y-6'>
           {/* Sell Card */}
           <Card className='border rounded-sm sm:rounded-md'>
             <CardContent className='p-3 sm:p-4 space-y-3 sm:space-y-4'>
+              <h1 className='sr-only'>Swap Tokens</h1>
               <div className='space-y-2'>
                 <div className='flex gap-1 sm:gap-2 justify-between items-center'>
                   <div className='text-xs sm:text-sm text-primary font-medium'>Sell</div>
