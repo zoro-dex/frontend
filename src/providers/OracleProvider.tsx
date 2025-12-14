@@ -1,3 +1,4 @@
+import { ORACLE } from '@/lib/config';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { OracleContext } from './OracleContext';
 
@@ -98,7 +99,7 @@ const fetchOraclePrices = async (
   }
   try {
     const prices: OracleResponse = await fetch(
-      `https://antenna.nabla.fi/v1/updates/price/latest?${params}`,
+      `${ORACLE.endpoint}?${params}`,
     ).then((res) => res.json());
     return {
       priceFeeds: prices.parsed.reduce((allFeeds, feed) => ({
