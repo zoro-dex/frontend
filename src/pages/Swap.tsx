@@ -453,7 +453,7 @@ function Swap() {
                   disabled={connecting || isLoadingSwap || !client
                     || stringSell === '' || !!sellInputError}
                   variant='outline'
-                  className={`w-full h-full rounded-xl font-medium text-sm sm:text-lg transition-colors disabled:pointer-events-none disabled:opacity-50 ${
+                  className={`w-full h-full rounded-xl font-bold text-sm sm:text-lg transition-colors disabled:pointer-events-none disabled:opacity-50 ${
                     buttonText === 'Swap'
                       ? 'bg-primary text-primary-foreground hover:bg-primary/90 border-primary'
                       : 'hover:border-orange-200/20 hover:bg-accent hover:text-accent-foreground'
@@ -488,14 +488,14 @@ function Swap() {
                     <Button
                       disabled
                       variant='outline'
-                      className='w-full h-full rounded-xl font-bold text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
+                      className='w-full h-full rounded-xl font-semibold text-sm sm:text-lg transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
                     >
                       <Loader2 className='w-10 h-10 animate-spin' />
                     </Button>
                   )}
 
                   <div className={connecting ? 'invisible' : 'visible'}>
-                    <WalletMultiButton className='!p-5 w-full h-full !rounded-xl !font-bold !text-sm sm:!text-lg !bg-primary !text-primary-foreground hover:!bg-primary/90 !border-none !text-center !flex !items-center !justify-center'>
+                    <WalletMultiButton className='!p-5 w-full h-full !font-sans !rounded-xl !font-semibold !text-sm sm:!text-lg !bg-primary !text-primary-foreground hover:!bg-primary/90 !border-none !text-center !flex !items-center !justify-center'>
                       Connect Wallet
                     </WalletMultiButton>
                   </div>

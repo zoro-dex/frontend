@@ -193,45 +193,13 @@ function Faucet() {
                           {accountIdToBech32(token.faucetId)}
                         </span>
                       </div>
-                      {getStatusIcon(status)}
-
-                      <div className='space-y-3'>
-                        <div
-                          className={`overflow-hidden transition-all duration-300 ease-out ${
-                            status.lastResult && status.showMessage
-                              ? 'max-h-20 opacity-100 mb-3'
-                              : 'max-h-0 opacity-0 mb-0'
-                          }`}
-                        >
-                          {status.lastResult && (
-                            <div
-                              className={`text-xs p-2 rounded-md transform transition-all duration-300 ease-out ${
-                                status.showMessage
-                                  ? 'translate-y-0 scale-100'
-                                  : '-translate-y-2 scale-95'
-                              } ${
-                                status.lastResult.success
-                                  ? 'bg-transparent text-black dark:text-orange-200'
-                                  : 'bg-transparent text-red-800 dark:text-red-200'
-                              }`}
-                            >
-                              {status.lastResult.message}
-                              {status.lastResult.transactionId && (
-                                <div className='mt-1 font-mono text-xs opacity-75 break-all'>
-                                  TX: {status.lastResult.transactionId}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
                     </CardContent>
                   </Card>
                   {connected && (
                     <Button
                       onClick={() => requestTokens(token.symbol)}
                       disabled={isButtonDisabled(status)}
-                      className='w-full bg-primary hover:bg-orange-700 text-white font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+                      className='w-full h-8 sm:h-12 bg-primary hover:bg-orange-700 text-white font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
                     >
                       {status.isLoading && (
                         <Loader2 className='w-4 h-4 mr-2 animate-spin' />
@@ -240,10 +208,38 @@ function Faucet() {
                     </Button>
                   )}
                   {!connected && (
-                    <WalletMultiButton className='!font-bold !p-5 w-full h-full !rounded-xl !text-sm sm:!text-lg !bg-primary !text-primary-foreground hover:!bg-primary/90 !border-none !text-center !flex !items-center !justify-center'>
+                    <WalletMultiButton className='!font-bold !p-5 w-full !font-semibold !font-sans h-full !rounded-xl !text-sm sm:!text-lg !bg-primary !text-primary-foreground hover:!bg-primary/90 !border-none !text-center !flex !items-center !justify-center'>
                       Connect
                     </WalletMultiButton>
                   )}
+                  <div
+                    className={`overflow-hidden transition-all duration-300 ease-out ${
+                      status.lastResult && status.showMessage
+                        ? 'max-h-20 opacity-100 mb-3'
+                        : 'max-h-0 opacity-0 mb-0'
+                    }`}
+                  >
+                    {status.lastResult && (
+                      <div
+                        className={`text-xs p-2 rounded-md transform transition-all duration-300 ease-out text-center ${
+                          status.showMessage
+                            ? 'translate-y-0 scale-100'
+                            : '-translate-y-2 scale-95'
+                        } ${
+                          status.lastResult.success
+                            ? 'bg-transparent text-black dark:text-green-300'
+                            : 'bg-transparent text-red-800 dark:text-red-200'
+                        }`}
+                      >
+                        {status.lastResult.message}
+                        {status.lastResult.transactionId && (
+                          <div className='mt-1 font-mono text-xs opacity-75 break-all'>
+                            TX: {status.lastResult.transactionId}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </Fragment>
               );
             })}
