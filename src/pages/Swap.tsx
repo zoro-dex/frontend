@@ -276,24 +276,24 @@ function Swap() {
     <div className='min-h-screen bg-background text-foreground flex flex-col relative dotted-bg'>
       <Header />
       <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-4'>
-        <div className='w-full max-w-xs sm:max-w-sm space-y-4 sm:space-y-4'>
+        <div className='w-full max-w-sm sm:max-w-md space-y-4 sm:space-y-6'>
           {/* Sell Card */}
           <Card className='border rounded-sm sm:rounded-2sm'>
-            <CardContent className='p-3 sm:p-4 space-y-3 sm:space-y-4'>
-              <div className='space-y-1'>
-                <div className='flex justify-between items-center'>
-                  <div className='text-xs sm:text-sm text-primary font-medium'>Sell</div>
+            <CardContent className='p-3 sm:p-4 space-y-2 sm:space-y-3'>
+              <div className='space-y-2'>
+                <div className='flex gap-1 sm:gap-2 justify-between items-center'>
+                  <div className='text-xs sm:text-sm text-primary'>Sell</div>
                   <SwapSettings slippage={slippage} onSlippageChange={setSlippage}/>
                 </div>
                 <Card className='bg-gradient-to-b from-muted/10 from-10% to-muted/30 to-50% border-none'>
-                  <CardContent className='px-0 py-2 sm:px-0 sm:py-3 space-y-1'>
+                  <CardContent className='!sm:px-0 !px-0 p-3 sm:p-4 space-y-2 sm:space-y-3'>
                     <div className='flex items-center justify-between gap-2'>
                       <Input
                           value={stringSell}
                           onChange={(e) => onInputChange(e.target.value)}
                           placeholder='0'
                           aria-errormessage={sellInputError}
-                          className={`border-none text-xl sm:text-2xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner ${
+                          className={`border-none text-3xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner ${
                               sellInputError
                                   ? 'text-orange-600 placeholder:text-destructive/50'
                                   : 'text-black'
@@ -357,7 +357,7 @@ function Swap() {
                 disabled={isLoadingSwap}
                 className='p-0 border-0 bg-transparent cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group'
             >
-              <svg width="32" height="32" viewBox="0 0 57 57" fill="none" xmlns="http://www.w3.org/2000/svg" className='transition-all'>
+              <svg className='w-12 h-12 sm:w-12 sm:h-12 transition-all' viewBox="0 0 57 57" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <rect y="0.000152588" width="56.3444" height="56.3444" className='fill-[#F9F9F9] group-hover:fill-primary/30 transition-all'/>
                 <rect x="0.352153" y="0.352305" width="55.6401" height="55.6401" stroke="black" stroke-opacity="0.2"
                       stroke-width="0.704305" className='transition-all'/>
@@ -370,11 +370,11 @@ function Swap() {
 
           {/* Buy Card */}
           <Card className='border rounded-sm sm:rounded-2sm'>
-            <CardContent className='p-3 sm:p-4 space-y-3 sm:space-y-4'>
-              <div className='space-y-1'>
+            <CardContent className='p-3 sm:p-4 space-y-2 sm:space-y-3'>
+              <div className='space-y-2'>
                 <div className='text-xs sm:text-sm text-primary font-medium'>Buy</div>
                 <Card className='bg-gradient-to-b from-muted/10 from-10% to-muted/30 to-50% border-none'>
-                  <CardContent className='px-0 py-2 sm:px-0 sm:py-3 space-y-1'>
+                  <CardContent className='!sm:px-0 !px-0 p-3 sm:p-4 space-y-2 sm:space-y-3'>
                     <div className='flex items-center justify-between gap-2'>
                       <Input
                           type='number'
@@ -382,7 +382,7 @@ function Swap() {
                           onChange={emptyFn}
                           disabled
                           placeholder='0'
-                          className='border-none text-xl sm:text-2xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner bg-transparent'
+                          className='border-none text-3xl sm:text-4xl font-light outline-none flex-1 p-0 h-auto focus-visible:ring-0 no-spinner bg-transparent'
                       />
                       <Button
                           variant='outline'
