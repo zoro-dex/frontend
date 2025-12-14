@@ -40,7 +40,7 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --footer: 0, 0%, 98%;
-    --bg-dots: 0, 0%, 94%;
+    --bg-dots: 130, 15%, 92.2%;
   }
 
   .dark {
@@ -69,7 +69,7 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
     --footer: 0, 0%, 6%;
-    --bg-dots: 0, 0%, 12%;
+    --bg-dots: 310, 15%, 10%;
   }
 }
 
@@ -101,6 +101,6 @@
 /* eslint-enable css/no-invalid-at-rules */
 
 .dotted-bg {
-  background-image: radial-gradient(circle at 1px 1px, hsl(var(--bg-dots)) 1px, transparent 1px);
+  background-image: radial-gradient(circle at 7px 7px, hsl(var(--bg-dots)) 1px, transparent 1px);
   background-size: 15px 15px;
 }

@@ -374,8 +374,8 @@ function Swap() {
                   width='55.6401'
                   height='55.6401'
                   stroke='black'
-                  stroke-opacity='0.2'
-                  stroke-width='0.704305'
+                  strokeOpacity='0.2'
+                  strokeWidth='0.704305'
                   className='transition-all dark:stroke-white'
                 />
 
