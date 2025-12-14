@@ -8,6 +8,7 @@ export function Footer() {
             target="_blank"
             rel="noopener noreferrer"
             className="text-slate-300 hover:text-white transition-colors"
+            title={"X Account for Zoro AMM"}
         >
           <svg className="w-4 h-4" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
@@ -21,6 +22,7 @@ export function Footer() {
             target="_blank"
             rel="noopener noreferrer"
             className="text-slate-300 hover:text-white transition-colors"
+            title={"Telegram Group for Zoro DeFi"}
         >
           <svg className="w-4 h-4" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
@@ -34,6 +36,7 @@ export function Footer() {
             target="_blank"
             rel="noopener noreferrer"
             className="text-slate-300 hover:text-white transition-colors"
+            title={"Zoro DEX on GitHub"}
         >
           <svg className="w-4 h-4" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
