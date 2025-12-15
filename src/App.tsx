@@ -8,6 +8,7 @@ import { useMemo } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import NotFound from './pages/404';
 import About from './pages/About';
+import MediaKit from './pages/MediaKit';
 import FaucetPage from './pages/Faucet';
 import SwapPage from './pages/Swap';
 import { ThemeProvider } from './providers/ThemeProvider';
@@ -25,6 +26,7 @@ function AppRouter() {
         <Route path='/' element={<SwapPage />} />
         <Route path='/faucet' element={<FaucetPage />} />
         <Route path='/about' element={<About />} />
+        <Route path='/media-kit' element={<MediaKit />} />
         <Route path='*' element={<NotFound />} />
       </Routes>
     </Router>

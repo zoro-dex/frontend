@@ -66,6 +66,14 @@ export function Footer() {
         </a>
 
         <Link
+          to='/media-kit'
+          className='text-primary hover:text-foreground transition-colors'
+          title='Media Kit for ZoroSwap'
+        >
+            Media Kit
+        </Link>
+
+        <Link
           to='/about'
           className='text-primary hover:text-foreground transition-colors'
           title='Learn more about ZoroSwap'
