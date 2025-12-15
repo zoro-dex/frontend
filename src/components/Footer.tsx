@@ -46,7 +46,7 @@ export function Footer() {
         </a>
 
         <a
-          href='https://github.com/zoro-dex'
+          href='https://github.com/zoroswap'
           target='_blank'
           rel='noopener noreferrer'
           className='text-slate-300 hover:text-white transition-colors'
