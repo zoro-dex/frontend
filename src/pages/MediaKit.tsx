@@ -76,7 +76,7 @@ function MediaKit() {
                         src='/zoro-logo-full.svg'
                         alt='Zoro logo'
                         title='ZoroSwap'
-                        className='h-16 w-16 sm:h-20 sm:w-20 bg-white'
+                        className='h-18 w-18 sm:h-22 sm:w-22 bg-white p-2'
                     />
                     <p className={'text-center'}>
                         Light Background<br/>
@@ -92,7 +92,7 @@ function MediaKit() {
                         src='/zoro-logo-full-white.svg'
                         alt='Zoro logo'
                         title='ZoroSwap'
-                        className='h-16 w-16 sm:h-20 sm:w-20'
+                        className='h-18 w-18 sm:h-22 sm:w-22 bg-black p-2'
                     />
                     <p className={'text-center'}>
                         Dark Background<br/>
@@ -122,7 +122,7 @@ function MediaKit() {
                             src='/media-kit/zoroswap-screenshot-light.png'
                             alt='Zoro logo'
                             title='ZoroSwap'
-                            className='h-64 w-64 sm:h-64 sm:w-64 bg-white'
+                            className='h-64 w-64 sm:h-64 sm:w-64'
                          />
                         <p className={'text-center'}>
                             Light Theme<br/>
@@ -138,7 +138,7 @@ function MediaKit() {
                              src='/media-kit/zoroswap-screenshot-dark.png'
                              alt='Zoro logo'
                              title='ZoroSwap'
-                             className='h-64 w-64 sm:h-64 sm:w-64 bg-white'
+                             className='h-64 w-64 sm:h-64 sm:w-64'
                          />
                          <p className={'text-center'}>
                              Dark Theme<br/>
