@@ -39,17 +39,6 @@ function About() {
               </a>. We combine both passive and actively priced liquidity pools under one
               unified platform.
             </p>
-            <p>
-              While most blockchains rely on traditional passive AMMs, these models suffer
-              from inefficiencies that require large liquidity incentives and complex
-              liquidity management.
-            </p>
-            <p>
-              Actively priced AMMs are emerging as the more efficient alternative,
-              especially for high-volume asset pairs. Zoro brings both approaches to
-              Miden, delivering deep liquidity, ease of integration, and advanced pricing
-              in one place.
-            </p>
 
             <h2 className='text-xl sm:text-2xl font-bold'>
               High-Performance & Private
@@ -58,11 +47,6 @@ function About() {
               Zoro leverages Miden’s unique capabilities:{' '}
               <em>privacy, local execution, low latency, and high throughput</em>. Using
               these we enable a private, high-frequency AMM (hfAMM).
-            </p>
-            <p>
-              Orders are matched and aggregated off-chain in a secure private environment,
-              enabling minimized slippage, MEV protection, boosted capital efficiency, and
-              faster execution than traditional on-chain DEXes.
             </p>
 
             <h2 className='text-xl sm:text-2xl font-bold'>
