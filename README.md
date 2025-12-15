@@ -9,7 +9,6 @@
 [link-telegram]: https://t.me/+KyKHHuIxxPdmOTky
 [link-twitter]: https://twitter.com/zoroswap
 
-
 This repository contains the frontend for ZoroSwap, an Oracle-informed AMM for the [Miden blockchain](https://miden.xyz/).
 
 You can find the repository for ZoroSwap here: [`zoro-dex/zoroswap`](https://github.com/zoro-dex/zoroswap).
