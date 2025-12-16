@@ -45,7 +45,7 @@ function About() {
               High-Performance & Private
             </h2>
             <p>
-              Zoro leverages Miden’s unique capabilities:{' '}
+              Zoro leverages Miden’s unique zero-knowledge capabilities:{' '}
               <em>privacy, local execution, low latency, and high throughput</em>. Using
               these we enable a private, high-frequency AMM (hfAMM).
             </p>

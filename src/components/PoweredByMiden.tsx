@@ -3,6 +3,7 @@ export const poweredByMiden = (
     href='https://miden.xyz/'
     target='_blank'
     rel='noopener noreferrer nofollow'
+    title={"Powered by the Miden blockchain"}
   >
     <svg
       width='118'

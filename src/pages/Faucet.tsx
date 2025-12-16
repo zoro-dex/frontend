@@ -242,7 +242,7 @@ function Faucet() {
               );
             })}
           </div>
-          <div className='pt-8 pb-2 sm:pb-0 flex sm: sm:justify-start justify-center sm:items-start'>
+          <div className='pt-8 pb-2 sm:pb-0 flex sm:justify-start justify-center sm:items-start'>
             <Link to='/'>
               <Button
                 variant='secondary'

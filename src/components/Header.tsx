@@ -11,7 +11,7 @@ export function Header() {
           <img
             src='/zoro-logo-full.svg'
             alt='Zoro logo'
-            title='ZoroSwap'
+            title='ZoroSwap | DeFi on Miden'
             className='h-16 w-16 sm:h-20 sm:w-20'
           />
         </h1>
