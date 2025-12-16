@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 function MediaKit() {
   return (
     <div className='min-h-screen bg-background text-foreground flex flex-col dotted-bg'>
-      <title>About - ZoroSwap | DeFi on Miden</title>
+      <title>MediaKit - ZoroSwap | DeFi on Miden</title>
       <meta
         name='description'
         content='Media Kit for the ZoroSwap AMM.'
