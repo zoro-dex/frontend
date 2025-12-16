@@ -12,13 +12,7 @@ export function Header() {
             src='/zoro-logo-full.svg'
             alt='Zoro logo'
             title='ZoroSwap'
-            className='h-16 w-16 sm:h-20 sm:w-20 dark:hidden'
-          />
-          <img
-            src='/zoro-logo-full-white.svg'
-            alt='Zoro logo'
-            title='ZoroSwap'
-            className='h-16 w-16 sm:h-20 sm:w-20 dark:block hidden'
+            className='h-16 w-16 sm:h-20 sm:w-20'
           />
         </h1>
       </Link>
