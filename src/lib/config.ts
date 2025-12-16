@@ -67,11 +67,11 @@ export const DEFAULT_SLIPPAGE = getNumericEnvVar('VITE_DEFAULT_SLIPPAGE', 0.5);
 // Token icon mapping - only includes the two supported tokens
 export const TOKEN_ICONS: Record<string, { icon: string; iconClass?: string }> = {
   BTC: {
-    icon: '/BTC.svg',
+    icon: '/tokens/BTC.svg',
     iconClass: '',
   },
   ETH: {
-    icon: '/ETH.svg',
+    icon: '/tokens/ETH.svg',
     iconClass: '',
   },
 } as const;
