@@ -64,22 +64,29 @@ export function Footer() {
             />
           </svg>
         </a>
-
-        <Link
-          to='/media-kit'
-          className='text-primary hover:text-foreground transition-colors'
-          title='Media Kit for ZoroSwap'
-        >
+        <div className='flex sm:gap-6 gap-4'>
+          <Link
+            to='/media-kit'
+            className='text-primary hover:text-foreground transition-colors'
+            title='Media Kit for ZoroSwap'
+          >
             Media Kit
-        </Link>
-
-        <Link
-          to='/about'
-          className='text-primary hover:text-foreground transition-colors'
-          title='Learn more about ZoroSwap'
-        >
-          About us
-        </Link>
+          </Link>
+          <Link
+            to='/about'
+            className='text-primary hover:text-foreground transition-colors'
+            title='Learn more about ZoroSwap'
+          >
+            About us
+          </Link>
+          <Link
+            to='/faucet'
+            className='text-primary hover:text-foreground transition-colors'
+            title='Get test tokens'
+          >
+            Faucet
+          </Link>
+        </div>
       </div>
     </footer>
   );
