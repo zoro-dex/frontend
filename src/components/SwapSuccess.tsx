@@ -34,8 +34,6 @@ const getOrderStatusDisplay = (status?: OrderStatus) => {
         text: 'Pending',
         color: 'text-yellow-600 dark:text-yellow-400',
         bgColor: 'bg-yellow-100 dark:bg-yellow-900/30',
-        iconAnimation: 'animate-clock-tick',
-        boxAnimation: 'animate-pulse-border',
       };
     case 'matching':
       return {
@@ -43,8 +41,7 @@ const getOrderStatusDisplay = (status?: OrderStatus) => {
         text: 'Matching',
         color: 'text-blue-600 dark:text-blue-400',
         bgColor: 'bg-blue-100 dark:bg-blue-900/30',
-        iconAnimation: 'animate-spin',
-        boxAnimation: 'animate-pulse-border',
+        animate: true,
       };
     case 'executed':
       return {
@@ -52,8 +49,6 @@ const getOrderStatusDisplay = (status?: OrderStatus) => {
         text: 'Executed',
         color: 'text-green-600 dark:text-green-400',
         bgColor: 'bg-green-100 dark:bg-green-900/30',
-        iconAnimation: '',
-        boxAnimation: '',
       };
     case 'failed':
       return {
@@ -61,8 +56,6 @@ const getOrderStatusDisplay = (status?: OrderStatus) => {
         text: 'Failed',
         color: 'text-red-600 dark:text-red-400',
         bgColor: 'bg-red-100 dark:bg-red-900/30',
-        iconAnimation: '',
-        boxAnimation: '',
       };
     case 'expired':
       return {
@@ -70,8 +63,6 @@ const getOrderStatusDisplay = (status?: OrderStatus) => {
         text: 'Expired',
         color: 'text-gray-600 dark:text-gray-400',
         bgColor: 'bg-gray-100 dark:bg-gray-900/30',
-        iconAnimation: '',
-        boxAnimation: '',
       };
     default:
       return {
@@ -79,8 +70,6 @@ const getOrderStatusDisplay = (status?: OrderStatus) => {
         text: 'Created',
         color: 'text-muted-foreground',
         bgColor: 'bg-muted/50',
-        iconAnimation: 'animate-clock-tick',
-        boxAnimation: 'animate-pulse-border',
       };
   }
 };
@@ -158,19 +147,18 @@ export function SwapSuccess({
                 <X className='h-3 w-3' />
               </Button>
             </div>
-            {/* Order Status */}
-            <div className={`mb-4 p-3 rounded-lg border-2 transition-all duration-300 ${statusDisplay.bgColor} ${statusDisplay.boxAnimation} ${
+            {/* Order Status - prominent display */}
+            <div className={`mb-4 p-3 rounded-lg border-2 ${statusDisplay.bgColor} ${
               orderStatus === 'executed' ? 'border-green-500' :
               orderStatus === 'failed' ? 'border-red-500' :
               orderStatus === 'matching' ? 'border-blue-500' :
-              orderStatus === 'pending' ? 'border-yellow-500' :
               'border-transparent'
             }`}>
               <div className='flex items-center justify-center gap-2'>
                 <statusDisplay.icon
-                  className={`h-5 w-5 ${statusDisplay.color} ${statusDisplay.iconAnimation}`}
+                  className={`h-5 w-5 ${statusDisplay.color} ${statusDisplay.animate ? 'animate-spin' : ''}`}
                 />
-                <span className={`font-semibold ${statusDisplay.color} transition-all duration-300`}>
+                <span className={`font-semibold ${statusDisplay.color}`}>
                   Order {statusDisplay.text}
                 </span>
               </div>

@@ -113,25 +113,3 @@ h5,
 h6 {
   font-family: "Cal Sans", system-ui, sans-serif;
 }
-
-/* Clock tick animation - subtle pendulum swing */
-@keyframes clock-tick {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(8deg); }
-  75% { transform: rotate(-8deg); }
-}
-
-.animate-clock-tick {
-  animation: clock-tick 1s ease-in-out infinite;
-  transform-origin: center center;
-}
-
-/* Pulse border animation for waiting states */
-@keyframes pulse-border {
-  0%, 100% { border-color: transparent; opacity: 0.8; }
-  50% { border-color: currentColor; opacity: 1; }
-}
-
-.animate-pulse-border {
-  animation: pulse-border 2s ease-in-out infinite;
-}
