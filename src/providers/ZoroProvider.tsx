@@ -1,30 +1,14 @@
-import { TOKEN_ICONS } from '@/lib/config';
+import { type PoolInfo, usePoolsInfo } from '@/hooks/usePoolsInfo';
 import { bech32ToAccountId, instantiateClient } from '@/lib/utils';
-import { usePoolsInfo } from '@/services/pool';
 import { AccountId, Address, WebClient } from '@demox-labs/miden-sdk';
 import { useWallet } from '@demox-labs/miden-wallet-adapter';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { ZoroContext } from './ZoroContext';
 
-export interface RawPoolInfo {
-  decimals: number;
-  faucet_id: string;
-  name: string;
-  oracle_id: string;
-  symbol: string;
-}
-export interface PoolInfo {
-  decimals: number;
-  faucet_id: AccountId;
-  name: string;
-  oracle_id: string;
-  symbol: string;
-}
-
 export function ZoroProvider({
   children,
 }: { children: ReactNode }) {
-  const poolsInfo = usePoolsInfo();
+  const { data: poolsInfo, isFetched: isPoolsInfoFetched } = usePoolsInfo();
   const { address } = useWallet();
   const accountId = useMemo(
     () => address ? Address.fromBech32(address).accountId() : undefined,
@@ -44,11 +28,11 @@ export function ZoroProvider({
   }, [accountId]);
 
   const value = useMemo(() => ({
-    tokens: generateTokenMetadata(poolsInfo?.data.liquidityPools || []),
-    tokensLoading: !poolsInfo?.isFetched,
-    liquidity_pools: poolsInfo?.data.liquidityPools || [],
-    poolAccountId: poolsInfo?.data.poolAccountId
-      ? bech32ToAccountId(poolsInfo.data.poolAccountId)
+    tokens: generateTokenMetadata(poolsInfo?.liquidityPools || []),
+    tokensLoading: isPoolsInfoFetched,
+    liquidity_pools: poolsInfo?.liquidityPools || [],
+    poolAccountId: poolsInfo?.poolAccountId
+      ? bech32ToAccountId(poolsInfo.poolAccountId)
       : undefined,
     accountId,
     client,
@@ -64,27 +48,24 @@ export function ZoroProvider({
 export interface TokenConfig {
   symbol: string;
   name: string;
-  priceId: string;
-  icon: string;
-  iconClass?: string;
   decimals: number;
   faucetId: AccountId;
+  faucetIdBech32: string;
   oracleId: string;
 }
 
 const generateTokenMetadata = (pools: PoolInfo[]) => {
   const tokens: Record<string, TokenConfig> = {};
   for (const pool of pools) {
-    const iconConfig = TOKEN_ICONS[pool.symbol];
-    tokens[pool.symbol] = {
+    tokens[pool.faucetIdBech32] = {
       symbol: pool.symbol,
       name: pool.name,
-      priceId: pool.oracle_id,
       decimals: pool.decimals,
-      faucetId: pool.faucet_id,
-      oracleId: pool.oracle_id,
-      ...iconConfig,
+      faucetId: pool.faucetId,
+      faucetIdBech32: pool.faucetIdBech32,
+      oracleId: pool.oracleId,
     };
   }
+  console.log(tokens);
   return tokens;
 };

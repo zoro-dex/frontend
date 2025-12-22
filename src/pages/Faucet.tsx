@@ -1,3 +1,4 @@
+import AssetIcon from '@/components/AssetIcon';
 import { Footer } from '@/components/Footer';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
@@ -175,11 +176,7 @@ function Faucet() {
                     className='rounded-xl transition-all duration-200 hover:border-orange-200/10 mb-4'
                   >
                     <CardContent className='p-4 sm:p-6 flex gap-1 flex-col items-center'>
-                      <img
-                        src={token.icon}
-                        alt={token.name}
-                        className={`w-6 h-6 ${token.iconClass || ''}`}
-                      />
+                      <AssetIcon faucetId={token.symbol} />
                       <h3 className='text-md sm:text-lg font-semibold'>
                         Test {token.name}
                       </h3>

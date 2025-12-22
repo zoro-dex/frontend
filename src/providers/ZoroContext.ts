@@ -1,6 +1,7 @@
+import type { PoolInfo } from '@/hooks/usePoolsInfo';
 import type { AccountId, WebClient } from '@demox-labs/miden-sdk';
 import { createContext } from 'react';
-import type { PoolInfo, TokenConfig } from './ZoroProvider';
+import type { TokenConfig } from './ZoroProvider';
 
 type ZoroProviderState = {
   poolAccountId?: AccountId;

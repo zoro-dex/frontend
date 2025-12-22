@@ -1,7 +1,8 @@
+import AssetIcon from '@/components/AssetIcon';
 import { Footer } from '@/components/Footer';
 import { Header } from '@/components/Header';
 import { poweredByMiden } from '@/components/PoweredByMiden';
-import { SwapSettings } from '@/components/SwapSettings';
+import Slippage from '@/components/Slippage';
 import { SwapSuccess } from '@/components/SwapSuccess';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -286,7 +287,7 @@ function Swap() {
               <div className='space-y-2'>
                 <div className='flex gap-1 sm:gap-2 justify-between items-center'>
                   <div className='text-xs sm:text-sm text-primary font-medium'>Sell</div>
-                  <SwapSettings slippage={slippage} onSlippageChange={setSlippage} />
+                  <Slippage slippage={slippage} onSlippageChange={setSlippage} />
                 </div>
                 <Card className='border-none'>
                   <CardContent className='!sm:px-0 !px-0 p-3 sm:p-4 space-y-2 sm:space-y-3'>
@@ -309,11 +310,7 @@ function Swap() {
                       >
                         {selectedAssetSell && (
                           <>
-                            <img
-                              src={selectedAssetSell.icon}
-                              alt='sell token logo'
-                              className={`${selectedAssetSell.iconClass || ''}`}
-                            />
+                            <AssetIcon faucetId={selectedAssetSell.symbol} />
                             {selectedAssetSell.symbol}
                           </>
                         )}
@@ -425,11 +422,7 @@ function Swap() {
                       >
                         {selectedAssetBuy && (
                           <>
-                            <img
-                              src={selectedAssetBuy.icon}
-                              alt='buy token logo'
-                              className={`${selectedAssetBuy.iconClass || ''}`}
-                            />
+                            <AssetIcon faucetId={selectedAssetBuy.symbol} />
                             {selectedAssetBuy.symbol}
                           </>
                         )}
