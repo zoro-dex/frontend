@@ -2,66 +2,22 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getWebSocket, type MessageHandler, type ServerMessage, type SubscriptionChannel } from '@/services/websocket';
 
 export interface UseWebSocketOptions {
-  /**
-   * Channels to subscribe to on mount
-   */
   channels?: SubscriptionChannel[];
-
-  /**
-   * Message handler callback
-   */
   onMessage?: MessageHandler;
-
-  /**
-   * Auto-connect on mount (default: true)
-   */
   autoConnect?: boolean;
 }
 
 export interface UseWebSocketReturn {
-  /**
-   * WebSocket connection state
-   */
   isConnected: boolean;
-
-  /**
-   * Subscribe to additional channels
-   */
   subscribe: (channels: SubscriptionChannel[]) => void;
-
-  /**
-   * Unsubscribe from channels
-   */
   unsubscribe: (channels: SubscriptionChannel[]) => void;
-
-  /**
-   * Manually connect
-   */
   connect: () => void;
-
-  /**
-   * Manually disconnect
-   */
   disconnect: () => void;
 }
 
 /**
- * React hook for WebSocket connection management
- *
- * Automatically connects on mount and disconnects on unmount.
- * Subscribes to specified channels and handles messages.
- *
- * @example
- * ```tsx
- * const { isConnected } = useWebSocket({
- *   channels: [{ channel: 'oracle_prices' }],
- *   onMessage: (msg) => {
- *     if (msg.type === 'OraclePriceUpdate') {
- *       console.log('Price update:', msg.price);
- *     }
- *   },
- * });
- * ```
+ * React hook for WebSocket connection management.
+ * Auto-connects on mount and subscribes to specified channels.
  */
 export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketReturn {
   const { channels = [], onMessage, autoConnect = true } = options;
@@ -139,57 +95,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
 }
 
 /**
- * Hook specifically for oracle price updates
- *
- * @example
- * ```tsx
- * const { prices } = useOraclePriceWebSocket(['BTC', 'ETH']);
- * ```
- */
-export function useOraclePriceWebSocket(oracleIds?: string[]) {
-  const [prices, setPrices] = useState<Record<string, { price: number; timestamp: number }>>({});
-
-  const channels: SubscriptionChannel[] = useMemo(
-    () =>
-      oracleIds && oracleIds.length > 0
-        ? oracleIds.map(id => ({ channel: 'oracle_prices' as const, oracle_id: id }))
-        : [{ channel: 'oracle_prices' as const }],
-    [oracleIds]
-  );
-
-  useWebSocket({
-    channels,
-    onMessage: (message) => {
-      if (message.type === 'OraclePriceUpdate') {
-        setPrices(prev => ({
-          ...prev,
-          [message.oracle_id]: {
-            price: message.price,
-            timestamp: message.timestamp,
-          },
-        }));
-      }
-    },
-  });
-
-  return { prices };
-}
-
-/**
  * Hook for tracking order status updates
- *
- * @example
- * ```tsx
- * const { orderStatus, subscribeToOrder } = useOrderUpdates();
- *
- * // Subscribe to a specific order
- * subscribeToOrder('order-id-123');
- *
- * // Check order status
- * if (orderStatus['order-id-123']?.status === 'executed') {
- *   console.log('Order completed!');
- * }
- * ```
  */
 export function useOrderUpdates(orderIds?: string[]) {
   const [orderStatus, setOrderStatus] = useState<Record<string, {
@@ -238,88 +144,4 @@ export function useOrderUpdates(orderIds?: string[]) {
     unsubscribeFromOrder,
     isConnected,
   };
-}
-
-/**
- * Hook for tracking pool state updates
- *
- * @example
- * ```tsx
- * const { poolStates } = usePoolStateUpdates(['faucet-1', 'faucet-2']);
- *
- * // Access pool balances
- * const pool = poolStates['faucet-1'];
- * console.log(pool?.balances);
- * ```
- */
-export function usePoolStateUpdates(faucetIds?: string[]) {
-  const [poolStates, setPoolStates] = useState<Record<string, {
-    balances: {
-      reserve: string;
-      reserve_with_slippage: string;
-      total_liabilities: string;
-    };
-    timestamp: number;
-  }>>({});
-
-  const channels: SubscriptionChannel[] = useMemo(
-    () =>
-      faucetIds && faucetIds.length > 0
-        ? faucetIds.map(id => ({ channel: 'pool_state' as const, faucet_id: id }))
-        : [{ channel: 'pool_state' as const }],
-    [faucetIds]
-  );
-
-  useWebSocket({
-    channels,
-    onMessage: (message) => {
-      if (message.type === 'PoolStateUpdate') {
-        setPoolStates(prev => ({
-          ...prev,
-          [message.faucet_id]: {
-            balances: message.balances,
-            timestamp: message.timestamp,
-          },
-        }));
-      }
-    },
-  });
-
-  return { poolStates };
-}
-
-/**
- * Hook for tracking general stats updates
- *
- * @example
- * ```tsx
- * const { stats } = useStatsUpdates();
- *
- * console.log(`Open orders: ${stats?.open_orders}`);
- * console.log(`Closed orders: ${stats?.closed_orders}`);
- * ```
- */
-export function useStatsUpdates() {
-  const [stats, setStats] = useState<{
-    open_orders: number;
-    closed_orders: number;
-    timestamp: number;
-  } | null>(null);
-
-  const channels: SubscriptionChannel[] = useMemo(() => [{ channel: 'stats' as const }], []);
-
-  useWebSocket({
-    channels,
-    onMessage: (message) => {
-      if (message.type === 'StatsUpdate') {
-        setStats({
-          open_orders: message.open_orders,
-          closed_orders: message.closed_orders,
-          timestamp: message.timestamp,
-        });
-      }
-    },
-  });
-
-  return { stats };
 }
