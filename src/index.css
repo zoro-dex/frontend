@@ -113,3 +113,20 @@ h5,
 h6 {
   font-family: "Cal Sans", system-ui, sans-serif;
 }
+
+/* Animated loading dots */
+.animated-dots {
+  margin-left: -0.4em;
+}
+.animated-dots span {
+  opacity: 0;
+  animation: dot-fade 1.4s infinite;
+}
+.animated-dots span:nth-child(1) { animation-delay: 0s; }
+.animated-dots span:nth-child(2) { animation-delay: 0.2s; }
+.animated-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dot-fade {
+  0%, 20% { opacity: 0; }
+  40%, 100% { opacity: 1; }
+}
