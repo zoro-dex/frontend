@@ -147,7 +147,7 @@ export function SwapSuccess({
                 <X className='h-3 w-3' />
               </Button>
             </div>
-            {/* Order Status - prominent display */}
+            {/* Order Status */}
             <div className={`mb-4 p-3 rounded-lg border-2 ${statusDisplay.bgColor} ${
               orderStatus === 'executed' ? 'border-green-500' :
               orderStatus === 'failed' ? 'border-red-500' :
