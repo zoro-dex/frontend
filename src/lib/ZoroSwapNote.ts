@@ -17,7 +17,7 @@ import {
   WebClient,
   Word,
 } from '@demox-labs/miden-sdk';
-import { CustomTransaction } from '@demox-labs/miden-wallet-adapter';
+import { Transaction } from '@demox-labs/miden-wallet-adapter';
 import { Buffer } from 'buffer';
 
 window.Buffer = Buffer;
@@ -113,7 +113,7 @@ export async function compileSwapTransaction({
     .withOwnOutputNotes(new MidenArrays.OutputNoteArray([OutputNote.full(note)]))
     .build();
 
-  const tx = new CustomTransaction(
+  const tx = Transaction.createCustomTransaction(
     accountIdToBech32(userAccountId),
     accountIdToBech32(poolAccountId),
     transactionRequest,
