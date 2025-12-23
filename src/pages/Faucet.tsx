@@ -59,7 +59,7 @@ function Faucet() {
       return;
     }
     const token = tokens[tokenSymbol];
-    if (!token) {
+    if (!token || !token.faucetId) {
       return;
     }
     const faucetId = token.faucetId;

@@ -10,20 +10,23 @@ export const usePoolsInfo = () => {
     queryFn: fetchPoolInfo,
     staleTime: 3600000,
   });
-  const res = useMemo(() => {
-    if (info.data) {
-      return ({
-        ...info,
-        data: {
-          poolAccountId: info.data.pool_account_id,
-          liquidityPools: info.data.liquidity_pools.map(
-            p => ({ ...p, faucet_id: bech32ToAccountId(p.faucet_id) } as PoolInfo),
-          ),
-        } as PoolsInfo,
-      });
+
+  const transformedData = useMemo(() => {
+    if (!info.data) {
+      return undefined;
     }
-  }, [info]);
-  return res;
+    return {
+      poolAccountId: info.data.pool_account_id,
+      liquidityPools: info.data.liquidity_pools.map(
+        p => ({ ...p, faucet_id: bech32ToAccountId(p.faucet_id) } as PoolInfo),
+      ),
+    } as PoolsInfo;
+  }, [info.data]);
+
+  return {
+    ...info,
+    data: transformedData,
+  };
 };
 
 export interface PoolsInfo {

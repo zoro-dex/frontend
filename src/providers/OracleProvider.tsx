@@ -1,4 +1,5 @@
 import { ORACLE } from '@/lib/config';
+import { useWebSocket } from '@/hooks/useWebSocket';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { OracleContext } from './OracleContext';
 
@@ -32,6 +33,29 @@ export const OracleProvider = ({ children }: { children: ReactNode }) => {
     pricesRef.current = prices;
   }, [prices]);
 
+  // Memoize channels to prevent re-subscription loop
+  const oracleChannels = useMemo(() => [{ channel: 'oracle_prices' as const }], []);
+
+  // WebSocket connection for real-time price updates
+  useWebSocket({
+    channels: oracleChannels,
+    onMessage: (message) => {
+      if (message.type === 'OraclePriceUpdate') {
+        const now = Date.now();
+        setPrices(prev => ({
+          ...prev,
+          [message.oracle_id]: {
+            age: now,
+            priceFeed: {
+              value: message.price / 1e8, // Convert from backend format
+              publish_time: message.timestamp,
+            },
+          },
+        }));
+      }
+    },
+  });
+
   const refreshPrices = useCallback(
     async (ids: string | string[], force?: boolean) => {
       if (isFetching.current) return;
@@ -42,7 +66,7 @@ export const OracleProvider = ({ children }: { children: ReactNode }) => {
         .filter(id =>
           force
           || !pricesRef.current[id]
-          || (pricesRef.current[id].age < (now / 1000) - MAX_AGE)
+          || (now - pricesRef.current[id].age) > MAX_AGE
         );
 
       if (want.length === 0) {
