@@ -49,7 +49,7 @@ export const useDeposit = () => {
         String.fromCharCode.apply(null, note.serialize() as unknown as number[]),
       );
       console.log('Sending serialized');
-      await new Promise(r => setTimeout(r, 8000));
+      await new Promise(r => setTimeout(r, 20000));
       await submitNoteToServer(serialized);
       setNoteId(noteId);
       setTxId(txId);
