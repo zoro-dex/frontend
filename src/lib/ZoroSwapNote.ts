@@ -62,12 +62,13 @@ export async function compileSwapTransaction({
   await client.syncState();
   const builder = client.createScriptBuilder();
   const script = builder.compileNoteScript(ZOROSWAP_SCRIPT);
-  const noteType = NoteType.Public;
+  const noteType = NoteType.Private;
   const offeredAsset = new FungibleAsset(sellToken.faucetId, amount);
 
   // Note should only contain the offered asset
   const noteAssets = new NoteAssets([offeredAsset]);
-  const noteTag = NoteTag.fromAccountId(poolAccountId);
+  // Private notes use a local tag instead of pool account ID
+  const noteTag = NoteTag.forLocalUseCase(0, 0);
 
   const metadata = new NoteMetadata(
     userAccountId,
@@ -123,5 +124,14 @@ export async function compileSwapTransaction({
   return {
     tx,
     noteId,
+    note,
   };
+}
+
+/**
+ * Serialize a note to base64 for HTTP submission
+ */
+export function serializeNote(note: Note): string {
+  const noteBytes = note.toBytes();
+  return Buffer.from(noteBytes).toString('base64');
 }
