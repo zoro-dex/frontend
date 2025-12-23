@@ -1,8 +1,11 @@
 import { Button } from '@/components/ui/button';
 import type { TokenConfig } from '@/providers/ZoroProvider';
+import type { OrderStatus } from '@/services/websocket';
 import { formalBigIntFormat } from '@/utils/format';
-import { CheckCircle, ExternalLink, X } from 'lucide-react';
+import { CheckCircle, Clock, ExternalLink, Loader2, X, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+
+const AnimatedDots = () => <span className="animated-dots"><span>.</span><span>.</span><span>.</span></span>;
 
 interface SwapResult {
   readonly txId?: string;
@@ -20,16 +23,68 @@ interface SwapSuccessProps {
   readonly onClose: () => void;
   readonly swapResult: SwapResult | null;
   readonly swapDetails: SwapDetails | null;
+  readonly orderStatus?: OrderStatus;
 }
+
+const getOrderStatusDisplay = (status?: OrderStatus) => {
+  switch (status) {
+    case 'pending':
+      return {
+        icon: Clock,
+        text: 'Pending',
+        color: 'text-yellow-600 dark:text-yellow-400',
+        bgColor: 'bg-yellow-100 dark:bg-yellow-900/30',
+      };
+    case 'matching':
+      return {
+        icon: Loader2,
+        text: 'Matching',
+        color: 'text-blue-600 dark:text-blue-400',
+        bgColor: 'bg-blue-100 dark:bg-blue-900/30',
+        animate: true,
+      };
+    case 'executed':
+      return {
+        icon: CheckCircle,
+        text: 'Executed',
+        color: 'text-green-600 dark:text-green-400',
+        bgColor: 'bg-green-100 dark:bg-green-900/30',
+      };
+    case 'failed':
+      return {
+        icon: XCircle,
+        text: 'Failed',
+        color: 'text-red-600 dark:text-red-400',
+        bgColor: 'bg-red-100 dark:bg-red-900/30',
+      };
+    case 'expired':
+      return {
+        icon: Clock,
+        text: 'Expired',
+        color: 'text-gray-600 dark:text-gray-400',
+        bgColor: 'bg-gray-100 dark:bg-gray-900/30',
+      };
+    default:
+      return {
+        icon: Clock,
+        text: 'Created',
+        color: 'text-muted-foreground',
+        bgColor: 'bg-muted/50',
+      };
+  }
+};
 
 export function SwapSuccess({
   onClose,
   swapResult,
   swapDetails,
+  orderStatus,
 }: SwapSuccessProps) {
   const [copiedText, setCopiedText] = useState<boolean>(false);
   const [isVisible, setIsVisible] = useState<boolean>(false);
   const [isClosing, setIsClosing] = useState<boolean>(false);
+
+  const statusDisplay = getOrderStatusDisplay(orderStatus);
 
   useEffect(() => {
     if (!isVisible) {
@@ -81,10 +136,8 @@ export function SwapSuccess({
           }`}
         >
           <div className='bg-background border border-border rounded-2xl shadow-xl p-4'>
-            <div className='flex mb-3'>
-              <div className='flex flex-grow font-semibold text-sm text-center'>
-                Swap note created
-              </div>
+            <div className='flex justify-between items-center mb-3'>
+              <span className='font-semibold text-sm'>Swap Order</span>
               <Button
                 variant='ghost'
                 size='icon'
@@ -94,6 +147,43 @@ export function SwapSuccess({
                 <X className='h-3 w-3' />
               </Button>
             </div>
+            {/* Order Status */}
+            <div className={`mb-4 p-3 rounded-lg border-2 ${statusDisplay.bgColor} ${
+              orderStatus === 'executed' ? 'border-green-500' :
+              orderStatus === 'failed' ? 'border-red-500' :
+              orderStatus === 'matching' ? 'border-blue-500' :
+              'border-transparent'
+            }`}>
+              <div className='flex items-center justify-center gap-2'>
+                <statusDisplay.icon
+                  className={`h-5 w-5 ${statusDisplay.color} ${statusDisplay.animate ? 'animate-spin' : ''}`}
+                />
+                <span className={`font-semibold ${statusDisplay.color}`}>
+                  Order {statusDisplay.text}
+                </span>
+              </div>
+              {orderStatus === 'executed' && (
+                <p className='text-xs text-center mt-1 text-green-600 dark:text-green-400'>
+                  Your swap has been completed successfully!
+                </p>
+              )}
+              {orderStatus === 'matching' && (
+                <p className='text-xs text-center mt-1 text-blue-600 dark:text-blue-400'>
+                  Finding the best price for your swap<AnimatedDots />
+                </p>
+              )}
+              {orderStatus === 'pending' && (
+                <p className='text-xs text-center mt-1 text-yellow-600 dark:text-yellow-400'>
+                  Your order is waiting to be processed<AnimatedDots />
+                </p>
+              )}
+              {!orderStatus && (
+                <p className='text-xs text-center mt-1 text-muted-foreground'>
+                  Waiting for order confirmation<AnimatedDots />
+                </p>
+              )}
+            </div>
+
             {swapDetails && (
               <div className='mb-4'>
                 <div className='flex gap-2 text-sm p-2 bg-muted/50 rounded-md'>
@@ -113,9 +203,11 @@ export function SwapSuccess({
                 </div>
               </div>
             )}
-            <div className='text-xs text-left mb-4'>
-              Claim your tokens in the wallet.
-            </div>
+            {orderStatus === 'executed' && (
+              <div className='text-xs text-left mb-4'>
+                Claim your tokens in the wallet.
+              </div>
+            )}
             <div className='space-y-2'>
               <div>
                 <label className='text-xs text-muted-foreground block mb-1'>
@@ -147,10 +239,11 @@ export function SwapSuccess({
                 </div>
                 <Button
                   onClick={handleClose}
+                  disabled={orderStatus !== 'executed'}
                   className='mt-5 w-full h-full'
                   variant='secondary'
                 >
-                  OK
+                  {orderStatus === 'executed' ? 'OK' : <>Waiting<AnimatedDots /></>}
                 </Button>
               </div>
             </div>
