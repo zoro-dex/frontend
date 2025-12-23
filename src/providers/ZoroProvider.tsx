@@ -44,10 +44,10 @@ export function ZoroProvider({
   }, [accountId]);
 
   const value = useMemo(() => ({
-    tokens: generateTokenMetadata(poolsInfo?.data.liquidityPools || []),
+    tokens: generateTokenMetadata(poolsInfo?.data?.liquidityPools || []),
     tokensLoading: !poolsInfo?.isFetched,
-    liquidity_pools: poolsInfo?.data.liquidityPools || [],
-    poolAccountId: poolsInfo?.data.poolAccountId
+    liquidity_pools: poolsInfo?.data?.liquidityPools || [],
+    poolAccountId: poolsInfo?.data?.poolAccountId
       ? bech32ToAccountId(poolsInfo.data.poolAccountId)
       : undefined,
     accountId,

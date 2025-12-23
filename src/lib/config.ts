@@ -11,6 +11,7 @@ export interface OracleConfig {
 
 export interface ApiConfig {
   readonly endpoint: string;
+  readonly wsEndpoint: string;
 }
 
 export interface UiConfig {
@@ -57,8 +58,13 @@ export const ORACLE: OracleConfig = {
 } as const;
 
 // API Configuration
+const apiEndpoint = getEnvVar('VITE_API_ENDPOINT', 'https://api.zoroswap.com');
 export const API: ApiConfig = {
-  endpoint: getEnvVar('VITE_API_ENDPOINT', 'https://api.zoroswap.com'),
+  endpoint: apiEndpoint,
+  wsEndpoint: getEnvVar(
+    'VITE_WS_ENDPOINT',
+    apiEndpoint.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:'),
+  ),
 } as const;
 
 // UI Configuration
