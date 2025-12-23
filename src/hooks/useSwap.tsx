@@ -1,15 +1,14 @@
-import { compileSwapTransaction } from '@/lib/ZoroSwapNote';
+import { API } from '@/lib/config';
+import { compileSwapTransaction, serializeNote } from '@/lib/ZoroSwapNote';
 import { ZoroContext } from '@/providers/ZoroContext';
 import { type TokenConfig } from '@/providers/ZoroProvider';
-import { TransactionType, useWallet } from '@demox-labs/miden-wallet-adapter';
 import { useCallback, useContext, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 
 export const useSwap = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>();
-  const { requestTransaction } = useWallet();
-  const [txId, setTxId] = useState<undefined | string>();
+  const [orderId, setOrderId] = useState<undefined | string>();
   const [noteId, setNoteId] = useState<undefined | string>();
   const { client, accountId, poolAccountId } = useContext(ZoroContext);
 
@@ -24,13 +23,14 @@ export const useSwap = () => {
     buyToken: TokenConfig;
     sellToken: TokenConfig;
   }) => {
-    if (!poolAccountId || !accountId || !client || !requestTransaction) {
+    if (!poolAccountId || !accountId || !client) {
       return;
     }
     setError('');
     setIsLoading(true);
     try {
-      const { tx, noteId } = await compileSwapTransaction({
+      // Create the private swap note
+      const { noteId, note } = await compileSwapTransaction({
         amount,
         poolAccountId,
         buyToken,
@@ -39,13 +39,22 @@ export const useSwap = () => {
         userAccountId: accountId,
         client,
       });
-      const txId = await requestTransaction({
-        type: TransactionType.Custom,
-        payload: tx,
+
+      // Serialize and submit to backend via HTTP
+      const serializedNote = serializeNote(note);
+      const response = await fetch(`${API.endpoint}/orders/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note_data: serializedNote }),
       });
-      await client.syncState();
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to submit order');
+      }
+
       setNoteId(noteId);
-      setTxId(txId);
+      setOrderId(result.order_id);
     } catch (err) {
       console.error(err);
       toast.error(
@@ -59,13 +68,13 @@ export const useSwap = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [client, accountId, poolAccountId, requestTransaction]);
+  }, [client, accountId, poolAccountId]);
 
-  const value = useMemo(() => ({ swap, isLoading, error, txId, noteId }), [
+  const value = useMemo(() => ({ swap, isLoading, error, orderId, noteId }), [
     swap,
     error,
     isLoading,
-    txId,
+    orderId,
     noteId,
   ]);
 
