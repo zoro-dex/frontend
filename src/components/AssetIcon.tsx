@@ -1,11 +1,11 @@
 import { memo } from 'react';
 
 interface AssetIconProps {
-  faucetId: string;
+  symbol: string;
   size?: 'small' | 'normal' | number;
 }
 
-const AssetIcon = ({ faucetId, size = 'normal' }: AssetIconProps) => {
+const AssetIcon = ({ symbol, size = 'normal' }: AssetIconProps) => {
   const iconSize = size === 'normal'
     ? 32
     : size === 'small'
@@ -15,7 +15,7 @@ const AssetIcon = ({ faucetId, size = 'normal' }: AssetIconProps) => {
     : 32;
   return (
     <span
-      className={`icon-any icon-${faucetId} inline-block`}
+      className={`icon-any icon-${symbol} inline-block`}
       style={{ width: iconSize, height: iconSize }}
     >
     </span>

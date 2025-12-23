@@ -9,6 +9,7 @@ export function ZoroProvider({
   children,
 }: { children: ReactNode }) {
   const { data: poolsInfo, isFetched: isPoolsInfoFetched } = usePoolsInfo();
+  console.log(poolsInfo, isPoolsInfoFetched);
   const { address } = useWallet();
   const accountId = useMemo(
     () => address ? Address.fromBech32(address).accountId() : undefined,
@@ -29,14 +30,14 @@ export function ZoroProvider({
 
   const value = useMemo(() => ({
     tokens: generateTokenMetadata(poolsInfo?.liquidityPools || []),
-    tokensLoading: isPoolsInfoFetched,
+    tokensLoading: !isPoolsInfoFetched,
     liquidity_pools: poolsInfo?.liquidityPools || [],
     poolAccountId: poolsInfo?.poolAccountId
       ? bech32ToAccountId(poolsInfo.poolAccountId)
       : undefined,
     accountId,
     client,
-  }), [client, accountId, poolsInfo]);
+  }), [client, accountId, poolsInfo, isPoolsInfoFetched]);
 
   return (
     <ZoroContext.Provider value={value}>
@@ -66,6 +67,5 @@ const generateTokenMetadata = (pools: PoolInfo[]) => {
       oracleId: pool.oracleId,
     };
   }
-  console.log(tokens);
   return tokens;
 };

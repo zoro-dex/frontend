@@ -23,12 +23,11 @@ window.Buffer = Buffer;
 
 import type { TokenConfig } from '@/providers/ZoroProvider';
 import { accountIdToBech32, generateRandomSerialNumber } from './utils';
-import ZOROSWAP_SCRIPT from './ZOROSWAP.masm?raw';
+import WITHDRAW_SCRIPT from './WITHDRAW.masm?raw';
 
 export interface SwapParams {
   poolAccountId: AccountId;
-  sellToken: TokenConfig;
-  buyToken: TokenConfig;
+  token: TokenConfig;
   amount: bigint;
   minAmountOut: bigint;
   userAccountId: AccountId;
@@ -40,10 +39,9 @@ export interface SwapResult {
   readonly noteId: string;
 }
 
-export async function compileSwapTransaction({
+export async function compileWithdrawTransaction({
   poolAccountId,
-  buyToken,
-  sellToken,
+  token,
   amount,
   minAmountOut,
   userAccountId,
@@ -51,12 +49,12 @@ export async function compileSwapTransaction({
 }: SwapParams) {
   await client.syncState();
   const builder = client.createScriptBuilder();
-  const script = builder.compileNoteScript(ZOROSWAP_SCRIPT);
+  const script = builder.compileNoteScript(WITHDRAW_SCRIPT);
   const noteType = NoteType.Public;
-  const offeredAsset = new FungibleAsset(sellToken.faucetId, amount);
+  const requestedAsset = new FungibleAsset(token.faucetId, amount).intoWord().toFelts();
 
   // Note should only contain the offered asset
-  const noteAssets = new NoteAssets([offeredAsset]);
+  const noteAssets = new NoteAssets([]);
   const noteTag = NoteTag.fromAccountId(poolAccountId);
 
   const metadata = new NoteMetadata(
@@ -75,14 +73,11 @@ export async function compileSwapTransaction({
   // Following the pattern: [asset_id_prefix, asset_id_suffix, 0, min_amount_out]
   const inputs = new NoteInputs(
     new FeltArray([
-      new Felt(minAmountOut),
+      ...requestedAsset,
       new Felt(BigInt(0)),
-      buyToken.faucetId.suffix(),
-      buyToken.faucetId.prefix(),
+      new Felt(minAmountOut),
       new Felt(BigInt(deadline)),
       new Felt(BigInt(p2idTag)),
-      new Felt(BigInt(0)),
-      new Felt(BigInt(0)),
       new Felt(BigInt(0)),
       new Felt(BigInt(0)),
       userAccountId.suffix(),

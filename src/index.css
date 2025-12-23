@@ -134,6 +134,10 @@ table th {
 }
 
 table th {
+  padding-bottom: 0;
+}
+
+table th {
   color: hsl(var(--muted-foreground));
 }
 

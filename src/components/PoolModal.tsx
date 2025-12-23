@@ -2,17 +2,16 @@ import { useDeposit } from '@/hooks/useDeposit';
 import { useLPBalance } from '@/hooks/useLPBalance';
 import { useWithdraw } from '@/hooks/useWithdraw';
 import { ZoroContext } from '@/providers/ZoroContext';
-import { Loader } from 'lucide-react';
+import { Loader, X } from 'lucide-react';
 import { useCallback, useContext, useMemo, useState } from 'react';
 import { parseUnits } from 'viem';
 import { useBalance } from '../hooks/useBalance';
 import { type PoolInfo } from '../hooks/usePoolsInfo';
 import { ModalContext } from '../providers/ModalContext';
-import globalStyles from '../styles/GlobalStyles.module.css';
-import styles from '../styles/Modal.module.css';
 import { formatTokenAmount } from '../utils/format';
 import Slippage from './Slippage';
 import { Button } from './ui/button';
+import { Input } from './ui/input';
 
 interface PoolModalProps {
   pool: PoolInfo;
@@ -42,10 +41,12 @@ const PoolModal = ({ pool, refetchPoolInfo }: PoolModalProps) => {
   const { balance: balanceToken, refetch: refetchBalanceToken } = useBalance({
     token,
   });
-  const { balance: balanceContractToken, refetch: refetchBalanceWallet } = useLPBalance();
+  const { balance: balanceContractToken, refetch: refetchBalanceWallet } = useLPBalance({
+    token,
+  });
   const balance = useMemo(
     () =>
-      mode === 'Deposit'
+      mode === 'Withdraw'
         ? balanceContractToken ?? BigInt(0)
         : balanceToken ?? BigInt(0),
     [balanceToken, balanceContractToken, mode],
@@ -53,23 +54,24 @@ const PoolModal = ({ pool, refetchPoolInfo }: PoolModalProps) => {
   const decimals = pool.decimals;
 
   // DEPOSITING
-  const { deposit, isLoading: isDepositLoading } = useDeposit({
-    pool,
-    slippage,
-  });
+  const { deposit, isLoading: isDepositLoading, error: depositError } = useDeposit();
   const writeDeposit = useCallback(async () => {
+    if (token == null) return;
     await deposit({
       amount: rawValue,
+      minAmountOut: rawValue,
+      token,
     });
   }, [rawValue, deposit]);
 
   // WITHDRAWING
-  const { withdraw, isLoading: isWithdrawLoading } = useWithdraw(
-    { pool, slippage },
-  );
+  const { withdraw, isLoading: isWithdrawLoading, error: withdrawError } = useWithdraw();
   const writeWithdraw = useCallback(() => {
+    if (token == null) return;
     withdraw({
       amount: rawValue,
+      minAmountOut: rawValue,
+      token,
     });
   }, [rawValue, withdraw]);
 
@@ -114,17 +116,11 @@ const PoolModal = ({ pool, refetchPoolInfo }: PoolModalProps) => {
   }, [decimals, balance]);
 
   return (
-    <div className={styles.modalContainer}>
-      <div className={styles.modalTabs}>
+    <div className='flex flex-col gap-6'>
+      <div className='w-full flex items-center text-xl'>
         <div
-          onClick={() => {
-            modalContext.closeModal();
-          }}
-          className={`${styles.closeBtn} ${globalStyles.hint} ${globalStyles.clickable}`}
-        />
-        <div
-          className={`${styles.modalTab} 
-              ${mode === 'Deposit' ? styles.modalTabActive : ''}
+          className={`font-bold cursor-pointer p-4
+              ${mode === 'Deposit' ? 'opacity-100' : 'opacity-30'}
           `}
           onClick={() => {
             setMode('Deposit');
@@ -134,8 +130,8 @@ const PoolModal = ({ pool, refetchPoolInfo }: PoolModalProps) => {
           Deposit
         </div>
         <div
-          className={`${styles.modalTab} 
-              ${mode === 'Withdraw' ? styles.modalTabActive : ''}
+          className={`font-bold cursor-pointer p-4
+              ${mode === 'Withdraw' ? 'opacity-100' : 'opacity-30'}
           `}
           onClick={() => {
             setMode('Withdraw');
@@ -144,64 +140,55 @@ const PoolModal = ({ pool, refetchPoolInfo }: PoolModalProps) => {
         >
           Withdraw
         </div>
-      </div>{' '}
-      <div className={styles.modalInput}>
-        <p className={globalStyles.hint}>
-          {mode === 'Deposit' ? 'Deposit amount' : 'Withdrawal amount'}
-        </p>
-        <input
-          className={globalStyles.input}
-          value={inputValue}
-          placeholder='0.0'
-          onChange={(e) => {
-            onInputChange(e.target.value);
+        <div className='flex-grow' />
+        <X
+          onClick={() => {
+            modalContext.closeModal();
           }}
         />
-        {inputError ? <p className={globalStyles.errorHint}>{inputError}</p> : null}
-        <div className={styles.modalSmallButtons}>
-          <Button
-            onClick={() => {
-              setAmountPercentage(25);
+      </div>{' '}
+      <div className='flex flex-col gap-4 my-4'>
+        <p className='text-xs opacity-50'>
+          {mode === 'Deposit' ? 'Deposit amount' : 'Withdrawal amount'}
+        </p>
+        <div className='flex gap-4 relative'>
+          <Input
+            value={inputValue}
+            placeholder='0.0'
+            className='border-0 bg-background p-4 py-8 text-2xl'
+            onChange={(e) => {
+              onInputChange(e.target.value);
             }}
-          >
-            25 %
-          </Button>
-          <Button
-            onClick={() => {
-              setAmountPercentage(50);
-            }}
-          >
-            50 %
-          </Button>
-          <Button
-            onClick={() => {
-              setAmountPercentage(75);
-            }}
-          >
-            75 %
-          </Button>
-          <Button
-            onClick={() => {
-              setAmountPercentage(100);
-            }}
-          >
-            100 %
-          </Button>
+          />
+          <div className='text-lg absolute right-[20px] top-[50%] mt-[-12px] opacity-50'>
+            {token?.symbol}
+          </div>
+        </div>
+        {inputError ? <p className='text-destructive'>{inputError}</p> : null}
+        <div className='flex gap-4 justify-center'>
+          {[25, 50, 75, 100].map(n => (
+            <Button
+              key={n}
+              variant='ghost'
+              onClick={() => {
+                setAmountPercentage(n);
+              }}
+            >
+              {n} %
+            </Button>
+          ))}
         </div>
       </div>
-      <div className={styles.details}>
-        <Slippage slippage={slippage} onSlippageChange={setSlippage} />
-        <p>
-          <span>Balance</span>
-          <span>
-            {formatTokenAmount({
-              value: balanceContractToken,
-              expo: pool.decimals,
-            })} {pool.symbol}
-          </span>
-        </p>
-        <p>
-          <span>My position</span>
+      <div className='flex flex-col gap-3'>
+        <div className='flex justify-between h-[24px]'>
+          <p className='opacity-50 font-bold'>Max slippage</p>
+          <div className='flex gap-2 items-center'>
+            <Slippage slippage={slippage} onSlippageChange={setSlippage} />
+            <span>{slippage} %</span>
+          </div>
+        </div>
+        <p className='flex justify-between  h-[24px]'>
+          <span className='opacity-50 font-bold'>Balance</span>
           <span>
             {formatTokenAmount({
               value: balanceToken,
@@ -209,15 +196,27 @@ const PoolModal = ({ pool, refetchPoolInfo }: PoolModalProps) => {
             })} {pool.symbol}
           </span>
         </p>
+        <p className='flex justify-between h-[24px]'>
+          <span className='opacity-50 font-bold'>My position</span>
+          <span>
+            {formatTokenAmount({
+              value: balanceContractToken,
+              expo: pool.decimals,
+            })} z{pool.symbol}
+          </span>
+        </p>
       </div>
-      <div className={styles.modalAction}>
+      <div>
         {mode === 'Deposit'
           ? (
             <Button
-              onClick={() => writeDeposit().catch(console.error)}
+              onClick={writeDeposit}
               disabled={rawValue === BigInt(0)}
+              className='w-full'
+              size='xl'
             >
               {isDepositLoading && <Loader />}
+              Deposit
             </Button>
           )
           : null}
@@ -226,6 +225,8 @@ const PoolModal = ({ pool, refetchPoolInfo }: PoolModalProps) => {
             <Button
               onClick={writeWithdraw}
               disabled={rawValue === BigInt(0)}
+              size='xl'
+              className='w-full'
             >
               {isWithdrawLoading && <Loader />}
               Withdraw
@@ -233,6 +234,8 @@ const PoolModal = ({ pool, refetchPoolInfo }: PoolModalProps) => {
           )
           : null}
       </div>
+      {depositError ? <p className='text-destructive'>{depositError}</p> : null}
+      {withdrawError ? <p className='text-destructive'>{withdrawError}</p> : null}
     </div>
   );
 };

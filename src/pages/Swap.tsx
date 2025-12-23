@@ -310,7 +310,7 @@ function Swap() {
                       >
                         {selectedAssetSell && (
                           <>
-                            <AssetIcon faucetId={selectedAssetSell.symbol} />
+                            <AssetIcon symbol={selectedAssetSell.symbol} />
                             {selectedAssetSell.symbol}
                           </>
                         )}
@@ -422,7 +422,7 @@ function Swap() {
                       >
                         {selectedAssetBuy && (
                           <>
-                            <AssetIcon faucetId={selectedAssetBuy.symbol} />
+                            <AssetIcon symbol={selectedAssetBuy.symbol} />
                             {selectedAssetBuy.symbol}
                           </>
                         )}

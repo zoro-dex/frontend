@@ -50,11 +50,11 @@ const ModalBackdrop = ({
   return createPortal(
     <div
       ref={backdropRef}
-      className='fixed top-0 left-0 w-full h-full bg-[rgba(0,0,0,.5)] flex align-center justify-center z-1000 backdrop-blur-xs'
+      className='fixed top-0 left-0 w-full h-full bg-[rgba(0,0,0,.5)] flex flex-col items-center justify-center z-1000 backdrop-blur-xs'
       onClick={handleClose}
     >
       <Card
-        className='relative z-2'
+        className='relative z-2 max-w-[640px] p-8 w-[90%] block'
         style={{
           transform: visible ? 'translateY(0)' : 'translateY(-20px)',
           opacity: visible ? 1 : 0,

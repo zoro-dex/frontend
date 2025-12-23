@@ -26,25 +26,24 @@ const LiquidityPoolRow = ({
   const formattedPrice = formalNumberFormat(price?.value);
   return (
     <tr className={className}>
-      <td className=''>
-        <div className='flex items-center gap-2'>
-          <AssetIcon faucetId={pool.symbol} size={64} />
+      <td>
+        <div className='flex items-center gap-3'>
+          <AssetIcon symbol={pool.symbol} size={48} />
           <div>
-            <h4>{pool.name}</h4>
-            <p>
-              ${pool.symbol}
-            </p>
-            <p className='text-xs color-disabled'>
+            <h4 className='text-sm font-bold'>{pool.name}</h4>
+            <p className='text-xs opacity-50'>
               ${formattedPrice}
             </p>
           </div>
         </div>
       </td>
-      <td>n / a</td>
+      <td className='opacity-50'>n / a</td>
       <td className='px-4 py-3'>
-        {prettyBigintFormat({ value: poolBalances.totalLiabilities, expo: decimals })} /
+        {prettyBigintFormat({ value: poolBalances.totalLiabilities, expo: decimals })}
         {' '}
-        Inf
+        <span className='opacity-50'>
+          / Inf
+        </span>
       </td>
       <td>{prettyBigintFormat({ value: poolBalances.reserve, expo: decimals })}</td>
       {
