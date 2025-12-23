@@ -8,7 +8,7 @@ import { useCallback, useEffect, useState } from 'react';
 const AnimatedDots = () => <span className="animated-dots"><span>.</span><span>.</span><span>.</span></span>;
 
 interface SwapResult {
-  readonly txId?: string;
+  readonly orderId?: string;
   readonly noteId?: string;
 }
 

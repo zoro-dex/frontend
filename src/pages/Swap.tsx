@@ -40,7 +40,7 @@ function Swap() {
   const {
     swap,
     isLoading: isLoadingSwap,
-    txId,
+    orderId,
     noteId,
   } = useSwap();
   // Subscribe to all order updates from the start
@@ -552,7 +552,7 @@ function Swap() {
       {isSuccessModalOpen && (
         <SwapSuccess
           onClose={onCloseSuccessModal}
-          swapResult={{ txId, noteId }}
+          swapResult={{ orderId, noteId }}
           swapDetails={{
             sellToken: selectedAssetSell,
             buyToken: selectedAssetBuy,
