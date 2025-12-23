@@ -100,7 +100,7 @@ export const secondsToMaxUnit = (milliseconds: number) => {
   if (days > 0) return [days, 'days'];
   const hours = toHours(milliseconds);
   if (hours > 0) return [hours, 'hours'];
-  const minutes = toDays(milliseconds);
+  const minutes = toMinutes(milliseconds);
   if (minutes > 0) return [minutes, 'minutes'];
   const seconds = milliseconds / 1000;
   return [seconds, 'seconds'];

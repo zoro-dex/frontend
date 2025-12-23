@@ -2,7 +2,6 @@
  * Faucet service for minting test tokens from Zoro backend
  * Handles rate limiting and queue management on the server side
  */
-
 import { API } from '@/lib/config';
 
 export interface FaucetMintRequest {

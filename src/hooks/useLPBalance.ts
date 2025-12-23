@@ -18,8 +18,8 @@ export const useLPBalance = ({ token }: { token?: TokenConfig }) => {
     const lp = storage?.getMapItem(
       11,
       Word.newFromFelts([
-        new Felt(BigInt(0)),
-        new Felt(BigInt(0)),
+        new Felt(token.faucetId.prefix().asInt()),
+        new Felt(token.faucetId.suffix().asInt()),
         new Felt(accountId.suffix().asInt()),
         new Felt(accountId.prefix().asInt()),
       ]),

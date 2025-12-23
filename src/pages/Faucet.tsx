@@ -61,7 +61,7 @@ function Faucet() {
       return;
     }
     const token = tokens[tokenFaucetId];
-    if (!token) {
+    if (!token || !token.faucetId) {
       return;
     }
     const faucetId = token.faucetId;

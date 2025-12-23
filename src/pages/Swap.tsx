@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useBalance } from '@/hooks/useBalance';
 import { useSwap } from '@/hooks/useSwap';
+import { useOrderUpdates } from '@/hooks/useWebSocket';
 import { DEFAULT_SLIPPAGE } from '@/lib/config';
 import { OracleContext, useOraclePrices } from '@/providers/OracleContext';
 import { ZoroContext } from '@/providers/ZoroContext';
@@ -17,8 +18,9 @@ import { formalNumberFormat, formatTokenAmount } from '@/utils/format.ts';
 import { emptyFn } from '@/utils/shared';
 import { useWallet, WalletMultiButton } from '@demox-labs/miden-wallet-adapter';
 import { Loader2 } from 'lucide-react';
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { formatUnits, parseUnits } from 'viem';
 
 const validateValue = (val: bigint, max: bigint) => {
@@ -42,6 +44,8 @@ function Swap() {
     txId,
     noteId,
   } = useSwap();
+  // Subscribe to all order updates from the start
+  const { orderStatus } = useOrderUpdates();
   const { connecting, connected } = useWallet();
   const [selectedAssetBuy, setSelectedAssetBuy] = useState<undefined | TokenConfig>();
   const [selectedAssetSell, setSelectedAssetSell] = useState<undefined | TokenConfig>();
@@ -67,14 +71,9 @@ function Swap() {
 
   const prices = useOraclePrices(priceIds);
 
+  // Initial price fetch (WebSocket will handle real-time updates)
   useEffect(() => {
     refreshPrices(priceIds);
-    const interval = setInterval(() => {
-      refreshPrices(priceIds);
-    }, 20000);
-    return () => {
-      clearInterval(interval);
-    };
   }, [
     priceIds,
     refreshPrices,
@@ -106,7 +105,7 @@ function Swap() {
       value: rawBuy > 0
         ? rawBuy
         : parseUnits(stringBuy ?? '', selectedAssetBuy.decimals),
-      expo: selectedAssetSell.decimals,
+      expo: selectedAssetBuy.decimals,
     });
     if (priceBuy && tokenAmountBuy) {
       res[1] = formalNumberFormat(tokenAmountBuy * priceBuy);
@@ -229,13 +228,17 @@ function Swap() {
     if (!selectedAssetBuy || !selectedAssetSell) {
       return;
     }
+    // Calculate minimum output with slippage protection
+    // minAmountOut = rawBuy * (1 - slippage/100)
+    const slippageFactor = BigInt(Math.round((100 - slippage) * 1e6));
+    const minAmountOut = rawBuy * slippageFactor / BigInt(1e8);
     swap({
       amount: rawSell,
-      minAmountOut: rawSell * BigInt(slippage * 1e6) / BigInt(1e8),
+      minAmountOut,
       buyToken: selectedAssetBuy,
       sellToken: selectedAssetSell,
     });
-  }, [rawSell, slippage, selectedAssetBuy, selectedAssetSell, swap]);
+  }, [rawSell, rawBuy, slippage, selectedAssetBuy, selectedAssetSell, swap]);
 
   const handleMaxClick = useCallback(() => {
     onInputChange(
@@ -260,16 +263,27 @@ function Swap() {
     selectedAssetSell?.symbol,
   ]);
 
+  const lastShownNoteId = useRef<string | undefined>(undefined);
+
   const onCloseSuccessModal = useCallback(() => {
     clearForm();
     setIsSuccessModalOpen(false);
   }, [clearForm]);
 
   useEffect(() => {
-    if (noteId) {
+    if (noteId && noteId !== lastShownNoteId.current) {
+      lastShownNoteId.current = noteId;
       setIsSuccessModalOpen(true);
+      // Note: Already subscribed to all orders in useOrderUpdates([])
     }
   }, [noteId]);
+
+  // Handle order status updates, show toast on failure
+  useEffect(() => {
+    if (noteId && orderStatus[noteId]?.status === 'failed') {
+      toast.error('Swap order failed');
+    }
+  }, [noteId, orderStatus]);
 
   return (
     <div className='min-h-screen bg-background text-foreground flex flex-col relative dotted-bg'>
@@ -325,7 +339,7 @@ function Swap() {
                     )}
                     <div className='flex items-center justify-between text-xs h-5'>
                       <div>{usdValueSell ? `$${usdValueSell}` : ''}</div>
-                      {accountId && balanceSell
+                      {accountId && balanceSell !== null && balanceSell !== undefined
                         && (
                           <div className='flex items-center gap-1'>
                             <button
@@ -430,7 +444,7 @@ function Swap() {
                     </div>
                     <div className='flex items-center justify-between text-xs h-5'>
                       <div>{usdValueBuy ? `$${usdValueBuy}` : ''}</div>
-                      {balancebuy !== null && balancebuy > BigInt(0) && (
+                      {balancebuy !== null && balancebuy !== undefined && (
                         <div className='text-muted-foreground mr-1'>
                           {balanceBuyFmt} {selectedAssetBuy?.symbol ?? ''}
                         </div>
@@ -538,6 +552,7 @@ function Swap() {
             buyAmount: rawBuy,
             sellAmount: rawSell,
           }}
+          orderStatus={noteId ? orderStatus[noteId]?.status : undefined}
         />
       )}
     </div>
