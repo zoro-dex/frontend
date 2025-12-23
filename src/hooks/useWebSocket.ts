@@ -102,6 +102,7 @@ export function useOrderUpdates(orderIds?: string[]) {
     status: import('@/services/websocket').OrderStatus;
     timestamp: number;
     details: import('@/services/websocket').OrderUpdateDetails;
+    p2id_note_data?: string;
   }>>({});
 
   const channels: SubscriptionChannel[] = useMemo(() => {
@@ -124,6 +125,7 @@ export function useOrderUpdates(orderIds?: string[]) {
             status: message.status,
             timestamp: message.timestamp,
             details: message.details,
+            p2id_note_data: message.p2id_note_data,
           },
         }));
       }

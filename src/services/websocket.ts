@@ -34,6 +34,7 @@ export type ServerMessage =
       status: OrderStatus;
       timestamp: number;
       details: OrderUpdateDetails;
+      p2id_note_data?: string;
     }
   | {
       type: 'PoolStateUpdate';
