@@ -228,13 +228,17 @@ function Swap() {
     if (!selectedAssetBuy || !selectedAssetSell) {
       return;
     }
+    // Calculate minimum output with slippage protection
+    // minAmountOut = rawBuy * (1 - slippage/100)
+    const slippageFactor = BigInt(Math.round((100 - slippage) * 1e6));
+    const minAmountOut = rawBuy * slippageFactor / BigInt(1e8);
     swap({
       amount: rawSell,
-      minAmountOut: rawSell * BigInt(slippage * 1e6) / BigInt(1e8),
+      minAmountOut,
       buyToken: selectedAssetBuy,
       sellToken: selectedAssetSell,
     });
-  }, [rawSell, slippage, selectedAssetBuy, selectedAssetSell, swap]);
+  }, [rawSell, rawBuy, slippage, selectedAssetBuy, selectedAssetSell, swap]);
 
   const handleMaxClick = useCallback(() => {
     onInputChange(
