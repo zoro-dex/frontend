@@ -132,6 +132,6 @@ export async function compileSwapTransaction({
  * Serialize a note to base64 for HTTP submission
  */
 export function serializeNote(note: Note): string {
-  const noteBytes = note.toBytes();
+  const noteBytes = note.serialize();
   return Buffer.from(noteBytes).toString('base64');
 }
