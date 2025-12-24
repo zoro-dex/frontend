@@ -13,8 +13,6 @@ export const useLPBalance = ({ token }: { token?: TokenConfig }) => {
     await safeAccountImport(client, poolAccountId);
     const account = await client.getAccount(poolAccountId);
     const storage = account?.storage();
-    console.log(storage);
-
     const lp = storage?.getMapItem(
       11,
       Word.newFromFelts([
@@ -24,23 +22,7 @@ export const useLPBalance = ({ token }: { token?: TokenConfig }) => {
         new Felt(accountId.prefix().asInt()),
       ]),
     )?.toFelts();
-    const mapping = storage?.getMapItem(
-      9,
-      Word.newFromFelts([
-        new Felt(BigInt(0)),
-        new Felt(BigInt(0)),
-        new Felt(BigInt(0)),
-        new Felt(BigInt(0)),
-      ]),
-    );
-    console.log('MAP', mapping);
-    const lpSupply = storage?.getMapItem(
-      11,
-      mapping as Word,
-    )?.toFelts();
     const balance = lp?.[0].asInt() ?? BigInt(0);
-    const totalSupply = lpSupply?.[0].asInt() ?? BigInt(0);
-    console.log('new LP:', balance, totalSupply);
     setBalance(balance);
   }, [poolAccountId, client, accountId, token]);
 

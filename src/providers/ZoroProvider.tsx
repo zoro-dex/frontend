@@ -9,7 +9,6 @@ export function ZoroProvider({
   children,
 }: { children: ReactNode }) {
   const { data: poolsInfo, isFetched: isPoolsInfoFetched } = usePoolsInfo();
-  console.log(poolsInfo, isPoolsInfoFetched);
   const { address } = useWallet();
   const accountId = useMemo(
     () => address ? Address.fromBech32(address).accountId() : undefined,

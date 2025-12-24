@@ -2,20 +2,24 @@ import { useDeposit } from '@/hooks/useDeposit';
 import { useLPBalance } from '@/hooks/useLPBalance';
 import { useWithdraw } from '@/hooks/useWithdraw';
 import { ZoroContext } from '@/providers/ZoroContext';
+import type { TokenConfig } from '@/providers/ZoroProvider';
 import { Loader, X } from 'lucide-react';
-import { useCallback, useContext, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { parseUnits } from 'viem';
 import { useBalance } from '../hooks/useBalance';
 import { type PoolInfo } from '../hooks/usePoolsInfo';
 import { ModalContext } from '../providers/ModalContext';
 import { formatTokenAmount } from '../utils/format';
 import Slippage from './Slippage';
+import type { LpDetails, TxResult } from './SwapSuccess';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 
 interface PoolModalProps {
   pool: PoolInfo;
   refetchPoolInfo?: () => void;
+  setTxResult: (txResults: TxResult) => void;
+  setLpDetails: (lpDetails: LpDetails) => void;
 }
 
 const validateValue = (val: bigint, max: bigint) => {
@@ -26,10 +30,14 @@ const validateValue = (val: bigint, max: bigint) => {
     : undefined;
 };
 
-const PoolModal = ({ pool, refetchPoolInfo }: PoolModalProps) => {
+export type LpActionType = 'Deposit' | 'Withdraw';
+
+const PoolModal = (
+  { pool, refetchPoolInfo, setTxResult, setLpDetails }: PoolModalProps,
+) => {
   const modalContext = useContext(ModalContext);
   const { tokens } = useContext(ZoroContext);
-  const [mode, setMode] = useState<'Deposit' | 'Withdraw'>('Deposit');
+  const [mode, setMode] = useState<LpActionType>('Deposit');
   const [rawValue, setRawValue] = useState(BigInt(0));
   const [inputError, setInputError] = useState<string | undefined>(undefined);
   const [inputValue, setInputValue] = useState('');
@@ -53,28 +61,6 @@ const PoolModal = ({ pool, refetchPoolInfo }: PoolModalProps) => {
   );
   const decimals = pool.decimals;
 
-  // DEPOSITING
-  const { deposit, isLoading: isDepositLoading, error: depositError } = useDeposit();
-  const writeDeposit = useCallback(async () => {
-    if (token == null) return;
-    await deposit({
-      amount: rawValue,
-      minAmountOut: rawValue,
-      token,
-    });
-  }, [rawValue, deposit]);
-
-  // WITHDRAWING
-  const { withdraw, isLoading: isWithdrawLoading, error: withdrawError } = useWithdraw();
-  const writeWithdraw = useCallback(() => {
-    if (token == null) return;
-    withdraw({
-      amount: rawValue,
-      minAmountOut: rawValue,
-      token,
-    });
-  }, [rawValue, withdraw]);
-
   const clearForm = useCallback(() => {
     setInputValue('');
     setRawValue(BigInt(0));
@@ -86,6 +72,59 @@ const PoolModal = ({ pool, refetchPoolInfo }: PoolModalProps) => {
     refetchBalanceWallet,
     refetchPoolInfo,
   ]);
+
+  // DEPOSITING
+  const {
+    deposit,
+    isLoading: isDepositLoading,
+    error: depositError,
+    txId: depositTxId,
+    noteId: depositNoteId,
+  } = useDeposit();
+
+  // WITHDRAWING
+  const {
+    withdraw,
+    isLoading: isWithdrawLoading,
+    error: withdrawError,
+    txId: withdrawTxId,
+    noteId: withdrawNoteId,
+  } = useWithdraw();
+
+  useEffect(() => {
+    if ((depositNoteId && depositTxId) || (withdrawTxId && withdrawNoteId)) {
+      setLpDetails({
+        token: token as TokenConfig,
+        amount: rawValue,
+        actionType: mode,
+      });
+      setTxResult(
+        mode === 'Deposit'
+          ? { txId: depositTxId, noteId: depositNoteId }
+          : { txId: withdrawTxId, noteId: withdrawNoteId },
+      );
+      clearForm();
+      modalContext.closeModal();
+    }
+  }, [depositTxId, withdrawTxId, depositNoteId, withdrawNoteId, mode]);
+
+  const writeDeposit = useCallback(async () => {
+    if (token == null) return;
+    await deposit({
+      amount: rawValue,
+      minAmountOut: rawValue,
+      token,
+    });
+  }, [rawValue, deposit, token, mode]);
+
+  const writeWithdraw = useCallback(async () => {
+    if (token == null) return;
+    await withdraw({
+      amount: rawValue,
+      minAmountOut: rawValue,
+      token,
+    });
+  }, [rawValue, withdraw]);
 
   const setAmountPercentage = useCallback(
     (percentage: number) => {

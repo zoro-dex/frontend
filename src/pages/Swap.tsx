@@ -553,6 +553,7 @@ function Swap() {
             sellAmount: rawSell,
           }}
           orderStatus={noteId ? orderStatus[noteId]?.status : undefined}
+          title='Swap order'
         />
       )}
     </div>

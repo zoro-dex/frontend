@@ -56,7 +56,6 @@ function Faucet() {
   }, [tokens, mintStatuses, setMintStatuses, updateMintStatus]);
 
   const requestTokens = useCallback(async (tokenFaucetId: string): Promise<void> => {
-    console.log(connected, accountId, tokens);
     if (!connected || !accountId) {
       return;
     }

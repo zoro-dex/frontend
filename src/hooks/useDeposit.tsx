@@ -37,18 +37,14 @@ export const useDeposit = () => {
         userAccountId: accountId,
         client,
       });
-      console.log('Compiled note');
       const txId = await requestTransaction({
         type: TransactionType.Custom,
         payload: tx,
       });
-      console.log('Requested TX');
       await client.syncState();
-      console.log('Syncing client');
       let serialized = btoa(
         String.fromCharCode.apply(null, note.serialize() as unknown as number[]),
       );
-      console.log('Sending serialized');
       await new Promise(r => setTimeout(r, 20000));
       await submitNoteToServer(serialized);
       setNoteId(noteId);
@@ -81,7 +77,6 @@ export const useDeposit = () => {
 
 async function submitNoteToServer(serializedNote: string) {
   try {
-    console.log('Submitting deposit note to server');
     const response = await fetch(`${API.endpoint}/deposit/submit`, {
       method: 'POST',
       headers: {
@@ -97,8 +92,6 @@ async function submitNoteToServer(serializedNote: string) {
         `Server responded with ${response.status}: ${response.statusText}`,
       );
     }
-    const result = await response.json();
-    console.log('Note submitted to server:', result);
   } catch (error) {
     console.error('Failed to submit note to server:', error);
     throw error;

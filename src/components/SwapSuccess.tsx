@@ -4,6 +4,7 @@ import type { OrderStatus } from '@/services/websocket';
 import { formalBigIntFormat } from '@/utils/format';
 import { CheckCircle, Clock, ExternalLink, Loader2, X, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import type { LpActionType } from './PoolModal';
 
 const AnimatedDots = () => (
   <span className='animated-dots'>
@@ -13,7 +14,7 @@ const AnimatedDots = () => (
   </span>
 );
 
-interface SwapResult {
+export interface TxResult {
   readonly txId?: string;
   readonly noteId?: string;
 }
@@ -25,11 +26,19 @@ interface SwapDetails {
   readonly buyAmount?: bigint;
 }
 
+export interface LpDetails {
+  readonly token: TokenConfig;
+  readonly amount: bigint;
+  readonly actionType: LpActionType;
+}
+
 interface SwapSuccessProps {
   readonly onClose: () => void;
-  readonly swapResult: SwapResult | null;
-  readonly swapDetails: SwapDetails | null;
+  readonly swapResult?: TxResult;
+  readonly swapDetails?: SwapDetails;
+  readonly lpDetails?: LpDetails;
   readonly orderStatus?: OrderStatus;
+  readonly title: string;
 }
 
 const getOrderStatusDisplay = (status?: OrderStatus) => {
@@ -84,7 +93,9 @@ export function SwapSuccess({
   onClose,
   swapResult,
   swapDetails,
+  lpDetails,
   orderStatus,
+  title,
 }: SwapSuccessProps) {
   const [copiedText, setCopiedText] = useState<boolean>(false);
   const [isVisible, setIsVisible] = useState<boolean>(false);
@@ -143,7 +154,7 @@ export function SwapSuccess({
         >
           <div className='bg-background border border-border rounded-2xl shadow-xl p-4'>
             <div className='flex justify-between items-center mb-3'>
-              <span className='font-semibold text-sm'>Swap Order</span>
+              <span className='font-semibold text-sm'>{title}</span>
               <Button
                 variant='ghost'
                 size='icon'
@@ -177,12 +188,12 @@ export function SwapSuccess({
               </div>
               {orderStatus === 'executed' && (
                 <p className='text-xs text-center mt-1 text-green-600 dark:text-green-400'>
-                  Your swap has been completed successfully!
+                  Your order has been completed successfully!
                 </p>
               )}
               {orderStatus === 'matching' && (
                 <p className='text-xs text-center mt-1 text-blue-600 dark:text-blue-400'>
-                  Finding the best price for your swap <AnimatedDots />
+                  Finding the best price for your order <AnimatedDots />
                 </p>
               )}
               {orderStatus === 'pending' && (
@@ -202,6 +213,21 @@ export function SwapSuccess({
               )}
             </div>
 
+            {lpDetails && (
+              <div className='mb-4'>
+                <div className='flex gap-2 text-sm p-2 bg-muted/50 rounded-md'>
+                  <span className='text-muted-foreground text-xs'>
+                    {lpDetails.actionType}
+                  </span>
+                  <div>
+                    {formalBigIntFormat({
+                      val: lpDetails.amount ?? BigInt(0),
+                      expo: lpDetails.token?.decimals || 6,
+                    })} {lpDetails.token?.symbol}
+                  </div>
+                </div>
+              </div>
+            )}
             {swapDetails && (
               <div className='mb-4'>
                 <div className='flex gap-2 text-sm p-2 bg-muted/50 rounded-md'>
@@ -221,7 +247,7 @@ export function SwapSuccess({
                 </div>
               </div>
             )}
-            {orderStatus === 'executed' && (
+            {orderStatus === 'executed' && !lpDetails && (
               <div className='text-xs text-left mb-4 opacity-90'>
                 Claim your tokens in the wallet.
               </div>

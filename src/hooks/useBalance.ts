@@ -15,7 +15,6 @@ const getBalanceFromClient = async (
 ) => {
   if (accountId == null) return BigInt(0);
   const acc = await client.getAccount(accountId);
-  console.log(acc);
   const balance = acc?.vault().getBalance(faucetId);
   return balance;
 };
@@ -26,7 +25,6 @@ export const useBalance = (
   const { client, accountId } = useContext(ZoroContext);
   const [balance, setBalance] = useState<bigint | null>(null);
   const faucetId = token?.faucetId;
-  console.log(token?.faucetIdBech32);
   const refetch = useCallback(async () => {
     if (!accountId || !faucetId || !client) return;
     await client.syncState();
