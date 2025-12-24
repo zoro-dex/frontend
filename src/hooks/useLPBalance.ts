@@ -13,13 +13,14 @@ export const useLPBalance = ({ token }: { token?: TokenConfig }) => {
     await safeAccountImport(client, poolAccountId);
     const account = await client.getAccount(poolAccountId);
     const storage = account?.storage();
+    console.log(storage);
     const lp = storage?.getMapItem(
       11,
       Word.newFromFelts([
         new Felt(token.faucetId.prefix().asInt()),
         new Felt(token.faucetId.suffix().asInt()),
-        new Felt(accountId.suffix().asInt()),
         new Felt(accountId.prefix().asInt()),
+        new Felt(accountId.suffix().asInt()),
       ]),
     )?.toFelts();
     const balance = lp?.[0].asInt() ?? BigInt(0);

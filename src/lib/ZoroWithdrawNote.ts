@@ -16,7 +16,7 @@ import {
   TransactionRequestBuilder,
   WebClient,
 } from '@demox-labs/miden-sdk';
-import { CustomTransaction } from '@demox-labs/miden-wallet-adapter';
+import { Transaction } from '@demox-labs/miden-wallet-adapter';
 import { Buffer } from 'buffer';
 
 window.Buffer = Buffer;
@@ -55,7 +55,7 @@ export async function compileWithdrawTransaction({
 
   // Note should only contain the offered asset
   const noteAssets = new NoteAssets([]);
-  const noteTag = NoteTag.fromAccountId(poolAccountId);
+  const noteTag = NoteTag.forLocalUseCase(0, 0);
 
   const metadata = new NoteMetadata(
     userAccountId,
@@ -97,7 +97,7 @@ export async function compileWithdrawTransaction({
     .withOwnOutputNotes(new MidenArrays.OutputNoteArray([OutputNote.full(note)]))
     .build();
 
-  const tx = new CustomTransaction(
+  const tx = Transaction.createCustomTransaction(
     accountIdToBech32(userAccountId),
     accountIdToBech32(poolAccountId),
     transactionRequest,
@@ -108,5 +108,6 @@ export async function compileWithdrawTransaction({
   return {
     tx,
     noteId,
+    note,
   };
 }

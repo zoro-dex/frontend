@@ -1,7 +1,9 @@
+import { API } from '@/lib/config';
+import { compileDepositTransaction } from '@/lib/ZoroDepositNote';
 import { compileWithdrawTransaction } from '@/lib/ZoroWithdrawNote';
 import { ZoroContext } from '@/providers/ZoroContext';
 import { type TokenConfig } from '@/providers/ZoroProvider';
-import { TransactionType, useWallet } from '@demox-labs/miden-wallet-adapter';
+import { useWallet } from '@demox-labs/miden-wallet-adapter';
 import { useCallback, useContext, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 
@@ -28,7 +30,7 @@ export const useWithdraw = () => {
     setError('');
     setIsLoading(true);
     try {
-      const { tx, noteId } = await compileWithdrawTransaction({
+      const { tx, noteId, note } = await compileWithdrawTransaction({
         amount,
         poolAccountId,
         token,
@@ -36,18 +38,20 @@ export const useWithdraw = () => {
         userAccountId: accountId,
         client,
       });
-      const txId = await requestTransaction({
-        type: TransactionType.Custom,
-        payload: tx,
-      });
+      const txId = await requestTransaction(tx);
       await client.syncState();
+      let serialized = btoa(
+        String.fromCharCode.apply(null, note.serialize() as unknown as number[]),
+      );
+      await new Promise(r => setTimeout(r, 10000));
+      await submitNoteToServer(serialized);
       setNoteId(noteId);
       setTxId(txId);
     } catch (err) {
       console.error(err);
       toast.error(
         <div>
-          <p style={{ fontSize: '1rem', fontWeight: 'bold' }}>Error withdrawing</p>
+          <p style={{ fontSize: '1rem', fontWeight: 'bold' }}>Error depositing</p>
           <p style={{ fontSize: '.875rem', opacity: 0.9 }}>
             {`${err}`}
           </p>
@@ -68,3 +72,26 @@ export const useWithdraw = () => {
 
   return value;
 };
+
+async function submitNoteToServer(serializedNote: string) {
+  try {
+    const response = await fetch(`${API.endpoint}/withdraw/submit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        note_data: serializedNote,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Server responded with ${response.status}: ${response.statusText}`,
+      );
+    }
+  } catch (error) {
+    console.error('Failed to submit note to server:', error);
+    throw error;
+  }
+}
