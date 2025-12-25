@@ -290,7 +290,6 @@ function Swap() {
       <title>Swap - ZoroSwap | DeFi on Miden</title>
       <meta property='og:title' content='Swap - ZoroSwap | DeFi on Miden' />
       <meta name='twitter:title' content='Swap - ZoroSwap | DeFi on Miden' />
-
       <Header />
       <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-4'>
         <div className='w-full max-w-[495px] space-y-4 sm:space-y-6'>
@@ -524,17 +523,6 @@ function Swap() {
               )
               : null}
           </p>
-          <div className='text-center sm:text-left sm:absolute top-8 left-4'>
-            <Link to='/faucet'>
-              <Button
-                variant='ghost'
-                size='sm'
-                className='font-normal text-left text-muted-foreground hover:text-foreground transition-colors mt-4 h-auto whitespace-normal py-2'
-              >
-                Thirsty for test tokens?<br />→ Visit the Faucet
-              </Button>
-            </Link>
-          </div>
           {/* Powered by MIDEN */}
           <div className='flex items-center justify-center'>
             {poweredByMiden}

@@ -1,10 +1,12 @@
+import { useLPBalance } from '@/hooks/useLPBalance';
 import type { PoolBalance } from '@/hooks/usePoolsBalances';
 import type { PoolInfo } from '@/hooks/usePoolsInfo';
-import { OracleContext } from '@/providers/OracleContext';
-import { formalNumberFormat, prettyBigintFormat } from '@/utils/format';
+import { ZoroContext } from '@/providers/ZoroContext';
+import { formalBigIntFormat, prettyBigintFormat } from '@/utils/format';
 import { useWallet } from '@demox-labs/miden-wallet-adapter';
 import { useContext } from 'react';
 import AssetIcon from './AssetIcon';
+import Price from './Price';
 import { Button } from './ui/button';
 
 const LiquidityPoolRow = ({
@@ -19,11 +21,15 @@ const LiquidityPoolRow = ({
   className?: string;
 }) => {
   const { connected: isConnected } = useWallet();
+  const { tokens } = useContext(ZoroContext);
+  const token = tokens[pool.faucetIdBech32];
   const decimals = pool.decimals;
-  const { prices } = useContext(OracleContext);
-  const balance = BigInt(0);
-  const price = prices[pool.oracleId]?.priceFeed;
-  const formattedPrice = formalNumberFormat(price?.value);
+  const { balance } = useLPBalance({ token });
+
+  const saturation =
+    ((poolBalances.reserve * BigInt(1e8)) / poolBalances.totalLiabilities)
+    / BigInt(1e6);
+
   return (
     <tr className={className}>
       <td>
@@ -32,7 +38,7 @@ const LiquidityPoolRow = ({
           <div>
             <h4 className='text-sm font-bold'>{pool.name}</h4>
             <p className='text-xs opacity-50'>
-              ${formattedPrice}
+              $<Price oracleId={pool.oracleId} />
             </p>
           </div>
         </div>
@@ -45,7 +51,13 @@ const LiquidityPoolRow = ({
           / Inf
         </span>
       </td>
-      <td>{prettyBigintFormat({ value: poolBalances.reserve, expo: decimals })}</td>
+      <td>
+        {formalBigIntFormat({
+          val: saturation,
+          expo: 0,
+          round: 2,
+        })} %
+      </td>
       {
         /*<td className={styles.green}>
         {pool.apr24h === 0 ? '<0.01' : pool.apr24h} <small>%</small> /{' '}
@@ -56,7 +68,7 @@ const LiquidityPoolRow = ({
         className={`${!balance || balance < BigInt(10000) ? 'opacity-70' : ''}`}
       >
         {prettyBigintFormat({ value: balance, expo: decimals })}{'  '}
-        <small>{pool.symbol}</small>
+        <small>z{pool.symbol}</small>
       </td>
       <td className='max-w-[100px] sticky box-border text-right'>
         <Button

@@ -5,6 +5,7 @@ import { ModalContext } from '@/providers/ModalContext';
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import LiquidityPoolRow from './LiquidityPoolRow';
 import PoolModal from './PoolModal';
+import { poweredByMiden } from './PoweredByMiden';
 import { type LpDetails, SwapSuccess, type TxResult } from './SwapSuccess';
 import { Card } from './ui/card';
 
@@ -52,7 +53,7 @@ const LiquidityPoolsTable = () => {
                 <th></th>
                 <th>Apr(24h / 7d)</th>
                 <th>TVL / Cap</th>
-                <th>% saturated</th>
+                <th>Saturation</th>
                 <th>My position</th>
                 <th className='sticky'></th>
               </tr>
@@ -82,6 +83,9 @@ const LiquidityPoolsTable = () => {
           </table>
         </div>
       </Card>
+      <div className='flex justify-center mt-6'>
+        {poweredByMiden}
+      </div>
       {isSuccessModalOpen && (
         <SwapSuccess
           title={lpDetails?.actionType + ' Order'}

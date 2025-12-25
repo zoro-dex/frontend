@@ -79,13 +79,9 @@ export function Footer() {
           >
             About us
           </Link>
-          <Link
-            to='/faucet'
-            className='text-primary hover:text-foreground transition-colors'
-            title='Get test tokens'
-          >
-            Faucet
-          </Link>
+        </div>
+        <div className='opacity-25 absolute right-4 text-xs sm:block hidden'>
+          testnet v.12
         </div>
       </div>
     </footer>

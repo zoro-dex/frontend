@@ -254,8 +254,8 @@ const PoolModal = (
               className='w-full'
               size='xl'
             >
-              {isDepositLoading && <Loader />}
-              Deposit
+              {isDepositLoading && <Loader className='animate-spin' />}
+              {isDepositLoading ? <span>Preparing order</span> : <span>Deposit</span>}
             </Button>
           )
           : null}
@@ -267,8 +267,8 @@ const PoolModal = (
               size='xl'
               className='w-full'
             >
-              {isWithdrawLoading && <Loader />}
-              Withdraw
+              {isWithdrawLoading && <Loader className='animateSpin' />}
+              {isWithdrawLoading ? <span>Preparing order</span> : <span>Withdraw</span>}
             </Button>
           )
           : null}
