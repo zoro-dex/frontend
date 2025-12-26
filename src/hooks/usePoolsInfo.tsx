@@ -1,8 +1,24 @@
 import { API } from '@/lib/config';
 import { bech32ToAccountId } from '@/lib/utils';
-import type { PoolInfo, RawPoolInfo } from '@/providers/ZoroProvider';
+import type { AccountId } from '@demox-labs/miden-sdk';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
+
+export interface RawPoolInfo {
+  decimals: number;
+  faucet_id: string;
+  name: string;
+  oracle_id: string;
+  symbol: string;
+}
+export interface PoolInfo {
+  decimals: number;
+  faucetId: AccountId;
+  faucetIdBech32: string;
+  name: string;
+  oracleId: string;
+  symbol: string;
+}
 
 export const usePoolsInfo = () => {
   const info = useQuery({
@@ -10,23 +26,25 @@ export const usePoolsInfo = () => {
     queryFn: fetchPoolInfo,
     staleTime: 3600000,
   });
-
-  const transformedData = useMemo(() => {
-    if (!info.data) {
-      return undefined;
-    }
-    return {
-      poolAccountId: info.data.pool_account_id,
-      liquidityPools: info.data.liquidity_pools.map(
-        p => ({ ...p, faucet_id: bech32ToAccountId(p.faucet_id) } as PoolInfo),
-      ),
-    } as PoolsInfo;
-  }, [info.data]);
-
-  return {
-    ...info,
-    data: transformedData,
-  };
+  const res = useMemo(() => {
+    if (info.data) {
+      return ({
+        ...info,
+        data: {
+          poolAccountId: info.data.pool_account_id,
+          liquidityPools: info.data.liquidity_pools.map(
+            p => ({
+              ...p,
+              oracleId: p.oracle_id,
+              faucetId: bech32ToAccountId(p.faucet_id),
+              faucetIdBech32: p.faucet_id,
+            } as PoolInfo),
+          ),
+        } as PoolsInfo,
+      });
+    } else return info;
+  }, [info]);
+  return res;
 };
 
 export interface PoolsInfo {

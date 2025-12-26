@@ -1,7 +1,8 @@
+import AssetIcon from '@/components/AssetIcon';
 import { Footer } from '@/components/Footer';
 import { Header } from '@/components/Header';
 import { poweredByMiden } from '@/components/PoweredByMiden';
-import { SwapSettings } from '@/components/SwapSettings';
+import Slippage from '@/components/Slippage';
 import { SwapSuccess } from '@/components/SwapSuccess';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -289,7 +290,6 @@ function Swap() {
       <title>Swap - ZoroSwap | DeFi on Miden</title>
       <meta property='og:title' content='Swap - ZoroSwap | DeFi on Miden' />
       <meta name='twitter:title' content='Swap - ZoroSwap | DeFi on Miden' />
-
       <Header />
       <main className='flex-1 flex items-center justify-center p-3 sm:p-4 -mt-4'>
         <div className='w-full max-w-[495px] space-y-4 sm:space-y-6'>
@@ -300,7 +300,7 @@ function Swap() {
               <div className='space-y-2'>
                 <div className='flex gap-1 sm:gap-2 justify-between items-center'>
                   <div className='text-xs sm:text-sm text-primary font-medium'>Sell</div>
-                  <SwapSettings slippage={slippage} onSlippageChange={setSlippage} />
+                  <Slippage slippage={slippage} onSlippageChange={setSlippage} />
                 </div>
                 <Card className='border-none'>
                   <CardContent className='!sm:px-0 !px-0 p-3 sm:p-4 space-y-2 sm:space-y-3'>
@@ -323,11 +323,7 @@ function Swap() {
                       >
                         {selectedAssetSell && (
                           <>
-                            <img
-                              src={selectedAssetSell.icon}
-                              alt='sell token logo'
-                              className={`${selectedAssetSell.iconClass || ''}`}
-                            />
+                            <AssetIcon symbol={selectedAssetSell.symbol} />
                             {selectedAssetSell.symbol}
                           </>
                         )}
@@ -439,11 +435,7 @@ function Swap() {
                       >
                         {selectedAssetBuy && (
                           <>
-                            <img
-                              src={selectedAssetBuy.icon}
-                              alt='buy token logo'
-                              className={`${selectedAssetBuy.iconClass || ''}`}
-                            />
+                            <AssetIcon symbol={selectedAssetBuy.symbol} />
                             {selectedAssetBuy.symbol}
                           </>
                         )}
@@ -531,17 +523,6 @@ function Swap() {
               )
               : null}
           </p>
-          <div className='text-center sm:text-left sm:absolute top-8 left-4'>
-            <Link to='/faucet'>
-              <Button
-                variant='ghost'
-                size='sm'
-                className='font-normal text-left text-muted-foreground hover:text-foreground transition-colors mt-4 h-auto whitespace-normal py-2'
-              >
-                Thirsty for test tokens?<br />→ Visit the Faucet
-              </Button>
-            </Link>
-          </div>
           {/* Powered by MIDEN */}
           <div className='flex items-center justify-center'>
             {poweredByMiden}
@@ -560,6 +541,7 @@ function Swap() {
             sellAmount: rawSell,
           }}
           orderStatus={noteId ? orderStatus[noteId]?.status : undefined}
+          title='Swap order'
         />
       )}
     </div>
