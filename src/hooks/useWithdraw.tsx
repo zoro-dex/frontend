@@ -1,5 +1,4 @@
 import { API } from '@/lib/config';
-import { compileDepositTransaction } from '@/lib/ZoroDepositNote';
 import { compileWithdrawTransaction } from '@/lib/ZoroWithdrawNote';
 import { ZoroContext } from '@/providers/ZoroContext';
 import { type TokenConfig } from '@/providers/ZoroProvider';
@@ -13,7 +12,7 @@ export const useWithdraw = () => {
   const { requestTransaction } = useWallet();
   const [txId, setTxId] = useState<undefined | string>();
   const [noteId, setNoteId] = useState<undefined | string>();
-  const { client, accountId, poolAccountId } = useContext(ZoroContext);
+  const { client, accountId, poolAccountId, syncState } = useContext(ZoroContext);
 
   const withdraw = useCallback(async ({
     amount,
@@ -37,9 +36,10 @@ export const useWithdraw = () => {
         minAmountOut: minAmountOut,
         userAccountId: accountId,
         client,
+        syncState,
       });
       const txId = await requestTransaction(tx);
-      await client.syncState();
+      await syncState();
       let serialized = btoa(
         String.fromCharCode.apply(null, note.serialize() as unknown as number[]),
       );
@@ -51,7 +51,7 @@ export const useWithdraw = () => {
       console.error(err);
       toast.error(
         <div>
-          <p style={{ fontSize: '1rem', fontWeight: 'bold' }}>Error depositing</p>
+          <p style={{ fontSize: '1rem', fontWeight: 'bold' }}>Error withdrawing</p>
           <p style={{ fontSize: '.875rem', opacity: 0.9 }}>
             {`${err}`}
           </p>

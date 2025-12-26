@@ -30,6 +30,7 @@ const.LP_SHARES_LOC = 0x00A8
 const.LP_SHARES_AMOUNT_ADDR = LP_SHARES_LOC + 3
 
 
+
 #! STORAGE STRUCTURE
 #! SINGLE ASSET
 #! pool state: [liabilities, reserve, reserve_with_slippage, 0]
@@ -117,7 +118,6 @@ export.set_pool_state
     # => [asset_balance, liabilities, reserve, reserve_with_slippage, 0, ASSET]
 
     dup.3 swap
-
     # => [asset_balance, reserve_with_slippage, pool_state_loc, liabilities, reserve, reserve_with_slippage, 0, ASSET]
     lte assert.err=ERR_RESERVE_WITH_SLIPPAGE_EXCEEDS_ASSET_BALANCE
     # => [liabilities, reserve, reserve_with_slippage, 0, ASSET]
@@ -352,7 +352,6 @@ export.move_asset_to_note
     # @note this has to be dynamic
     swapw.1 dropw 
     
-    
     exec.set_pool_state
 end
 
@@ -382,7 +381,6 @@ export.deposit
     # => [SHARE_AMOUNT]
     padw
     mem_loadw_be.DEPOSIT_KEY_LOC
-    debug.stack.16
     # => [KEY, SHARE_AMOUNT]
     push.USER_DEPOSITS_MAPPING_SLOT 
     # => [slot, KEY, SHARE_AMOUNT]
@@ -429,14 +427,24 @@ export.withdraw
     exec.native_account::set_map_item
     dropw dropw drop
     # => [user_id_prefix, user_id_suffix, lp_withdraw_amount, 0, ASSET, noteid, 0,0,0, liabilities, reserve, reserve_with_slippage, 0]
-    drop drop swap drop
+    drop drop swap drop 
+    mem_store.LP_SHARES_AMOUNT_ADDR
+
+        
+    mem_load.LP_SHARES_AMOUNT_ADDR push.0.0.0
+    padw mem_loadw_be.WITHDRAW_KEY_LOC
+    exec.get_lp_shares_total_supply_key
+    # => [KEY, SHARE_AMOUNT]
+    push.USER_DEPOSITS_MAPPING_SLOT
+    # => [slot, KEY, SHARE_AMOUNT]
+    exec.sub_from_map_item
+
     # => [lp_withdraw_amount, ASSET, noteid, 0,0,0, liabilities, reserve, reserve_with_slippage, 0]
-    exec.compute_withdraw_amount
+    mem_load.LP_SHARES_AMOUNT_ADDR exec.compute_withdraw_amount
     #=> [UPDATED_ASSET, noteid, 0,0,0, liabilities, reserve, reserve_with_slippage, 0]
 
-    debug.stack.14
     exec.move_asset_to_note
-
+    dropw dropw dropw
 end
 
 
@@ -451,7 +459,6 @@ proc.add_to_map_item
     movdn.8
     # => [ slot, KEY, 0,0,0, new_value]
     # => [ slot, KEY, NEW_VALUE]
-    debug.stack.12
     exec.native_account::set_map_item dropw dropw
 
 end
@@ -464,7 +471,7 @@ proc.sub_from_map_item
     exec.active_account::get_map_item drop drop drop
     # => [old_value, slot, KEY, VALUE]
     movup.9 
-    #sub
+    sub
     # => [new_value, slot, KEY, 0,0,0]
     movdn.8
     # => [ slot, KEY, 0,0,0, new_value]
@@ -480,7 +487,7 @@ end
 proc.get_user_deposit
     # => [KEY]
     push.USER_DEPOSITS_MAPPING_SLOT
-    exec.active_account::get_item 
+    exec.active_account::get_map_item 
     drop drop drop
     # => [share_amount]
 end

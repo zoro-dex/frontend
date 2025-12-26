@@ -22,16 +22,18 @@ import { Buffer } from 'buffer';
 window.Buffer = Buffer;
 
 import type { TokenConfig } from '@/providers/ZoroProvider';
+import two_asset_pool from './two_asset_pool.masm?raw';
 import { accountIdToBech32, generateRandomSerialNumber } from './utils';
 import WITHDRAW_SCRIPT from './WITHDRAW.masm?raw';
 
-export interface SwapParams {
+export interface WithdrawParams {
   poolAccountId: AccountId;
   token: TokenConfig;
   amount: bigint;
   minAmountOut: bigint;
   userAccountId: AccountId;
   client: WebClient;
+  syncState: () => Promise<void>;
 }
 
 export interface SwapResult {
@@ -46,11 +48,16 @@ export async function compileWithdrawTransaction({
   minAmountOut,
   userAccountId,
   client,
-}: SwapParams) {
-  await client.syncState();
+  syncState,
+}: WithdrawParams) {
+  await syncState();
   const builder = client.createScriptBuilder();
-  const script = builder.compileNoteScript(WITHDRAW_SCRIPT);
-  const noteType = NoteType.Public;
+  const pool_script = builder.buildLibrary('zoro::two_asset_pool', two_asset_pool);
+  builder.linkDynamicLibrary(pool_script);
+  const script = builder.compileNoteScript(
+    WITHDRAW_SCRIPT,
+  );
+  const noteType = NoteType.Private;
   const requestedAsset = new FungibleAsset(token.faucetId, amount).intoWord().toFelts();
 
   // Note should only contain the offered asset

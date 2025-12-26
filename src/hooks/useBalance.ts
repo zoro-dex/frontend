@@ -22,12 +22,12 @@ const getBalanceFromClient = async (
 export const useBalance = (
   { token }: BalanceParams,
 ) => {
-  const { client, accountId } = useContext(ZoroContext);
+  const { client, accountId, syncState } = useContext(ZoroContext);
   const [balance, setBalance] = useState<bigint | null>(null);
   const faucetId = token?.faucetId;
   const refetch = useCallback(async () => {
     if (!accountId || !faucetId || !client) return;
-    await client.syncState();
+    await syncState();
     const newBalance = await getBalanceFromClient(client, faucetId, accountId);
     setBalance(BigInt(newBalance ?? 0));
   }, [accountId, client, faucetId]);

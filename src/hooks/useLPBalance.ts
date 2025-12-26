@@ -1,17 +1,15 @@
-import { safeAccountImport } from '@/lib/utils';
 import { ZoroContext } from '@/providers/ZoroContext';
 import type { TokenConfig } from '@/providers/ZoroProvider';
 import { Felt, Word } from '@demox-labs/miden-sdk';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 export const useLPBalance = ({ token }: { token?: TokenConfig }) => {
-  const { client, poolAccountId, accountId } = useContext(ZoroContext);
+  const { client, poolAccountId, accountId, getAccount } = useContext(ZoroContext);
   const [balance, setBalance] = useState<bigint>(BigInt(0));
 
   const refetch = useCallback(async () => {
     if (!poolAccountId || !client || !accountId || !token) return;
-    await safeAccountImport(client, poolAccountId);
-    const account = await client.getAccount(poolAccountId);
+    const account = await getAccount(poolAccountId);
     const storage = account?.storage();
     const lp = storage?.getMapItem(
       11,
@@ -22,15 +20,14 @@ export const useLPBalance = ({ token }: { token?: TokenConfig }) => {
         new Felt(token.faucetId.prefix().asInt()),
       ]),
     )?.toFelts();
-
-    const balance = lp?.[0].asInt() ?? BigInt(0);
+    const balance = BigInt(lp?.[0].asInt() || BigInt(0)) ?? BigInt(0);
     setBalance(balance);
   }, [poolAccountId, client, accountId, token]);
 
   useEffect(() => {
     refetch();
-    const clear = setInterval(refetch, 10000);
-    return () => clearInterval(clear);
+    const refresh = setInterval(refetch, 10000);
+    return () => clearInterval(refresh);
   }, [refetch]);
 
   const value = useMemo(() => ({

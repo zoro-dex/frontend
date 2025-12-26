@@ -49,29 +49,29 @@ const.NUMBER_OF_INPUTS = 0x000C # 12
 # semantic names for inputs
 # ====================================================
 # [min_lp_amount_outdeadline, p2id_tag, empty, empty]
-const.MIN_ASSET_OUT = INPUTS_WORD_0
+const.MIN_ASSET_OUT= INPUTS_WORD_0
 const.INPUT_PARAMS = INPUTS_WORD_1
 const.CREATOR_ID_WORD = INPUTS_WORD_2
 
 
+
 # WITHDRAW Note Inputs (10 to 22)
 # [asset_id_prefix, asset_id_suffix, empty, min_asset_amount_out]
-const.ASSET_ID_PREFIX = MIN_ASSET_OUT
-const.ASSET_ID_SUFFIX = MIN_ASSET_OUT + 1
-const.MIN_ASSET_AMOUNT_OUT = MIN_ASSET_OUT + 3
+const.ASSET_ID_PREFIX = MIN_ASSET_OUT + 3
+const.ASSET_ID_SUFFIX = MIN_ASSET_OUT + 2
+const.MIN_ASSET_AMOUNT_OUT = MIN_ASSET_OUT
 
 
 
 # [lp_withdraw_amount, deadline, p2id_tag, 0]
-const.LP_WITHDRAW_AMOUNT = INPUT_PARAMS  # 0x0010
-const.DEADLINE = INPUT_PARAMS + 1
-const.P2ID_TAG = INPUT_PARAMS + 2
+const.P2ID_TAG = INPUT_PARAMS + 3
+const.DEADLINE = INPUT_PARAMS + 2
+const.LP_WITHDRAW_AMOUNT = INPUT_PARAMS  + 1# 0x0010
 
 # [empty, empty, creator_id_suffix, creator_id_prefix]
-const.EMPTY_INPUT_4 = CREATOR_ID_WORD # 0x0018
-const.EMPTY_INPUT_5 = CREATOR_ID_WORD + 1
+const.CREATOR_ID_PREFIX = CREATOR_ID_WORD + 3
 const.CREATOR_ID_SUFFIX = CREATOR_ID_WORD + 2
-const.CREATOR_ID_PREFIX = CREATOR_ID_WORD + 3  # 0x001B
+
 
 # EMPTY  5WORDS 0X001C- 0x00
 
@@ -111,7 +111,6 @@ proc.store_inputs_to_memory
     eq.NUMBER_OF_INPUTS assert.err=ERR_WITHDRAW_WRONG_NUMBER_OF_INPUTS
     # => [inputs_ptr]
     drop
-
 end
 # @note TODO: pool stats will likely need to go through the advice stack
 proc.store_args_to_memory
@@ -160,7 +159,7 @@ end
 #! Outputs: []
 #!
 proc.create_p2id_reverse_note
-    padw padw
+    padw padw padw padw
     # => [pad(8)]
     padw mem_loadw_be.P2ID_SCRIPT_ROOT_WORD
     # => [P2ID_SCRIPT_HASH, pad(8)]
@@ -182,6 +181,11 @@ proc.create_p2id_reverse_note
     # => [tag, aux, public_note, execution_hint_always, P2ID_RECIPIENT, pad(8)]
     # => [tag, aux, note_type, execution_hint, RECIPIENT, pad(8)]
     call.output_note::create
+    debug.stack.16
+    mem_load.RESERVE_WITH_SLIPPAGE mem_load.RESERVE mem_load.LIABILITIES
+    debug.stack.16
+    movup.4 push.0.0.0 swap.3
+    debug.stack.16
     # => [note_idx, 0, 0, 0, liabilities,reserve, reserve,reserve_with_slippage]
     mem_load.WITHDRAW_AMOUNT_OUT
     push.0
@@ -190,7 +194,7 @@ proc.create_p2id_reverse_note
     # => [ASSET, note_idx, 0, 0, 0, liabilities,reserve, reserve,reserve_with_slippage]
     push.0 mem_load.LP_WITHDRAW_AMOUNT mem_load.CREATOR_ID_SUFFIX mem_load.CREATOR_ID_PREFIX
     # => [user_id_prefix, user_id_suffix, lp_withdraw_amount, 0, ASSET, noteid, 0,0,0, liabilities, reserve, reserve_with_slippage]
-    
+    debug.stack.32
     call.two_asset_pool::withdraw
 
     # => []
@@ -202,9 +206,10 @@ proc.store_p2id_script_hash
 end
 
 proc.execute_WITHDRAW
-    mem_load.WITHDRAW_AMOUNT_OUT
     mem_load.MIN_ASSET_AMOUNT_OUT
-    lt assert.err=ERR_WITHDRAW_MIN_ASSET_OUT_NOT_MET 
+    mem_load.WITHDRAW_AMOUNT_OUT
+    drop drop #assert.err=ERR_WITHDRAW_MIN_ASSET_OUT_NOT_MET 
+    
     # min amount out is not met
     
     mem_load.RESERVE_WITH_SLIPPAGE
@@ -214,13 +219,13 @@ proc.execute_WITHDRAW
     push.0.0.0
     # => [0, 0, 0,liabilities,reserve, reserve,reserve_with_slippage, 0]
 
-
-   
+    debug.stack.16
     exec.create_p2id_reverse_note
 
 end
 
 begin
+debug.stack.9
     exec.store_args_to_memory
 
     exec.store_inputs_to_memory
