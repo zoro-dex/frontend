@@ -1,6 +1,6 @@
 import { type PoolInfo, usePoolsInfo } from '@/hooks/usePoolsInfo';
 import { bech32ToAccountId, instantiateClient } from '@/lib/utils';
-import { AccountId, Address, WebClient } from '@demox-labs/miden-sdk';
+import { Account, AccountId, Address, WebClient } from '@demox-labs/miden-sdk';
 import { useWallet } from '@demox-labs/miden-wallet-adapter';
 import {
   type ReactNode,
@@ -11,6 +11,12 @@ import {
   useRef,
 } from 'react';
 import { ZoroContext } from './ZoroContext';
+
+enum ClientState {
+  NOT_INITIALIZED,
+  IDLE,
+  ACTIVE,
+}
 
 export function ZoroProvider({
   children,
@@ -23,7 +29,7 @@ export function ZoroProvider({
   );
   const [, forceUpdate] = useReducer(x => x + 1, 0);
   const client = useRef<WebClient | undefined>(undefined);
-  const isSyncing = useRef(false);
+  const clientState = useRef<ClientState>(ClientState.NOT_INITIALIZED);
 
   useEffect(() => {
     if (client.current || !accountId || !poolsInfo) {
@@ -38,22 +44,53 @@ export function ZoroProvider({
         ],
       });
       client.current = c;
+      clientState.current = ClientState.IDLE;
       forceUpdate();
     })();
   }, [poolsInfo, accountId]);
 
   const syncState = useCallback(async () => {
-    if (isSyncing.current) {
+    if (clientState.current === ClientState.NOT_INITIALIZED) {
+      return;
+    }
+    if (clientState.current === ClientState.ACTIVE) {
       await new Promise<void>(async r => {
-        while (isSyncing.current) {
+        while (clientState.current === ClientState.ACTIVE) {
           await new Promise(r2 => setTimeout(r2, 500));
         }
+        clientState.current = ClientState.ACTIVE;
+        await client.current?.syncState();
+        clientState.current = ClientState.IDLE;
         r();
       });
-    } else {
-      isSyncing.current = true;
+    } else if (clientState.current === ClientState.IDLE) {
+      clientState.current = ClientState.ACTIVE;
       await client.current?.syncState();
-      isSyncing.current = false;
+      clientState.current = ClientState.IDLE;
+    }
+  }, []);
+
+  const getAccount = useCallback(async (accountId: AccountId) => {
+    if (clientState.current === ClientState.NOT_INITIALIZED) {
+      return;
+    }
+    if (clientState.current === ClientState.ACTIVE) {
+      let acc = await new Promise<Account | undefined>(async r => {
+        while (clientState.current === ClientState.ACTIVE) {
+          await new Promise(r2 => setTimeout(r2, 500));
+        }
+        clientState.current = ClientState.ACTIVE;
+        let acc = await client.current?.getAccount(accountId);
+        clientState.current = ClientState.IDLE;
+        r(acc);
+      });
+      return acc;
+    } else if (clientState.current === ClientState.IDLE) {
+      clientState.current = ClientState.ACTIVE;
+      await client.current?.syncState();
+      let acc = await client.current?.getAccount(accountId);
+      clientState.current = ClientState.IDLE;
+      return acc;
     }
   }, []);
 
@@ -69,6 +106,7 @@ export function ZoroProvider({
       accountId,
       client: client.current,
       syncState,
+      getAccount,
     };
   }, [accountId, poolsInfo, isPoolsInfoFetched, syncState]);
 
