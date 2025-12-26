@@ -12,7 +12,7 @@ export const useDeposit = () => {
   const { requestTransaction } = useWallet();
   const [txId, setTxId] = useState<undefined | string>();
   const [noteId, setNoteId] = useState<undefined | string>();
-  const { client, accountId, poolAccountId } = useContext(ZoroContext);
+  const { client, accountId, poolAccountId, syncState } = useContext(ZoroContext);
 
   const deposit = useCallback(async ({
     amount,
@@ -36,9 +36,10 @@ export const useDeposit = () => {
         minAmountOut: minAmountOut,
         userAccountId: accountId,
         client,
+        syncState,
       });
       const txId = await requestTransaction(tx);
-      await client.syncState();
+      await syncState();
       let serialized = btoa(
         String.fromCharCode.apply(null, note.serialize() as unknown as number[]),
       );
@@ -59,7 +60,7 @@ export const useDeposit = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [client, accountId, poolAccountId, requestTransaction]);
+  }, [client, accountId, poolAccountId, requestTransaction, syncState]);
 
   const value = useMemo(() => ({ deposit, isLoading, error, txId, noteId }), [
     deposit,

@@ -16,14 +16,14 @@ import {
   TransactionRequestBuilder,
   WebClient,
 } from '@demox-labs/miden-sdk';
-import { CustomTransaction, Transaction } from '@demox-labs/miden-wallet-adapter';
+import { Transaction } from '@demox-labs/miden-wallet-adapter';
 import { Buffer } from 'buffer';
 
 window.Buffer = Buffer;
 
 import type { TokenConfig } from '@/providers/ZoroProvider';
 import DEPOSIT_SCRIPT from './DEPOSIT.masm?raw';
-import two_pool_account from './two_pool_account.masm?raw';
+import two_asset_pool from './two_asset_pool.masm?raw';
 import { accountIdToBech32, generateRandomSerialNumber } from './utils';
 
 export interface SwapParams {
@@ -33,6 +33,7 @@ export interface SwapParams {
   minAmountOut: bigint;
   userAccountId: AccountId;
   client: WebClient;
+  syncState: () => Promise<void>;
 }
 
 export interface SwapResult {
@@ -47,10 +48,11 @@ export async function compileDepositTransaction({
   minAmountOut,
   userAccountId,
   client,
+  syncState,
 }: SwapParams) {
-  await client.syncState();
+  await syncState();
   const builder = client.createScriptBuilder();
-  const pool_script = builder.buildLibrary('zoro::two_asset_pool', two_pool_account);
+  const pool_script = builder.buildLibrary('zoro::two_asset_pool', two_asset_pool);
   builder.linkDynamicLibrary(pool_script);
   const script = builder.compileNoteScript(
     DEPOSIT_SCRIPT,

@@ -1,4 +1,3 @@
-import { safeAccountImport } from '@/lib/utils';
 import { ZoroContext } from '@/providers/ZoroContext';
 import type { TokenConfig } from '@/providers/ZoroProvider';
 import { Felt, Word } from '@demox-labs/miden-sdk';
@@ -9,8 +8,8 @@ export const useLPBalance = ({ token }: { token?: TokenConfig }) => {
   const [balance, setBalance] = useState<bigint>(BigInt(0));
 
   const refetch = useCallback(async () => {
+    console.log(client);
     if (!poolAccountId || !client || !accountId || !token) return;
-    await safeAccountImport(client, poolAccountId);
     const account = await client.getAccount(poolAccountId);
     const storage = account?.storage();
     const lp = storage?.getMapItem(
@@ -22,8 +21,7 @@ export const useLPBalance = ({ token }: { token?: TokenConfig }) => {
         new Felt(token.faucetId.prefix().asInt()),
       ]),
     )?.toFelts();
-
-    const balance = lp?.[0].asInt() ?? BigInt(0);
+    const balance = BigInt(lp?.[0].asInt() || BigInt(0)) ?? BigInt(0);
     setBalance(balance);
   }, [poolAccountId, client, accountId, token]);
 

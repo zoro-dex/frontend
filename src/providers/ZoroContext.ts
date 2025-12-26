@@ -10,6 +10,7 @@ type ZoroProviderState = {
   accountId?: AccountId;
   tokens: Record<string, TokenConfig>;
   tokensLoading: boolean;
+  syncState: () => Promise<void>;
 };
 
 const initialState: ZoroProviderState = {
@@ -17,6 +18,7 @@ const initialState: ZoroProviderState = {
   liquidity_pools: [],
   tokens: {},
   tokensLoading: true,
+  syncState: () => Promise.resolve(),
 };
 
 export const ZoroContext = createContext<ZoroProviderState>(initialState);

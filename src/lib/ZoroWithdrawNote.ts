@@ -25,13 +25,14 @@ import type { TokenConfig } from '@/providers/ZoroProvider';
 import { accountIdToBech32, generateRandomSerialNumber } from './utils';
 import WITHDRAW_SCRIPT from './WITHDRAW.masm?raw';
 
-export interface SwapParams {
+export interface WithdrawParams {
   poolAccountId: AccountId;
   token: TokenConfig;
   amount: bigint;
   minAmountOut: bigint;
   userAccountId: AccountId;
   client: WebClient;
+  syncState: () => Promise<void>;
 }
 
 export interface SwapResult {
@@ -46,8 +47,9 @@ export async function compileWithdrawTransaction({
   minAmountOut,
   userAccountId,
   client,
-}: SwapParams) {
-  await client.syncState();
+  syncState,
+}: WithdrawParams) {
+  await syncState();
   const builder = client.createScriptBuilder();
   const script = builder.compileNoteScript(WITHDRAW_SCRIPT);
   const noteType = NoteType.Public;
