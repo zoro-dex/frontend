@@ -1,6 +1,6 @@
 import { type PoolInfo, usePoolsInfo } from '@/hooks/usePoolsInfo';
 import { bech32ToAccountId, instantiateClient } from '@/lib/utils';
-import { Account, AccountId, Address, WebClient } from '@demox-labs/miden-sdk';
+import { AccountId, Address, WebClient } from '@demox-labs/miden-sdk';
 import { useWallet } from '@demox-labs/miden-wallet-adapter';
 import {
   type ReactNode,
@@ -28,7 +28,6 @@ export function ZoroProvider({
     () => address ? Address.fromBech32(address).accountId() : undefined,
     [address],
   );
-  const [, forceUpdate] = useReducer(x => x + 1, 0);
   const [client, setClient] = useState<WebClient | undefined>(undefined);
   const clientState = useRef<ClientState>(ClientState.NOT_INITIALIZED);
 
@@ -46,7 +45,6 @@ export function ZoroProvider({
       });
       setClient(c);
       clientState.current = ClientState.IDLE;
-      forceUpdate();
     })();
   }, [poolsInfo, accountId, client, setClient]);
 
@@ -55,15 +53,12 @@ export function ZoroProvider({
       return;
     }
     if (clientState.current === ClientState.ACTIVE) {
-      await new Promise<void>(r => {
-        while (clientState.current === ClientState.ACTIVE) {
-          new Promise(r2 => setTimeout(r2, 500));
-        }
-        clientState.current = ClientState.ACTIVE;
-        client?.syncState().then();
-        clientState.current = ClientState.IDLE;
-        r();
-      });
+      while (clientState.current === ClientState.ACTIVE) {
+        await new Promise(p => setTimeout(p, 500));
+      }
+      clientState.current = ClientState.ACTIVE;
+      client?.syncState().then();
+      clientState.current = ClientState.IDLE;
     } else if (clientState.current === ClientState.IDLE) {
       clientState.current = ClientState.ACTIVE;
       await client?.syncState();
@@ -76,15 +71,12 @@ export function ZoroProvider({
       return;
     }
     if (clientState.current === ClientState.ACTIVE) {
-      const acc = await new Promise<Account | undefined>(r => {
-        while (clientState.current === ClientState.ACTIVE) {
-          new Promise(r2 => setTimeout(r2, 500));
-        }
-        clientState.current = ClientState.ACTIVE;
-        const acc = client?.getAccount(accountId);
-        clientState.current = ClientState.IDLE;
-        r(acc);
-      });
+      while (clientState.current === ClientState.ACTIVE) {
+        await new Promise(p => setTimeout(p, 500));
+      }
+      clientState.current = ClientState.ACTIVE;
+      const acc = client?.getAccount(accountId);
+      clientState.current = ClientState.IDLE;
       return acc;
     } else if (clientState.current === ClientState.IDLE) {
       clientState.current = ClientState.ACTIVE;
