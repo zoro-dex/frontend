@@ -10,8 +10,8 @@ import { useBalance } from '../hooks/useBalance';
 import { type PoolInfo } from '../hooks/usePoolsInfo';
 import { ModalContext } from '../providers/ModalContext';
 import { formatTokenAmount } from '../utils/format';
+import type { LpDetails, TxResult } from './OrderStatus';
 import Slippage from './Slippage';
-import type { LpDetails, TxResult } from './SwapSuccess';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 
@@ -20,6 +20,7 @@ interface PoolModalProps {
   refetchPoolInfo?: () => void;
   setTxResult: (txResults: TxResult) => void;
   setLpDetails: (lpDetails: LpDetails) => void;
+  onSuccess: (noteId: string) => void;
 }
 
 const validateValue = (val: bigint, max: bigint) => {
@@ -33,7 +34,7 @@ const validateValue = (val: bigint, max: bigint) => {
 export type LpActionType = 'Deposit' | 'Withdraw';
 
 const PoolModal = (
-  { pool, refetchPoolInfo, setTxResult, setLpDetails }: PoolModalProps,
+  { pool, refetchPoolInfo, setTxResult, setLpDetails, onSuccess }: PoolModalProps,
 ) => {
   const modalContext = useContext(ModalContext);
   const { tokens } = useContext(ZoroContext);
@@ -44,7 +45,7 @@ const PoolModal = (
   const [slippage, setSlippage] = useState(0.5);
   const token = useMemo(
     () => Object.values(tokens).find(t => t.faucetIdBech32 === pool.faucetIdBech32),
-    [tokens],
+    [tokens, pool.faucetIdBech32],
   );
   const { balance: balanceToken, refetch: refetchBalanceToken } = useBalance({
     token,
@@ -98,15 +99,28 @@ const PoolModal = (
         amount: rawValue,
         actionType: mode,
       });
-      setTxResult(
-        mode === 'Deposit'
-          ? { txId: depositTxId, noteId: depositNoteId }
-          : { txId: withdrawTxId, noteId: withdrawNoteId },
-      );
+      const txResult = mode === 'Deposit'
+        ? { txId: depositTxId, noteId: depositNoteId }
+        : { txId: withdrawTxId, noteId: withdrawNoteId };
+      setTxResult(txResult);
       clearForm();
+      onSuccess(txResult.noteId as string);
       modalContext.closeModal();
     }
-  }, [depositTxId, withdrawTxId, depositNoteId, withdrawNoteId, mode]);
+  }, [
+    depositTxId,
+    withdrawTxId,
+    depositNoteId,
+    withdrawNoteId,
+    mode,
+    clearForm,
+    modalContext,
+    token,
+    rawValue,
+    setLpDetails,
+    setTxResult,
+    onSuccess,
+  ]);
 
   const writeDeposit = useCallback(async () => {
     if (token == null) return;
@@ -115,7 +129,7 @@ const PoolModal = (
       minAmountOut: rawValue,
       token,
     });
-  }, [rawValue, deposit, token, mode]);
+  }, [rawValue, deposit, token]);
 
   const writeWithdraw = useCallback(async () => {
     if (token == null) return;
@@ -124,7 +138,7 @@ const PoolModal = (
       minAmountOut: rawValue,
       token,
     });
-  }, [rawValue, withdraw]);
+  }, [rawValue, withdraw, token]);
 
   const setAmountPercentage = useCallback(
     (percentage: number) => {

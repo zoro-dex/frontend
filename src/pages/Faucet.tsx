@@ -45,6 +45,7 @@ function Faucet() {
     for (const token of Object.values(tokens)) {
       // init token states
       if (!mintStatuses[token.faucetIdBech32]) {
+        // eslint-disable-next-line
         updateMintStatus(token.faucetIdBech32, {
           isLoading: false,
           lastAttempt: 0,

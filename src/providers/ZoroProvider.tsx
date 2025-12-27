@@ -9,6 +9,7 @@ import {
   useMemo,
   useReducer,
   useRef,
+  useState,
 } from 'react';
 import { ZoroContext } from './ZoroContext';
 
@@ -28,11 +29,11 @@ export function ZoroProvider({
     [address],
   );
   const [, forceUpdate] = useReducer(x => x + 1, 0);
-  const client = useRef<WebClient | undefined>(undefined);
+  const [client, setClient] = useState<WebClient | undefined>(undefined);
   const clientState = useRef<ClientState>(ClientState.NOT_INITIALIZED);
 
   useEffect(() => {
-    if (client.current || !accountId || !poolsInfo) {
+    if (client || !accountId || !poolsInfo) {
       return;
     }
     (async () => {
@@ -43,59 +44,58 @@ export function ZoroProvider({
             : []),
         ],
       });
-      client.current = c;
+      setClient(c);
       clientState.current = ClientState.IDLE;
       forceUpdate();
     })();
-  }, [poolsInfo, accountId]);
+  }, [poolsInfo, accountId, client, setClient]);
 
   const syncState = useCallback(async () => {
     if (clientState.current === ClientState.NOT_INITIALIZED) {
       return;
     }
     if (clientState.current === ClientState.ACTIVE) {
-      await new Promise<void>(async r => {
+      await new Promise<void>(r => {
         while (clientState.current === ClientState.ACTIVE) {
-          await new Promise(r2 => setTimeout(r2, 500));
+          new Promise(r2 => setTimeout(r2, 500));
         }
         clientState.current = ClientState.ACTIVE;
-        await client.current?.syncState();
+        client?.syncState().then();
         clientState.current = ClientState.IDLE;
         r();
       });
     } else if (clientState.current === ClientState.IDLE) {
       clientState.current = ClientState.ACTIVE;
-      await client.current?.syncState();
+      await client?.syncState();
       clientState.current = ClientState.IDLE;
     }
-  }, []);
+  }, [client]);
 
   const getAccount = useCallback(async (accountId: AccountId) => {
     if (clientState.current === ClientState.NOT_INITIALIZED) {
       return;
     }
     if (clientState.current === ClientState.ACTIVE) {
-      let acc = await new Promise<Account | undefined>(async r => {
+      const acc = await new Promise<Account | undefined>(r => {
         while (clientState.current === ClientState.ACTIVE) {
-          await new Promise(r2 => setTimeout(r2, 500));
+          new Promise(r2 => setTimeout(r2, 500));
         }
         clientState.current = ClientState.ACTIVE;
-        let acc = await client.current?.getAccount(accountId);
+        const acc = client?.getAccount(accountId);
         clientState.current = ClientState.IDLE;
         r(acc);
       });
       return acc;
     } else if (clientState.current === ClientState.IDLE) {
       clientState.current = ClientState.ACTIVE;
-      await client.current?.syncState();
-      let acc = await client.current?.getAccount(accountId);
+      await client?.syncState();
+      const acc = await client?.getAccount(accountId);
       clientState.current = ClientState.IDLE;
       return acc;
     }
-  }, []);
+  }, [client]);
 
   const value = useMemo(() => {
-    console.log(client.current);
     return {
       tokens: generateTokenMetadata(poolsInfo?.liquidityPools || []),
       tokensLoading: !isPoolsInfoFetched,
@@ -104,14 +104,14 @@ export function ZoroProvider({
         ? bech32ToAccountId(poolsInfo.poolAccountId)
         : undefined,
       accountId,
-      client: client.current,
       syncState,
       getAccount,
+      client,
     };
-  }, [accountId, poolsInfo, isPoolsInfoFetched, syncState]);
+  }, [accountId, poolsInfo, isPoolsInfoFetched, syncState, getAccount, client]);
 
   return (
-    <ZoroContext.Provider value={{ ...value, client: client.current }}>
+    <ZoroContext.Provider value={{ ...value }}>
       {children}
     </ZoroContext.Provider>
   );

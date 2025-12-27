@@ -30,9 +30,10 @@ export const useBalance = (
     await syncState();
     const newBalance = await getBalanceFromClient(client, faucetId, accountId);
     setBalance(BigInt(newBalance ?? 0));
-  }, [accountId, client, faucetId]);
+  }, [accountId, client, faucetId, syncState]);
 
   useEffect(() => {
+    // eslint-disable-next-line
     refetch();
     const clear = setInterval(refetch, 10000);
     return () => clearInterval(clear);
