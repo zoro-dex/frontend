@@ -59,7 +59,7 @@ export const useSwap = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [client, accountId, poolAccountId, requestTransaction]);
+  }, [client, accountId, poolAccountId, requestTransaction, syncState]);
 
   const value = useMemo(() => ({ swap, isLoading, error, txId, noteId }), [
     swap,

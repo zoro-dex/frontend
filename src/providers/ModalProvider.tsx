@@ -1,12 +1,5 @@
 import { Card } from '@/components/ui/card';
-import {
-  type MouseEventHandler,
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { type MouseEvent, type ReactNode, useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ModalContext } from './ModalContext';
 
@@ -33,18 +26,15 @@ const ModalBackdrop = ({
   children: ReactNode;
   onClose: () => void;
 }) => {
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(true);
   const backdropRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    setVisible(true);
-  }, []);
   const handleClose = useCallback(
-    ((e) => {
+    (e: MouseEvent<HTMLDivElement>) => {
       if (e.target === backdropRef.current) {
         setVisible(false);
         setTimeout(onClose, 200);
       }
-    }) as MouseEventHandler<HTMLDivElement>,
+    },
     [onClose],
   );
   return createPortal(

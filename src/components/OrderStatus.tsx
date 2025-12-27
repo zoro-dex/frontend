@@ -32,7 +32,7 @@ export interface LpDetails {
   readonly actionType: LpActionType;
 }
 
-interface SwapSuccessProps {
+interface OrderStatusProps {
   readonly onClose: () => void;
   readonly swapResult?: TxResult;
   readonly swapDetails?: SwapDetails;
@@ -89,14 +89,14 @@ const getOrderStatusDisplay = (status?: OrderStatus) => {
   }
 };
 
-export function SwapSuccess({
+export function OrderStatus({
   onClose,
   swapResult,
   swapDetails,
   lpDetails,
   orderStatus,
   title,
-}: SwapSuccessProps) {
+}: OrderStatusProps) {
   const [copiedText, setCopiedText] = useState<boolean>(false);
   const [isVisible, setIsVisible] = useState<boolean>(false);
   const [isClosing, setIsClosing] = useState<boolean>(false);

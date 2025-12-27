@@ -40,7 +40,7 @@ export const useWithdraw = () => {
       });
       const txId = await requestTransaction(tx);
       await syncState();
-      let serialized = btoa(
+      const serialized = btoa(
         String.fromCharCode.apply(null, note.serialize() as unknown as number[]),
       );
       await new Promise(r => setTimeout(r, 10000));
@@ -60,7 +60,7 @@ export const useWithdraw = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [client, accountId, poolAccountId, requestTransaction]);
+  }, [client, accountId, poolAccountId, requestTransaction, syncState]);
 
   const value = useMemo(() => ({ withdraw, isLoading, error, txId, noteId }), [
     withdraw,

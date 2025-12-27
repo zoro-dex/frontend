@@ -1,9 +1,9 @@
 import AssetIcon from '@/components/AssetIcon';
 import { Footer } from '@/components/Footer';
 import { Header } from '@/components/Header';
+import { OrderStatus } from '@/components/OrderStatus';
 import { poweredByMiden } from '@/components/PoweredByMiden';
 import Slippage from '@/components/Slippage';
-import { SwapSuccess } from '@/components/SwapSuccess';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,6 @@ import { emptyFn } from '@/utils/shared';
 import { useWallet, WalletMultiButton } from '@demox-labs/miden-wallet-adapter';
 import { Loader2 } from 'lucide-react';
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { formatUnits, parseUnits } from 'viem';
 
@@ -531,7 +530,7 @@ function Swap() {
       </main>
       <Footer />
       {isSuccessModalOpen && (
-        <SwapSuccess
+        <OrderStatus
           onClose={onCloseSuccessModal}
           swapResult={{ txId, noteId }}
           swapDetails={{

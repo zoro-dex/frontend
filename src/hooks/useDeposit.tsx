@@ -40,7 +40,7 @@ export const useDeposit = () => {
       });
       const txId = await requestTransaction(tx);
       await syncState();
-      let serialized = btoa(
+      const serialized = btoa(
         String.fromCharCode.apply(null, note.serialize() as unknown as number[]),
       );
       await new Promise(r => setTimeout(r, 10000));

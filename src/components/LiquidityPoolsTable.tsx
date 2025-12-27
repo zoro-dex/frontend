@@ -2,11 +2,11 @@ import { usePoolsBalances } from '@/hooks/usePoolsBalances';
 import { type PoolInfo, usePoolsInfo } from '@/hooks/usePoolsInfo';
 import { useOrderUpdates } from '@/hooks/useWebSocket';
 import { ModalContext } from '@/providers/ModalContext';
-import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useRef, useState } from 'react';
 import LiquidityPoolRow from './LiquidityPoolRow';
+import { type LpDetails, OrderStatus, type TxResult } from './OrderStatus';
 import PoolModal from './PoolModal';
 import { poweredByMiden } from './PoweredByMiden';
-import { type LpDetails, SwapSuccess, type TxResult } from './SwapSuccess';
 import { Card } from './ui/card';
 
 const LiquidityPoolsTable = () => {
@@ -19,6 +19,11 @@ const LiquidityPoolsTable = () => {
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const { orderStatus } = useOrderUpdates();
 
+  const openOrderStatusModal = useCallback((noteId: string) => {
+    lastShownNoteId.current = noteId;
+    setIsSuccessModalOpen(true);
+  }, []);
+
   const openPoolManagementModal = useCallback(
     (pool: PoolInfo) => {
       modalContext.openModal(
@@ -27,20 +32,12 @@ const LiquidityPoolsTable = () => {
           refetchPoolInfo={refetchPoolsInfo}
           setTxResult={setTxResult}
           setLpDetails={setLpDetails}
+          onSuccess={openOrderStatusModal}
         />,
       );
     },
-    [modalContext, refetchPoolsInfo],
+    [modalContext, refetchPoolsInfo, openOrderStatusModal],
   );
-
-  useEffect(() => {
-    console.log(txResult);
-
-    if (txResult?.noteId && txResult.noteId !== lastShownNoteId.current) {
-      lastShownNoteId.current = txResult.noteId;
-      setIsSuccessModalOpen(true);
-    }
-  }, [txResult]);
 
   return (
     <div className='w-full max-w-[920px]'>
@@ -87,7 +84,7 @@ const LiquidityPoolsTable = () => {
         {poweredByMiden}
       </div>
       {isSuccessModalOpen && (
-        <SwapSuccess
+        <OrderStatus
           title={lpDetails?.actionType + ' Order'}
           onClose={() => setIsSuccessModalOpen(false)}
           swapResult={txResult}

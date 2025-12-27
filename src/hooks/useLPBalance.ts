@@ -22,7 +22,7 @@ export const useLPBalance = ({ token }: { token?: TokenConfig }) => {
     )?.toFelts();
     const balance = BigInt(lp?.[0].asInt() || BigInt(0)) ?? BigInt(0);
     setBalance(balance);
-  }, [poolAccountId, client, accountId, token]);
+  }, [poolAccountId, client, accountId, token, getAccount]);
 
   useEffect(() => {
     refetch();
